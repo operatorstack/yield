@@ -1,0 +1,231 @@
+{
+  "schema_version": 1,
+  "id": "yield-sdk-execution-contract-v1",
+  "subject": "Yield SDK execution contract: one skill-program execution loads the journal, replays recorded operations with per-step digest comparison, and emits exactly one protocol output (request, terminal, or diverged) before exit. The reference is the supervisor's expectation of the observable output stream.",
+  "evidence": [
+    {
+      "path": "labs/22-yield/yield/sdk/yield/yield.go",
+      "note": "Go SDK: step() replay/compare/emit, Main() terminal emission \u2014 the behavior TS/Python SDKs must refine"
+    },
+    {
+      "path": "labs/22-yield/yield/internal/engine/engine.go",
+      "note": "supervisor: execute() consumes exactly one ProgramOutput per subprocess execution"
+    }
+  ],
+  "states": [
+    {
+      "id": "START"
+    },
+    {
+      "id": "LOOP"
+    },
+    {
+      "id": "COMPARE"
+    },
+    {
+      "id": "EMIT_REQ"
+    },
+    {
+      "id": "EMIT_TERM"
+    },
+    {
+      "id": "EMIT_DIV"
+    },
+    {
+      "id": "EXITING"
+    },
+    {
+      "id": "DONE",
+      "marked": true
+    }
+  ],
+  "events": [
+    {
+      "id": "load_journal",
+      "controllable": true,
+      "observable": false
+    },
+    {
+      "id": "produce_recorded_op",
+      "controllable": true,
+      "observable": false
+    },
+    {
+      "id": "digest_match",
+      "controllable": true,
+      "observable": false
+    },
+    {
+      "id": "digest_mismatch",
+      "controllable": false,
+      "observable": false
+    },
+    {
+      "id": "produce_new_op",
+      "controllable": true,
+      "observable": false
+    },
+    {
+      "id": "program_returns",
+      "controllable": true,
+      "observable": false
+    },
+    {
+      "id": "requirement_fails",
+      "controllable": false,
+      "observable": false
+    },
+    {
+      "id": "emit_request",
+      "controllable": true,
+      "observable": true
+    },
+    {
+      "id": "emit_terminal",
+      "controllable": true,
+      "observable": true
+    },
+    {
+      "id": "emit_diverged",
+      "controllable": true,
+      "observable": true
+    },
+    {
+      "id": "exit_process",
+      "controllable": true,
+      "observable": true
+    }
+  ],
+  "transitions": [
+    {
+      "from": "START",
+      "event": "load_journal",
+      "to": "LOOP",
+      "evidence": [
+        0
+      ]
+    },
+    {
+      "from": "LOOP",
+      "event": "produce_recorded_op",
+      "to": "COMPARE",
+      "evidence": [
+        0
+      ]
+    },
+    {
+      "from": "COMPARE",
+      "event": "digest_match",
+      "to": "LOOP",
+      "evidence": [
+        0
+      ]
+    },
+    {
+      "from": "COMPARE",
+      "event": "digest_mismatch",
+      "to": "EMIT_DIV",
+      "evidence": [
+        0
+      ]
+    },
+    {
+      "from": "LOOP",
+      "event": "produce_new_op",
+      "to": "EMIT_REQ",
+      "evidence": [
+        0
+      ]
+    },
+    {
+      "from": "LOOP",
+      "event": "program_returns",
+      "to": "EMIT_TERM",
+      "evidence": [
+        0
+      ]
+    },
+    {
+      "from": "LOOP",
+      "event": "requirement_fails",
+      "to": "EMIT_TERM",
+      "evidence": [
+        0
+      ]
+    },
+    {
+      "from": "EMIT_REQ",
+      "event": "emit_request",
+      "to": "EXITING",
+      "evidence": [
+        0
+      ]
+    },
+    {
+      "from": "EMIT_TERM",
+      "event": "emit_terminal",
+      "to": "EXITING",
+      "evidence": [
+        0
+      ]
+    },
+    {
+      "from": "EMIT_DIV",
+      "event": "emit_diverged",
+      "to": "EXITING",
+      "evidence": [
+        0
+      ]
+    },
+    {
+      "from": "EXITING",
+      "event": "exit_process",
+      "to": "DONE",
+      "evidence": [
+        1
+      ]
+    }
+  ],
+  "reference": {
+    "states": [
+      {
+        "id": "R0"
+      },
+      {
+        "id": "R1"
+      },
+      {
+        "id": "R2"
+      }
+    ],
+    "transitions": [
+      {
+        "from": "R0",
+        "event": "emit_request",
+        "to": "R1"
+      },
+      {
+        "from": "R0",
+        "event": "emit_terminal",
+        "to": "R1"
+      },
+      {
+        "from": "R0",
+        "event": "emit_diverged",
+        "to": "R1"
+      },
+      {
+        "from": "R1",
+        "event": "exit_process",
+        "to": "R2"
+      }
+    ]
+  },
+  "targets": {
+    "selector": "marked"
+  },
+  "unknowns": [
+    "The TS and Python SDKs are not yet implemented; this contract is what they must exhibit, discharged by running each example skill through yskill test.",
+    "Determinism between yields is the program author's obligation in every language; the contract detects divergence, it cannot prevent nondeterminism."
+  ]
+}

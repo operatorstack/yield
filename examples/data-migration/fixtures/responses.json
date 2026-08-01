@@ -1,0 +1,6 @@
+{
+  "summarize-plan": {
+    "summary": "Adds users_email_idx concurrently; no data rewrite; rollback is DROP INDEX. The only irreversible step is index creation time."
+  },
+  "approve-apply": { "value": "apply" }
+}

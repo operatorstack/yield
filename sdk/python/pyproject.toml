@@ -1,0 +1,17 @@
+[project]
+name = "yieldskill"
+version = "0.1.0"
+description = "Yield skill-program SDK for Python: turn SKILL.md workflows into resumable programs."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+
+[project.urls]
+Repository = "https://github.com/operatorstack/yield"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["yieldskill"]

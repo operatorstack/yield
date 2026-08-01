@@ -218,7 +218,13 @@ func DigestSkillDir(dir string) (string, error) {
 			return nil
 		}
 		base := d.Name()
-		if strings.HasSuffix(base, ".go") || base == "SKILL.md" || base == "go.mod" {
+		switch {
+		case strings.HasSuffix(base, ".go"), strings.HasSuffix(base, ".ts"),
+			strings.HasSuffix(base, ".js"), strings.HasSuffix(base, ".mjs"),
+			strings.HasSuffix(base, ".py"):
+			files = append(files, path)
+		case base == "SKILL.md", base == "go.mod", base == "skill.json",
+			base == "package.json", base == "pyproject.toml", base == "requirements.txt":
 			files = append(files, path)
 		}
 		return nil

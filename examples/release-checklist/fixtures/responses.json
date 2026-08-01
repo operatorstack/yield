@@ -1,0 +1,6 @@
+{
+  "approve-deploy": { "value": "yes" },
+  "release-notes": {
+    "notes": "Ships the resumable-run supervisor with evidence-bound completion; no schema changes; rollback is redeploy of the previous tag."
+  }
+}

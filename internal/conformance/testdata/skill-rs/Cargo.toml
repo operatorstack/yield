@@ -1,0 +1,13 @@
+[package]
+name = "skill-rs"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+yieldskill = { path = "../../../../sdk/rust" }
+serde_json = "1"
+
+[[bin]]
+name = "skill-rs"
+path = "src/main.rs"

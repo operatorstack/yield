@@ -41,13 +41,34 @@ Five primitives, two exits:
 | `Require` | a claim bound to evidence; failure makes completion structurally unreachable |
 | `Complete` / `Blocked` / `Refused` | honest terminals, always recorded |
 
+## Four languages, one protocol
+
+Write the skill program in Go, TypeScript, Python, or Rust — the
+supervisor doesn't care. Every SDK implements the same certified
+execution contract over the canonical `ir/yield.v1` schemas, and the
+conformance suite (`internal/conformance`) runs the *same program* in all
+four languages and asserts identical observable protocol behavior.
+
+| language | SDK | example |
+|---|---|---|
+| Go | `sdk/yield` | `examples/investigate` — bounded hypothesis loop |
+| TypeScript | `sdk/typescript` (`@operatorstack/yield`) | `examples/release-checklist` — human-gated deploy |
+| Python | `sdk/python` (`yieldskill`) | `examples/env-doctor` — probe, branch, resume after the human |
+| Rust | `sdk/rust` (`yieldskill`) | `examples/data-migration` — dry-run → approve → apply → verify |
+
+Non-Go skills declare their runner in `skill.json`:
+`{"run": ["node", "main.ts"]}`.
+
 ## Try it
 
 ```
 go build -o yskill ./cmd/yskill
-./yskill test examples/investigate     # scripted fixture run to completion
-./yskill run examples/investigate      # prints the first operation envelope
-./yskill init my-skill                 # scaffold, or wrap an existing prose skill
+./yskill test examples/investigate        # Go: scripted fixture run to completion
+./yskill test examples/release-checklist  # TypeScript (Node >= 23.6)
+./yskill test examples/env-doctor         # Python 3.10+
+./yskill test examples/data-migration     # Rust (cargo)
+./yskill run  examples/investigate        # prints the first operation envelope
+./yskill init my-skill                    # scaffold, or wrap an existing prose skill
 ```
 
 The reference skill, `examples/investigate`, encodes an investigation

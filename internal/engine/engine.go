@@ -221,7 +221,9 @@ func (e *Engine) execute(l *runlog.Log, runID string) (*protocol.ProgramOutput, 
 	if err != nil {
 		return nil, err
 	}
-	journal := protocol.Journal{RunID: runID, Skill: s.Skill}
+	// Entries starts non-nil so the journal marshals as "entries": [] —
+	// null is not a sequence in stricter SDK decoders (Rust serde).
+	journal := protocol.Journal{RunID: runID, Skill: s.Skill, Entries: []protocol.JournalEntry{}}
 	// Rebuild answered entries in sequence order from the log.
 	pendingBySeq := map[int]protocol.Request{}
 	results := map[int]json.RawMessage{}
@@ -267,9 +269,13 @@ func (e *Engine) execute(l *runlog.Log, runID string) (*protocol.ProgramOutput, 
 	}
 	jf.Close()
 
+	runner, err := runnerCommand(e.SkillDir)
+	if err != nil {
+		return nil, err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "go", "run", ".")
+	cmd := exec.CommandContext(ctx, runner[0], runner[1:]...)
 	cmd.Dir = e.SkillDir
 	cmd.Env = append(os.Environ(), "YIELD_JOURNAL="+jf.Name())
 	cmd.Stderr = e.Stderr
@@ -282,6 +288,30 @@ func (e *Engine) execute(l *runlog.Log, runID string) (*protocol.ProgramOutput, 
 		return nil, fmt.Errorf("skill program emitted invalid output: %w", err)
 	}
 	return &out, nil
+}
+
+// runnerCommand decides how to execute the skill program. A skill.json
+// manifest with {"run": ["cmd", "args"...]} wins (the seam that lets one
+// supervisor drive Go, TypeScript, and Python programs — they all speak
+// the same yield.v1 IR); a main.go falls back to `go run .`.
+func runnerCommand(skillDir string) ([]string, error) {
+	manifest := filepath.Join(skillDir, "skill.json")
+	if b, err := os.ReadFile(manifest); err == nil {
+		var m struct {
+			Run []string `json:"run"`
+		}
+		if err := json.Unmarshal(b, &m); err != nil {
+			return nil, fmt.Errorf("skill.json does not decode: %w", err)
+		}
+		if len(m.Run) == 0 {
+			return nil, fmt.Errorf("skill.json must declare a non-empty run command")
+		}
+		return m.Run, nil
+	}
+	if _, err := os.Stat(filepath.Join(skillDir, "main.go")); err == nil {
+		return []string{"go", "run", "."}, nil
+	}
+	return nil, fmt.Errorf("cannot determine how to run the skill in %s: add skill.json with {\"run\": [...]} or a main.go", skillDir)
 }
 
 // runCommand executes a run_command operation itself with a timeout; the

@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "yield.v1 program output \u2014 the single output of one skill-program execution",
+  "type": "object",
+  "required": [
+    "type"
+  ],
+  "properties": {
+    "type": {
+      "enum": [
+        "request",
+        "terminal",
+        "diverged"
+      ]
+    },
+    "envelope": {
+      "$ref": "request-envelope.schema.json"
+    },
+    "terminal": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "completed",
+            "blocked",
+            "refused",
+            "requirement_failed"
+          ]
+        },
+        "result": {},
+        "reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "divergence": {
+      "type": "object",
+      "required": [
+        "sequence",
+        "expected_digest",
+        "got_digest"
+      ],
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expected_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "got_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "detail": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "claim",
+          "passed"
+        ],
+        "properties": {
+          "claim": {
+            "type": "string",
+            "minLength": 1
+          },
+          "passed": {
+            "type": "boolean"
+          },
+          "evidence_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "request"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "envelope"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "terminal"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "terminal"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "diverged"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "divergence"
+        ]
+      }
+    }
+  ],
+  "additionalProperties": false
+}

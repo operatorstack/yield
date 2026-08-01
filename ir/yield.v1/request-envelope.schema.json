@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "yield.v1 request envelope",
+  "type": "object",
+  "required": [
+    "protocol",
+    "run_id",
+    "skill",
+    "sequence",
+    "request"
+  ],
+  "properties": {
+    "protocol": {
+      "const": "yield.v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "skill": {
+      "$ref": "#/$defs/skillRef"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "request": {
+      "$ref": "#/$defs/request"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "skillRef": {
+      "type": "object",
+      "required": [
+        "name",
+        "digest"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "request": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "payload"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "ask_user",
+            "agent_task",
+            "run_command"
+          ]
+        },
+        "payload": {},
+        "output_schema": {}
+      },
+      "additionalProperties": false
+    }
+  }
+}

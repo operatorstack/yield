@@ -1,0 +1,18 @@
+{
+  "name": "@operatorstack/yield",
+  "version": "0.1.0",
+  "description": "Yield skill-program SDK for TypeScript: turn SKILL.md workflows into resumable programs.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "engines": {
+    "node": ">=23.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/operatorstack/yield.git",
+    "directory": "sdk/typescript"
+  }
+}
