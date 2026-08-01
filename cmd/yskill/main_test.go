@@ -53,8 +53,17 @@ func TestParseOnePositionalKeepsFlagFirstOrder(t *testing.T) {
 
 func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 	previousVersion := version
+	previousTidyGoModule := tidyGoModule
 	version = "0.1.9"
-	t.Cleanup(func() { version = previousVersion })
+	tidyCalls := 0
+	tidyGoModule = func(string) error {
+		tidyCalls++
+		return nil
+	}
+	t.Cleanup(func() {
+		version = previousVersion
+		tidyGoModule = previousTidyGoModule
+	})
 
 	tests := []struct {
 		language string
@@ -64,7 +73,7 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 	}{
 		{"typescript", []string{"main.ts", "package.json", "skill.json"}, "npm exec -- yskill run .", `"@operatorstack/yield": "0.1.9"`},
 		{"python", []string{"main.py", "requirements.txt", "skill.json"}, "python -m yieldskill run .", "yieldskill==0.1.9"},
-		{"go", []string{"main.go", "go.mod"}, "yskill run .", "github.com/operatorstack/yield v0.1.9"},
+		{"go", []string{"main.go", "go.mod", "skill.json"}, "yskill run .", "github.com/operatorstack/yield v0.1.9"},
 		{"rust", []string{"src/main.rs", "Cargo.toml", ".cargo/config.toml", "skill.json"}, "yskill run .", `version = "=0.1.9"`},
 	}
 	for _, tt := range tests {
@@ -97,6 +106,28 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 				t.Fatalf("manifest does not contain %q:\n%s", tt.pin, manifest)
 			}
 		})
+	}
+	if tidyCalls != 1 {
+		t.Fatalf("go mod tidy calls = %d, want 1", tidyCalls)
+	}
+}
+
+func TestGoScaffoldCanResolveItsPinnedModuleOnFirstRun(t *testing.T) {
+	previousVersion := version
+	previousTidyGoModule := tidyGoModule
+	version = "0.1.9"
+	tidyGoModule = func(string) error { return nil }
+	t.Cleanup(func() {
+		version = previousVersion
+		tidyGoModule = previousTidyGoModule
+	})
+	dir := filepath.Join(t.TempDir(), "go-skill")
+	if err := scaffoldSkill(dir, "go", ""); err != nil {
+		t.Fatal(err)
+	}
+	manifest := readTestFile(t, filepath.Join(dir, "skill.json"))
+	if manifest != "{\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n" {
+		t.Fatalf("skill.json = %q", manifest)
 	}
 }
 

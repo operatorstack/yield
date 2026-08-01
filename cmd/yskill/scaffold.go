@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -11,6 +12,16 @@ import (
 
 var releaseVersionPattern = regexp.MustCompile(`^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$`)
 var unsafePackageCharacter = regexp.MustCompile(`[^a-z0-9_-]+`)
+var tidyGoModule = func(dir string) error {
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("prepare Go scaffold dependencies: %w", err)
+	}
+	return nil
+}
 
 func defaultLanguage() string {
 	if language := strings.TrimSpace(os.Getenv("YIELD_LANGUAGE")); language != "" {
@@ -69,6 +80,11 @@ func scaffoldSkill(dir, language, sdkPath string) error {
 			return err
 		}
 	}
+	if language == "go" {
+		if err := tidyGoModule(dir); err != nil {
+			return err
+		}
+	}
 	fmt.Printf("init: %s skill %q scaffolded in %s\n", language, name, dir)
 	return nil
 }
@@ -109,7 +125,11 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
 		if sdkPath != "" {
 			gomod += fmt.Sprintf("\nreplace github.com/operatorstack/yield => %s\n", sdkPath)
 		}
-		return map[string]string{"main.go": mainGo, "go.mod": gomod}
+		return map[string]string{
+			"main.go":    mainGo,
+			"go.mod":     gomod,
+			"skill.json": "{\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n",
+		}
 	}
 }
 

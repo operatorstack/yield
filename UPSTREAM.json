@@ -4,8 +4,8 @@
     "LICENSE": "fff261ce507eabd57666c283a621f33e183a3aedebda04c4ecbc6309a62f5edf",
     "README.md": "25414dfd686342b2153b63bab6c8a5c9fbab1e5fb80be368b8c43f5161b53b83",
     "cmd/yskill/main.go": "391d388b1f5ad4eaebcd833d802eca0dcbcb669a876bc9fe6cd57f54e3689732",
-    "cmd/yskill/main_test.go": "a6f6c5475aebd80bca29434d24ff599bdda7766b3786c41d55f8c44453ed1e0a",
-    "cmd/yskill/scaffold.go": "e00b024d76ba58bef0f8680147d9a905db565ae6ddd8141bc6718bde22396ed3",
+    "cmd/yskill/main_test.go": "629a5468f587d9ad69e8147601ab8983db0089fa6856378edb3ab14c1928bfd8",
+    "cmd/yskill/scaffold.go": "cc528eb8dabb2032ddaf5ac07a54ff5b95a7250c32d6603ec285cc7d8a20619c",
     "docs/README.md": "cd8a4105f4f04143172661b39789e3c533d031ad46437aa2c078625a29a0a9db",
     "docs/convert-existing-skill.md": "0dd538e908a1f2d3a1958e4b2cc1efede2a8e7a73341e32c1a75fec69a9acb8a",
     "docs/examples.md": "3c19bacae7ec7b31bf93417e61d01cd1872f26228fedf0ed6decfce7c41ed274",
@@ -59,7 +59,7 @@
     "evals/package.json": "84ac7bd7d1c0d1db2233dab54754296195b267e5e907d9f6c402d0d44d569adb",
     "evals/results/README.md": "65b74bfab83dfc51fc5b8a3a4824c37b722fb3a358a5dcfb217dc2af199f4801",
     "evals/results/latest-agent.json": "1484174819ae29bbcffeb615036fa165518669525e6d664123f6a38ca3614b69",
-    "evals/results/latest.json": "ff2bee0e668755d3136b97883ced893b9e0294c003b88252a44604fcc067ffd6",
+    "evals/results/latest.json": "4fbd1a9322b138cfa0c8518c07daa71a58a8d4c1b590af8bd825a32890bd72cb",
     "evals/scripts/run.mjs": "119248cd4d383326d396f4459df28c51ce7c31088d97639851f2f5ab4c329892",
     "evals/scripts/validate.mjs": "7ac2a3239cd1b52a604c8a8a52a1af4ac55c4007ac2751d4fbfe20d0e1f568dc",
     "examples/convert-skill/SKILL.md": "e6376f34365d4ac030d316db55e91f0c606a501668099f4ecf1e27d43ec806a2",
@@ -289,6 +289,7 @@
     "release-notes/2026-08-01-evaluation-surface.md": "64fb5e2fdad3ccd41967e028cf4675c45939174000281c443f4b28d96dc07549",
     "release-notes/2026-08-01-example-library.md": "14d6ca40529a6aeeb72872295e57bb0d7dcc7824df31e029e497602060ce4c97",
     "release-notes/2026-08-01-first-party-evaluations.md": "9e74c48112343c409a88358138db80d731004f87900f1b23073f16c415163fcf",
+    "release-notes/2026-08-01-go-scaffold-first-run.md": "3852e7e4eb4289b0de21ed93c96bd217753ecc40b5afd8bcb865f99fa32991c7",
     "release-notes/2026-08-01-initial-projection.md": "d38f0832b5552fb97237b30d19bb63369442ddde69e678b752ac07eedeb7ba3d",
     "release-notes/2026-08-01-multi-language-and-converter.md": "d0cf62d191e6a58e827f3b35d442f88b83be4dde98aa25ad54e4ae3ff787a453",
     "release-notes/2026-08-01-one-package-per-language.md": "6d0d55b4fdcef20332e98c34c1c42c8564aeeeac84647e9f76005b6842d0c91c",
@@ -312,7 +313,7 @@
   "generator": "operatorstack/yield:project",
   "schema_version": 1,
   "source": {
-    "commit": "4446951aa6a0e3a4fd64fefffacadb8b43252ffa",
+    "commit": "edca07eaf8a7483829ea03b1c1eed21c323005f7",
     "path": "labs/22-yield",
     "repository": "operatorstack/intelligence-flow"
   }
