@@ -1,0 +1,148 @@
+name: Publish SDKs to OperatorStack Registry
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Existing release version without the leading v"
+        required: true
+        default: "0.1.4"
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-yield-sdks
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: dtolnay/rust-toolchain@stable
+
+      - id: version
+        name: Resolve published version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+          else
+            version="$REQUESTED_VERSION"
+          fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git rev-parse --verify "refs/tags/v${version}"
+          test "$(git rev-list -n 1 "v${version}")" = "$GITHUB_SHA"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOYER_SA_EMAIL }}
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Verify Go SDK and runtime
+        run: go test ./...
+
+      - name: Publish Go module
+        run: |
+          set -euo pipefail
+          if gcloud artifacts versions describe "v${{ steps.version.outputs.version }}" \
+            --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
+            --repository="${{ vars.AR_GO_REPO }}" --package=github.com/operatorstack/yield \
+            >/dev/null 2>&1; then
+            echo "Go module already published."
+          else
+            gcloud artifacts go upload \
+              --project="${{ vars.AR_PROJECT }}" \
+              --location="${{ vars.AR_LOCATION }}" \
+              --repository="${{ vars.AR_GO_REPO }}" \
+              --module-path=github.com/operatorstack/yield \
+              --version="v${{ steps.version.outputs.version }}" \
+              --source=.
+          fi
+
+      - name: Publish TypeScript SDK
+        working-directory: sdk/typescript
+        run: |
+          set -euo pipefail
+          if gcloud artifacts versions describe "${{ steps.version.outputs.version }}" \
+            --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
+            --repository="${{ vars.AR_NPM_REPO }}" --package=@operatorstack/yield \
+            >/dev/null 2>&1; then
+            echo "TypeScript SDK already published."
+          else
+            npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
+            gcloud artifacts print-settings npm \
+              --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
+              --repository="${{ vars.AR_NPM_REPO }}" --scope=@operatorstack > .npmrc
+            npx -y google-artifactregistry-auth .npmrc
+            npm publish
+          fi
+
+      - name: Build and publish Python SDK
+        working-directory: sdk/python
+        run: |
+          set -euo pipefail
+          if gcloud artifacts versions describe "${{ steps.version.outputs.version }}" \
+            --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
+            --repository="${{ vars.AR_PYTHON_REPO }}" --package=yieldskill \
+            >/dev/null 2>&1; then
+            echo "Python SDK already published."
+          else
+            sed -i 's/^version = .*/version = "${{ steps.version.outputs.version }}"/' pyproject.toml
+            python -m pip install --quiet build twine keyrings.google-artifactregistry-auth
+            python -m build
+            twine upload \
+              --repository-url "https://${{ vars.AR_LOCATION }}-python.pkg.dev/${{ vars.AR_PROJECT }}/${{ vars.AR_PYTHON_REPO }}/" \
+              dist/*
+          fi
+
+      - name: Build Rust crate and sparse-index record
+        working-directory: sdk/rust
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          sed -i "s/^version = .*/version = \"${version}\"/" Cargo.toml
+          cargo package --allow-dirty
+          crate="target/package/yieldskill-${version}.crate"
+          checksum="$(sha256sum "$crate" | cut -d' ' -f1)"
+          curl -fsSL https://get.operatorstack.systems/cargo/index/yi/el/yieldskill \
+            | grep -v "\"vers\":\"${version}\"" > yieldskill-index.json || true
+          jq -nc --arg vers "$version" --arg cksum "$checksum" '{
+            name:"yieldskill",vers:$vers,
+            deps:[
+              {name:"hex",req:"^0.4",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:null},
+              {name:"serde",req:"^1",features:["derive"],optional:false,default_features:true,target:null,kind:"normal",registry:null},
+              {name:"serde_json",req:"^1",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:null},
+              {name:"sha2",req:"^0.10",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:null}
+            ],
+            cksum:$cksum,features:{},yanked:false,links:null
+          }' >> yieldskill-index.json
+          mkdir publish
+          cp "$crate" yieldskill-index.json publish/
+          gcloud artifacts generic upload \
+            --project="${{ vars.AR_PROJECT }}" \
+            --location="${{ vars.AR_LOCATION }}" \
+            --repository="${{ vars.AR_GENERIC_REPO }}" \
+            --package=yield-rust --version="$version" \
+            --source-directory=publish --skip-existing
