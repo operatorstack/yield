@@ -1,6 +1,6 @@
 {
   "files": {
-    ".gitignore": "38473abeab7df3bb46f3ffbe8bb52e1912c8bf8be33518d10a86f486ea996056",
+    ".gitignore": "803c5f79d6da7f2c5a1dc0ce27c53b8e5c059309b165782831c4c472af058a4c",
     "LICENSE": "fff261ce507eabd57666c283a621f33e183a3aedebda04c4ecbc6309a62f5edf",
     "README.md": "88cfb33c5cf6dae69674a357cb5dfe8233c5979564b04ee45f7ca62d5c597e4e",
     "cmd/yskill/main.go": "a88bdd133118aa7b86cdf021e67052bd8e64e63b3792c091f7612699af89648b",
@@ -70,19 +70,7 @@
     "ir/yield.v1/response-envelope.schema.json": "698fc20510bf1362cac17f332b8ec4b4dd336d2bee4294b1949ed3257b535639",
     "release-notes/2026-08-01-initial-projection.md": "d38f0832b5552fb97237b30d19bb63369442ddde69e678b752ac07eedeb7ba3d",
     "release-notes/2026-08-01-multi-language-and-converter.md": "d0cf62d191e6a58e827f3b35d442f88b83be4dde98aa25ad54e4ae3ff787a453",
-    "runs/run-1785553716242371000.jsonl": "477520503220e0c0187bd04c86555e8717f8316416635f6c1352f4a936b1a63e",
-    "runs/run-1785553716271239000.jsonl": "105afafd899a38a5088cb9f5528749ad59b439d0e9164e786bb100a148055e53",
-    "runs/run-1785553716296303000.jsonl": "37a2a2743c84bcf14ec7b8e814ca684f24fcfcc949f088dc69b1af7aa6619a27",
-    "runs/run-1785553723942017000.jsonl": "260acf030bd3c2716f67dde5590612e62f92711572c810ee623657cf8e448367",
-    "runs/run-1785553734059599000.jsonl": "529696ac3aa5ac60f2a64141ce7506bc832e3c0b07e0b4bdf851e05b2d17f9ce",
-    "runs/run-1785553734097586000.jsonl": "3d87110e313e2f6df646c17a6e9fad7201f8ea75fc9f30c8be41eabf132e4a9e",
-    "runs/run-1785553734123623000.jsonl": "67832f1c5abb58fd48cfafb1488849501976ca93536d412dc31aad211c33b222",
-    "runs/run-1785553740031355000.jsonl": "a255500f3b2781569560d2a4a561ce4c9020a66f5416f3e742682b2b1ec17601",
-    "runs/run-1785553763925295000.jsonl": "766d9255a008a9c0a62cb010882c0ab2bfe19c4f8b81ae1183501c8eae26d81f",
-    "runs/run-1785553763947600000.jsonl": "0f0d9877a6a52861051e9d96f3f67637a01d6c8a594ce7a4a8f0ca68107e977c",
-    "runs/run-1785553763965938000.jsonl": "e07c0797d2d89b95c4bcb1976c8a3af78189b806fdbfa934613d27d591ffa973",
-    "runs/run-1785553763983488000.jsonl": "e8904deb2392b6d614d9ec66c92f3f1279b55cd535f85e42eb691241b66c9168",
-    "runs/run-1785553968444780000.jsonl": "27cc524a7c883cfcce409959ab8aad15c8cc4fa2e61709b11c7cc5ba747a0f72",
+    "release-notes/2026-08-01-remove-stray-analysis-traces.md": "0567f78ee97ffd23b3f26b5c39606e9ff6659c50a3fdef04ed9b3aa86cfa99af",
     "sdk/python/README.md": "415fde10711137e0baf30874844a0482cebbf60fb59cb751eba56dedfebb0ce8",
     "sdk/python/pyproject.toml": "d9464afafbb78061b00aa7193fc342e2df80002b0443605a4b41a5da9e081802",
     "sdk/python/yieldskill/__init__.py": "7e47b47b8a038640a06f596ab043a9e4519c4b5a02d12ea4e6c2ed398026a739",
@@ -95,7 +83,7 @@
   "generator": "operatorstack/yield:project",
   "schema_version": 1,
   "source": {
-    "commit": "c06dd8def20f158a8a2533da7a875aaf8d9559fd",
+    "commit": "03c76b40b0f5909fc6ae63588804ac699625ee11",
     "path": "labs/22-yield",
     "repository": "operatorstack/intelligence-flow"
   }
