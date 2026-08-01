@@ -59,6 +59,12 @@ four languages and asserts identical observable protocol behavior.
 Non-Go skills declare their runner in `skill.json`:
 `{"run": ["node", "main.ts"]}`.
 
+Already have prose skills? `examples/convert-skill` is a converter —
+itself a Yield skill — that extracts the implicit flow from an existing
+`SKILL.md`, asks you which language you want, has the model write the
+program, and completes only when the generated skill passes its own
+fixture run. A conversion that was never executed is never "done".
+
 ## Try it
 
 ```

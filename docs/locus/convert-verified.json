@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "id": "convert-skill-verified-v1",
+  "subject": "Yield skill converter pipeline: extract flow from prose SKILL.md, operator picks the target language, the model generates the program, and the converter completes only after the generated skill passes its own fixture run under yskill test.",
+  "evidence": [
+    { "path": "labs/22-yield/yield/cmd/yskill/main.go", "note": "yskill test: scripted fixture run of a skill directory; exit code is observed fact" },
+    { "path": "labs/22-yield/yield/internal/guard/guard.go", "note": "evidence-bound completion: a failed requirement prevents run.completed" }
+  ],
+  "states": [
+    { "id": "SOURCED" },
+    { "id": "FLOW_EXTRACTED" },
+    { "id": "LANG_CHOSEN" },
+    { "id": "GENERATED" },
+    { "id": "TEST_RUN" },
+    { "id": "TEST_PASSED" },
+    { "id": "TEST_FAILED" },
+    { "id": "SHIPPED_VERIFIED", "marked": true },
+    { "id": "SHIPPED_UNVERIFIED" },
+    { "id": "REPORTED_BLOCKED", "marked": true }
+  ],
+  "events": [
+    { "id": "read_prose", "controllable": true, "observable": true },
+    { "id": "extract_flow", "controllable": false, "observable": true },
+    { "id": "pick_language", "controllable": false, "observable": true },
+    { "id": "generate_program", "controllable": false, "observable": true },
+    { "id": "run_generated_test", "controllable": true, "observable": true },
+    { "id": "test_passes", "controllable": false, "observable": true },
+    { "id": "test_fails", "controllable": false, "observable": true },
+    { "id": "regenerate", "controllable": true, "observable": true },
+    { "id": "complete_with_evidence", "controllable": true, "observable": true },
+    { "id": "complete_untested", "controllable": true, "observable": true },
+    { "id": "declare_blocked", "controllable": true, "observable": true },
+    { "id": "archive", "controllable": false, "observable": true }
+  ],
+  "transitions": [
+    { "from": "SOURCED", "event": "extract_flow", "to": "FLOW_EXTRACTED", "evidence": [0] },
+    { "from": "FLOW_EXTRACTED", "event": "pick_language", "to": "LANG_CHOSEN", "evidence": [0] },
+    { "from": "LANG_CHOSEN", "event": "generate_program", "to": "GENERATED", "evidence": [0] },
+    { "from": "GENERATED", "event": "run_generated_test", "to": "TEST_RUN", "evidence": [0] },
+    { "from": "TEST_RUN", "event": "test_passes", "to": "TEST_PASSED", "evidence": [0] },
+    { "from": "TEST_RUN", "event": "test_fails", "to": "TEST_FAILED", "evidence": [0] },
+    { "from": "TEST_FAILED", "event": "regenerate", "to": "GENERATED", "evidence": [0] },
+    { "from": "TEST_FAILED", "event": "declare_blocked", "to": "REPORTED_BLOCKED", "evidence": [1] },
+    { "from": "TEST_PASSED", "event": "complete_with_evidence", "to": "SHIPPED_VERIFIED", "evidence": [1] },
+    { "from": "SHIPPED_VERIFIED", "event": "archive", "to": "SHIPPED_VERIFIED", "evidence": [0] },
+    { "from": "REPORTED_BLOCKED", "event": "archive", "to": "REPORTED_BLOCKED", "evidence": [0] }
+  ],
+  "spec": {
+    "description": "A converted skill must never ship without its fixture run passing under the real supervisor.",
+    "forbidden_states": ["SHIPPED_UNVERIFIED"]
+  },
+  "targets": { "selector": "marked" },
+  "unknowns": [
+    "Design A refuses complete_untested structurally: the event is in the alphabet, but the converter program offers no transition — Require(test.exit_code == 0) stands between GENERATED and completion.",
+    "Regeneration is bounded by a retry counter in the converter program; the model treats the bound as data, not modeled state."
+  ]
+}
