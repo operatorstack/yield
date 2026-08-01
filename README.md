@@ -81,8 +81,8 @@ use the documentation by job:
 - [tutorials](docs/tutorials/README.md) — review, approval, environment
   repair, bounded debugging, and migration;
 - [examples](docs/examples.md) — working programs in all four languages;
-- [evaluations](evals/README.md) — pinned conversion cases, reproducible
-  measurements, and the raw-evidence publication boundary;
+- [evaluations](evals/README.md) — first-party workflow conformance and runtime
+  invariant results, including the exact claim boundary;
 - [convert an existing skill](docs/convert-existing-skill.md) — move
   control flow into code without claiming that fixture execution proves
   every reading of the original prose;

@@ -1,41 +1,306 @@
 {
-  "schema_version": 1,
-  "status": "early",
-  "source_size": {
-    "methodology_version": "0.1",
-    "generated_at": "2026-08-01T15:57:22.533Z",
-    "tokenizer": "gpt-tokenizer 3.4.0 / cl100k_base",
-    "summary": {
-      "original_tokens": 43069,
-      "prompt_tokens": 791,
-      "workflow_tokens": 1398,
-      "maintained_tokens": 2189,
-      "maintained_reduction_pct": 94.9
-    },
-    "rows": [
-      {"id":"gstack-review","label":"GStack review","original_tokens":27162,"prompt_tokens":146,"workflow_tokens":160,"maintained_tokens":306,"maintained_change_pct":-98.9},
-      {"id":"doc-coauthoring","label":"Anthropic doc co-authoring","original_tokens":3289,"prompt_tokens":137,"workflow_tokens":209,"maintained_tokens":346,"maintained_change_pct":-89.5},
-      {"id":"systematic-debugging","label":"Superpowers systematic debugging","original_tokens":2226,"prompt_tokens":137,"workflow_tokens":226,"maintained_tokens":363,"maintained_change_pct":-83.7},
-      {"id":"vercel-deploy","label":"Vercel deploy","original_tokens":2898,"prompt_tokens":108,"workflow_tokens":290,"maintained_tokens":398,"maintained_change_pct":-86.3},
-      {"id":"mcp-builder","label":"Microsoft MCP builder","original_tokens":2648,"prompt_tokens":131,"workflow_tokens":291,"maintained_tokens":422,"maintained_change_pct":-84.1},
-      {"id":"actions-auditor","label":"Trail of Bits actions auditor","original_tokens":4846,"prompt_tokens":132,"workflow_tokens":222,"maintained_tokens":354,"maintained_change_pct":-92.7}
+  "schema_version": 2,
+  "methodology_version": "1.0",
+  "generated_at": "2026-08-01T17:53:20.762Z",
+  "source_digest": "8426ef59771921109fa7aa2d242e089d13f391aea60f2aebf509da93b7b534ae",
+  "status": "passed",
+  "workflow_conformance": {
+    "passed": 40,
+    "total": 40,
+    "patterns": 10,
+    "languages": [
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ],
+    "cases": [
+      {
+        "id": "typescript/review-branch",
+        "language": "typescript",
+        "pattern": "review-branch",
+        "status": "passed"
+      },
+      {
+        "id": "typescript/investigate-failure",
+        "language": "typescript",
+        "pattern": "investigate-failure",
+        "status": "passed"
+      },
+      {
+        "id": "typescript/qa-web-change",
+        "language": "typescript",
+        "pattern": "qa-web-change",
+        "status": "passed"
+      },
+      {
+        "id": "typescript/release-package",
+        "language": "typescript",
+        "pattern": "release-package",
+        "status": "passed"
+      },
+      {
+        "id": "typescript/triage-issue",
+        "language": "typescript",
+        "pattern": "triage-issue",
+        "status": "passed"
+      },
+      {
+        "id": "typescript/repair-ci",
+        "language": "typescript",
+        "pattern": "repair-ci",
+        "status": "passed"
+      },
+      {
+        "id": "typescript/upgrade-dependency",
+        "language": "typescript",
+        "pattern": "upgrade-dependency",
+        "status": "passed"
+      },
+      {
+        "id": "typescript/migrate-database",
+        "language": "typescript",
+        "pattern": "migrate-database",
+        "status": "passed"
+      },
+      {
+        "id": "typescript/audit-security",
+        "language": "typescript",
+        "pattern": "audit-security",
+        "status": "passed"
+      },
+      {
+        "id": "typescript/publish-ios",
+        "language": "typescript",
+        "pattern": "publish-ios",
+        "status": "passed"
+      },
+      {
+        "id": "python/review-branch",
+        "language": "python",
+        "pattern": "review-branch",
+        "status": "passed"
+      },
+      {
+        "id": "python/investigate-failure",
+        "language": "python",
+        "pattern": "investigate-failure",
+        "status": "passed"
+      },
+      {
+        "id": "python/qa-web-change",
+        "language": "python",
+        "pattern": "qa-web-change",
+        "status": "passed"
+      },
+      {
+        "id": "python/release-package",
+        "language": "python",
+        "pattern": "release-package",
+        "status": "passed"
+      },
+      {
+        "id": "python/triage-issue",
+        "language": "python",
+        "pattern": "triage-issue",
+        "status": "passed"
+      },
+      {
+        "id": "python/repair-ci",
+        "language": "python",
+        "pattern": "repair-ci",
+        "status": "passed"
+      },
+      {
+        "id": "python/upgrade-dependency",
+        "language": "python",
+        "pattern": "upgrade-dependency",
+        "status": "passed"
+      },
+      {
+        "id": "python/migrate-database",
+        "language": "python",
+        "pattern": "migrate-database",
+        "status": "passed"
+      },
+      {
+        "id": "python/audit-security",
+        "language": "python",
+        "pattern": "audit-security",
+        "status": "passed"
+      },
+      {
+        "id": "python/publish-ios",
+        "language": "python",
+        "pattern": "publish-ios",
+        "status": "passed"
+      },
+      {
+        "id": "go/review-branch",
+        "language": "go",
+        "pattern": "review-branch",
+        "status": "passed"
+      },
+      {
+        "id": "go/investigate-failure",
+        "language": "go",
+        "pattern": "investigate-failure",
+        "status": "passed"
+      },
+      {
+        "id": "go/qa-web-change",
+        "language": "go",
+        "pattern": "qa-web-change",
+        "status": "passed"
+      },
+      {
+        "id": "go/release-package",
+        "language": "go",
+        "pattern": "release-package",
+        "status": "passed"
+      },
+      {
+        "id": "go/triage-issue",
+        "language": "go",
+        "pattern": "triage-issue",
+        "status": "passed"
+      },
+      {
+        "id": "go/repair-ci",
+        "language": "go",
+        "pattern": "repair-ci",
+        "status": "passed"
+      },
+      {
+        "id": "go/upgrade-dependency",
+        "language": "go",
+        "pattern": "upgrade-dependency",
+        "status": "passed"
+      },
+      {
+        "id": "go/migrate-database",
+        "language": "go",
+        "pattern": "migrate-database",
+        "status": "passed"
+      },
+      {
+        "id": "go/audit-security",
+        "language": "go",
+        "pattern": "audit-security",
+        "status": "passed"
+      },
+      {
+        "id": "go/publish-ios",
+        "language": "go",
+        "pattern": "publish-ios",
+        "status": "passed"
+      },
+      {
+        "id": "rust/review-branch",
+        "language": "rust",
+        "pattern": "review-branch",
+        "status": "passed"
+      },
+      {
+        "id": "rust/investigate-failure",
+        "language": "rust",
+        "pattern": "investigate-failure",
+        "status": "passed"
+      },
+      {
+        "id": "rust/qa-web-change",
+        "language": "rust",
+        "pattern": "qa-web-change",
+        "status": "passed"
+      },
+      {
+        "id": "rust/release-package",
+        "language": "rust",
+        "pattern": "release-package",
+        "status": "passed"
+      },
+      {
+        "id": "rust/triage-issue",
+        "language": "rust",
+        "pattern": "triage-issue",
+        "status": "passed"
+      },
+      {
+        "id": "rust/repair-ci",
+        "language": "rust",
+        "pattern": "repair-ci",
+        "status": "passed"
+      },
+      {
+        "id": "rust/upgrade-dependency",
+        "language": "rust",
+        "pattern": "upgrade-dependency",
+        "status": "passed"
+      },
+      {
+        "id": "rust/migrate-database",
+        "language": "rust",
+        "pattern": "migrate-database",
+        "status": "passed"
+      },
+      {
+        "id": "rust/audit-security",
+        "language": "rust",
+        "pattern": "audit-security",
+        "status": "passed"
+      },
+      {
+        "id": "rust/publish-ios",
+        "language": "rust",
+        "pattern": "publish-ios",
+        "status": "passed"
+      }
     ]
   },
-  "behavior": {
-    "methodology_version": "0.3",
-    "generated_at": "2026-08-01T13:59:25.489Z",
-    "model": "gpt-5.6-terra",
-    "fixture_count": 4,
-    "repeats": 3,
-    "paid_model_runs": 36,
-    "arms": {
-      "original": {"oracle_passes":11,"samples":12,"detections":5,"positives":6,"clean_passes":6,"clean_controls":6,"median_input_tokens":235477.5},
-      "compressed": {"oracle_passes":12,"samples":12,"detections":6,"positives":6,"clean_passes":6,"clean_controls":6,"median_input_tokens":71905.5},
-      "yield": {"oracle_passes":12,"samples":12,"detections":6,"positives":6,"clean_passes":6,"clean_controls":6,"median_input_tokens":14027.5,"deterministic_replays":12}
-    },
-    "artifact": {
-      "status": "unpublished",
-      "reason": "The precursor run completed locally; its raw bundle has not been promoted to immutable public storage."
-    }
+  "runtime_invariants": {
+    "passed": 5,
+    "total": 5,
+    "cases": [
+      {
+        "id": "resume-complete",
+        "test": "TestEndToEndRunResumeComplete",
+        "assertion": "a recorded response advances the run to completion",
+        "status": "passed"
+      },
+      {
+        "id": "deterministic-replay",
+        "test": "TestReplayIsDeterministic",
+        "assertion": "the saved log returns to the same next step",
+        "status": "passed"
+      },
+      {
+        "id": "replay-divergence",
+        "test": "TestReplayDivergenceFailsLoudly",
+        "assertion": "changed behavior stops replay instead of reusing the wrong result",
+        "status": "passed"
+      },
+      {
+        "id": "requirement-block",
+        "test": "TestFailedRequirementBlocksRun",
+        "assertion": "a failed rule ends the run as blocked",
+        "status": "passed"
+      },
+      {
+        "id": "source-change",
+        "test": "TestDigestMismatchRefusedThenMigrates",
+        "assertion": "changed source is refused until the user accepts the change",
+        "status": "passed"
+      }
+    ]
+  },
+  "claim_boundary": {
+    "summary": "Yield executes the tested workflows and passes the tested runtime checks.",
+    "compares_tools": false,
+    "tests_agent_judgment": false,
+    "exclusions": [
+      "No claim that Yield is better than prompts or another tool.",
+      "Fixed test data replaces agent and human judgment.",
+      "Illustrative commands do not establish production safety for a real project."
+    ]
   }
 }
