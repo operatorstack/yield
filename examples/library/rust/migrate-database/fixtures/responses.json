@@ -1,0 +1,10 @@
+{
+  "review-migration": {
+    "status": "pass",
+    "critical": 0,
+    "summary": "Fixture result: Dry-run, inspect risk, approve, apply, and verify the real result."
+  },
+  "approve-migration": {
+    "value": "continue"
+  }
+}

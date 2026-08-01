@@ -1,0 +1,6 @@
+{
+  "run": [
+    "python3",
+    "../src/qa-web-change.py"
+  ]
+}

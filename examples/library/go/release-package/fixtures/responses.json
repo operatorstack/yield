@@ -1,0 +1,10 @@
+{
+  "review-release": {
+    "status": "pass",
+    "critical": 0,
+    "summary": "Fixture result: Test, review the release, ask for approval, publish, and verify."
+  },
+  "approve-publish": {
+    "value": "continue"
+  }
+}

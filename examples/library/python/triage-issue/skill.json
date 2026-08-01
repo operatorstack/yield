@@ -1,0 +1,6 @@
+{
+  "run": [
+    "python3",
+    "../src/triage-issue.py"
+  ]
+}

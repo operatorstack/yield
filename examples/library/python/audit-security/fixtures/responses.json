@@ -1,0 +1,7 @@
+{
+  "review-trust-boundaries": {
+    "status": "pass",
+    "critical": 0,
+    "summary": "Fixture result: Collect mechanical audit output, inspect trust boundaries, and reject critical risk."
+  }
+}

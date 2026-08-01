@@ -87,8 +87,17 @@ pub struct Requirement {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum TerminalStatus {
+    Completed,
+    Blocked,
+    Refused,
+    RequirementFailed,
+}
+
+#[derive(Debug, Serialize)]
 struct TerminalOutcome {
-    status: String,
+    status: TerminalStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     result: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -104,9 +113,17 @@ struct Divergence {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum OutputKind {
+    Request,
+    Terminal,
+    Diverged,
+}
+
+#[derive(Debug, Serialize)]
 struct ProgramOutput {
     #[serde(rename = "type")]
-    kind: String,
+    kind: OutputKind,
     #[serde(skip_serializing_if = "Option::is_none")]
     envelope: Option<RequestEnvelope>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -252,10 +269,10 @@ impl Context {
         self.requirements.push(req);
         if !ok {
             emit(ProgramOutput {
-                kind: "terminal".to_string(),
+                kind: OutputKind::Terminal,
                 envelope: None,
                 terminal: Some(TerminalOutcome {
-                    status: "requirement_failed".to_string(),
+                    status: TerminalStatus::RequirementFailed,
                     result: None,
                     reason: Some(claim.to_string()),
                 }),
@@ -285,7 +302,7 @@ impl Context {
             let got = request_digest(&req);
             if want != got {
                 emit(ProgramOutput {
-                    kind: "diverged".to_string(),
+                    kind: OutputKind::Diverged,
                     envelope: None,
                     terminal: None,
                     divergence: Some(Divergence {
@@ -305,7 +322,7 @@ impl Context {
         }
         self.idx += 1;
         emit(ProgramOutput {
-            kind: "request".to_string(),
+            kind: OutputKind::Request,
             envelope: Some(RequestEnvelope {
                 protocol: PROTOCOL.to_string(),
                 run_id: self.journal.run_id.clone(),
@@ -352,10 +369,10 @@ pub fn define_skill(program: fn(&mut Context) -> SkillResult) -> ! {
     };
     match program(&mut ctx) {
         Ok(result) => emit(ProgramOutput {
-            kind: "terminal".to_string(),
+            kind: OutputKind::Terminal,
             envelope: None,
             terminal: Some(TerminalOutcome {
-                status: "completed".to_string(),
+                status: TerminalStatus::Completed,
                 result: Some(result),
                 reason: None,
             }),
@@ -363,10 +380,10 @@ pub fn define_skill(program: fn(&mut Context) -> SkillResult) -> ! {
             requirements: ctx.requirements,
         }),
         Err(Exit::Blocked(reason)) => emit(ProgramOutput {
-            kind: "terminal".to_string(),
+            kind: OutputKind::Terminal,
             envelope: None,
             terminal: Some(TerminalOutcome {
-                status: "blocked".to_string(),
+                status: TerminalStatus::Blocked,
                 result: None,
                 reason: Some(reason),
             }),
@@ -374,10 +391,10 @@ pub fn define_skill(program: fn(&mut Context) -> SkillResult) -> ! {
             requirements: ctx.requirements,
         }),
         Err(Exit::Refused(reason)) => emit(ProgramOutput {
-            kind: "terminal".to_string(),
+            kind: OutputKind::Terminal,
             envelope: None,
             terminal: Some(TerminalOutcome {
-                status: "refused".to_string(),
+                status: TerminalStatus::Refused,
                 result: None,
                 reason: Some(reason),
             }),

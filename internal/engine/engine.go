@@ -283,11 +283,11 @@ func (e *Engine) execute(l *runlog.Log, runID string) (*protocol.ProgramOutput, 
 	if err != nil {
 		return nil, fmt.Errorf("skill program failed: %w", err)
 	}
-	var out protocol.ProgramOutput
-	if err := json.Unmarshal(outBytes, &out); err != nil {
+	out, err := protocol.DecodeProgramOutput(outBytes)
+	if err != nil {
 		return nil, fmt.Errorf("skill program emitted invalid output: %w", err)
 	}
-	return &out, nil
+	return out, nil
 }
 
 // runnerCommand decides how to execute the skill program. A skill.json

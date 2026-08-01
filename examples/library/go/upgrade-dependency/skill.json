@@ -1,0 +1,7 @@
+{
+  "run": [
+    "go",
+    "run",
+    "../src/upgrade-dependency/main.go"
+  ]
+}

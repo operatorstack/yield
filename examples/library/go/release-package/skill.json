@@ -1,0 +1,7 @@
+{
+  "run": [
+    "go",
+    "run",
+    "../src/release-package/main.go"
+  ]
+}

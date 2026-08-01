@@ -1,0 +1,7 @@
+{
+  "run": [
+    "go",
+    "run",
+    "../src/qa-web-change/main.go"
+  ]
+}

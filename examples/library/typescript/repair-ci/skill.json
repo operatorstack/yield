@@ -1,0 +1,6 @@
+{
+  "run": [
+    "node",
+    "../src/repair-ci.ts"
+  ]
+}

@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -115,22 +116,26 @@ type Requirement struct {
 // Program output types: a skill subprocess emits exactly one ProgramOutput
 // per execution — the next yielded request, a terminal outcome, or a
 // replay divergence report.
+type OutputKind string
+
 const (
-	OutputRequest  = "request"
-	OutputTerminal = "terminal"
-	OutputDiverged = "diverged"
+	OutputRequest  OutputKind = "request"
+	OutputTerminal OutputKind = "terminal"
+	OutputDiverged OutputKind = "diverged"
 )
 
 // Terminal statuses.
+type TerminalStatus string
+
 const (
-	StatusCompleted         = "completed"
-	StatusBlocked           = "blocked"
-	StatusRefused           = "refused"
-	StatusRequirementFailed = "requirement_failed"
+	StatusCompleted         TerminalStatus = "completed"
+	StatusBlocked           TerminalStatus = "blocked"
+	StatusRefused           TerminalStatus = "refused"
+	StatusRequirementFailed TerminalStatus = "requirement_failed"
 )
 
 type ProgramOutput struct {
-	Type         string           `json:"type"`
+	Type         OutputKind       `json:"type"`
 	Envelope     *RequestEnvelope `json:"envelope,omitempty"`
 	Terminal     *TerminalOutcome `json:"terminal,omitempty"`
 	Divergence   *Divergence      `json:"divergence,omitempty"`
@@ -138,7 +143,7 @@ type ProgramOutput struct {
 }
 
 type TerminalOutcome struct {
-	Status string          `json:"status"`
+	Status TerminalStatus  `json:"status"`
 	Result json.RawMessage `json:"result,omitempty"`
 	Reason string          `json:"reason,omitempty"`
 }
@@ -151,6 +156,126 @@ type Divergence struct {
 	Expected string `json:"expected_digest"`
 	Got      string `json:"got_digest"`
 	Detail   string `json:"detail,omitempty"`
+}
+
+// InvalidProgramOutputError means a skill emitted bytes that are not one
+// complete yield.v1 output variant. The engine must not dispatch such output.
+type InvalidProgramOutputError struct {
+	Reason string
+}
+
+func (e *InvalidProgramOutputError) Error() string {
+	return "invalid program output: " + e.Reason
+}
+
+// DecodeProgramOutput is the single admission boundary between an SDK
+// subprocess and engine authority. It accepts exactly one complete variant
+// and rejects unknown fields so future protocol changes fail closed until the
+// IR, decoder, and dispatch logic are upgraded together.
+func DecodeProgramOutput(raw []byte) (*ProgramOutput, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	var out ProgramOutput
+	if err := dec.Decode(&out); err != nil {
+		return nil, &InvalidProgramOutputError{Reason: err.Error()}
+	}
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
+		if err == nil {
+			err = fmt.Errorf("multiple JSON values")
+		}
+		return nil, &InvalidProgramOutputError{Reason: err.Error()}
+	}
+	if err := out.validate(); err != nil {
+		return nil, &InvalidProgramOutputError{Reason: err.Error()}
+	}
+	return &out, nil
+}
+
+func (out ProgramOutput) validate() error {
+	active := 0
+	if out.Envelope != nil {
+		active++
+	}
+	if out.Terminal != nil {
+		active++
+	}
+	if out.Divergence != nil {
+		active++
+	}
+	if active != 1 {
+		return fmt.Errorf("expected exactly one variant payload, got %d", active)
+	}
+	switch out.Type {
+	case OutputRequest:
+		if out.Envelope == nil {
+			return fmt.Errorf("request output requires envelope")
+		}
+		if err := out.Envelope.validate(); err != nil {
+			return err
+		}
+	case OutputTerminal:
+		if out.Terminal == nil {
+			return fmt.Errorf("terminal output requires terminal")
+		}
+		switch out.Terminal.Status {
+		case StatusCompleted, StatusBlocked, StatusRefused, StatusRequirementFailed:
+		default:
+			return fmt.Errorf("unknown terminal status %q", out.Terminal.Status)
+		}
+	case OutputDiverged:
+		if out.Divergence == nil {
+			return fmt.Errorf("diverged output requires divergence")
+		}
+		if out.Divergence.Sequence < 1 {
+			return fmt.Errorf("divergence sequence must be positive")
+		}
+		if !validDigest(out.Divergence.Expected) || !validDigest(out.Divergence.Got) {
+			return fmt.Errorf("divergence digests must be sha256 digests")
+		}
+	default:
+		return fmt.Errorf("unknown output type %q", out.Type)
+	}
+	for _, requirement := range out.Requirements {
+		if requirement.Claim == "" {
+			return fmt.Errorf("requirement claim must not be empty")
+		}
+		if requirement.EvidenceDigest != "" && !validDigest(requirement.EvidenceDigest) {
+			return fmt.Errorf("requirement evidence must be a sha256 digest")
+		}
+	}
+	return nil
+}
+
+func (env RequestEnvelope) validate() error {
+	if env.Protocol != Version {
+		return fmt.Errorf("request protocol must be %q", Version)
+	}
+	if env.RunID == "" || env.Skill.Name == "" || !validDigest(env.Skill.Digest) {
+		return fmt.Errorf("request run and skill identity are incomplete")
+	}
+	if env.Sequence < 1 || env.Request.ID == "" {
+		return fmt.Errorf("request sequence and id are required")
+	}
+	switch env.Request.Kind {
+	case OpAskUser, OpAgentTask, OpRunCommand:
+	default:
+		return fmt.Errorf("unknown operation kind %q", env.Request.Kind)
+	}
+	if !json.Valid(env.Request.Payload) {
+		return fmt.Errorf("request payload must be valid JSON")
+	}
+	if len(env.Request.OutputSchema) > 0 && !json.Valid(env.Request.OutputSchema) {
+		return fmt.Errorf("request output schema must be valid JSON")
+	}
+	return nil
+}
+
+func validDigest(value string) bool {
+	if len(value) != len("sha256:")+sha256.Size*2 || !strings.HasPrefix(value, "sha256:") {
+		return false
+	}
+	_, err := hex.DecodeString(strings.TrimPrefix(value, "sha256:"))
+	return err == nil
 }
 
 // JournalEntry is one recorded request/response pair handed to the skill

@@ -1,0 +1,7 @@
+{
+  "run": [
+    "go",
+    "run",
+    "../src/audit-security/main.go"
+  ]
+}

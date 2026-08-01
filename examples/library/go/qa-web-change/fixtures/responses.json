@@ -1,0 +1,7 @@
+{
+  "test-changed-routes": {
+    "status": "pass",
+    "critical": 0,
+    "summary": "Fixture result: Build first, exercise changed routes, and finish only with no blocking regressions."
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "run": [
+    "python3",
+    "../src/upgrade-dependency.py"
+  ]
+}

@@ -61,6 +61,21 @@ func validateIR(t *testing.T, c *jsonschema.Compiler, schemaFile string, v any) 
 	}
 }
 
+func rejectIR(t *testing.T, c *jsonschema.Compiler, schemaFile string, raw []byte) {
+	t.Helper()
+	compiled, err := c.Compile(schemaFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := compiled.Validate(doc); err == nil {
+		t.Fatalf("IR must reject %s", raw)
+	}
+}
+
 const irDigest = "sha256:9f2c9f2c9f2c9f2c9f2c9f2c9f2c9f2c9f2c9f2c9f2c9f2c9f2c9f2c9f2c9f2c"
 
 func sampleEnvelope() RequestEnvelope {
@@ -130,5 +145,39 @@ func TestIRRejectsUnknownKind(t *testing.T) {
 	doc, _ := jsonschema.UnmarshalJSON(bytes.NewReader(raw))
 	if err := compiled.Validate(doc); err == nil {
 		t.Fatal("the IR must reject operation kinds outside the closed set")
+	}
+}
+
+func TestProgramOutputAdmissionMatchesIR(t *testing.T) {
+	c := irCompiler(t)
+	valid := [][]byte{
+		[]byte(`{"type":"request","envelope":{"protocol":"yield.v1","run_id":"run_1","skill":{"name":"safe-change","digest":"` + irDigest + `"},"sequence":1,"request":{"id":"confirm-scope","kind":"ask_user","payload":{"question":"Continue?"}}}}`),
+		[]byte(`{"type":"terminal","terminal":{"status":"completed","result":{"ok":true}}}`),
+		[]byte(`{"type":"diverged","divergence":{"sequence":1,"expected_digest":"` + irDigest + `","got_digest":"` + irDigest + `"}}`),
+	}
+	for _, raw := range valid {
+		if _, err := DecodeProgramOutput(raw); err != nil {
+			t.Fatalf("decoder rejected valid output %s: %v", raw, err)
+		}
+		var value any
+		if err := json.Unmarshal(raw, &value); err != nil {
+			t.Fatal(err)
+		}
+		validateIR(t, c, "program-output.schema.json", value)
+	}
+
+	invalid := [][]byte{
+		[]byte(`{"type":"future","terminal":{"status":"completed"}}`),
+		[]byte(`{"type":"request"}`),
+		[]byte(`{"type":"request","envelope":{"protocol":"yield.v1"},"terminal":{"status":"completed"}}`),
+		[]byte(`{"type":"terminal","terminal":{"status":"future"}}`),
+		[]byte(`{"type":"diverged","divergence":{"sequence":0,"expected_digest":"bad","got_digest":"bad"}}`),
+		[]byte(`{"type":"terminal","terminal":{"status":"completed"},"future_field":true}`),
+	}
+	for _, raw := range invalid {
+		if _, err := DecodeProgramOutput(raw); err == nil {
+			t.Fatalf("decoder must reject %s", raw)
+		}
+		rejectIR(t, c, "program-output.schema.json", raw)
 	}
 }

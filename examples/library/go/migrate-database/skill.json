@@ -1,0 +1,7 @@
+{
+  "run": [
+    "go",
+    "run",
+    "../src/migrate-database/main.go"
+  ]
+}

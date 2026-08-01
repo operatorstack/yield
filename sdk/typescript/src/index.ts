@@ -71,18 +71,27 @@ interface Journal {
   entries?: { request: Request; response: ResponseEnvelope }[];
 }
 
-interface ProgramOutput {
-  type: "request" | "terminal" | "diverged";
-  envelope?: RequestEnvelope;
-  terminal?: { status: string; result?: unknown; reason?: string };
-  divergence?: {
-    sequence: number;
-    expected_digest: string;
-    got_digest: string;
-    detail?: string;
-  };
-  requirements?: Requirement[];
-}
+type ProgramOutput =
+  | { type: "request"; envelope: RequestEnvelope; requirements?: Requirement[] }
+  | {
+      type: "terminal";
+      terminal: {
+        status: "completed" | "blocked" | "refused" | "requirement_failed";
+        result?: unknown;
+        reason?: string;
+      };
+      requirements?: Requirement[];
+    }
+  | {
+      type: "diverged";
+      divergence: {
+        sequence: number;
+        expected_digest: string;
+        got_digest: string;
+        detail?: string;
+      };
+      requirements?: Requirement[];
+    };
 
 /** Terminal exit: a true frontier was reached — say so explicitly. */
 export class Blocked extends Error {
