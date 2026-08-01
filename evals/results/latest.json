@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "status": "early",
+  "source_size": {
+    "methodology_version": "0.1",
+    "generated_at": "2026-08-01T15:57:22.533Z",
+    "tokenizer": "gpt-tokenizer 3.4.0 / cl100k_base",
+    "summary": {
+      "original_tokens": 43069,
+      "prompt_tokens": 791,
+      "workflow_tokens": 1398,
+      "maintained_tokens": 2189,
+      "maintained_reduction_pct": 94.9
+    },
+    "rows": [
+      {"id":"gstack-review","label":"GStack review","original_tokens":27162,"prompt_tokens":146,"workflow_tokens":160,"maintained_tokens":306,"maintained_change_pct":-98.9},
+      {"id":"doc-coauthoring","label":"Anthropic doc co-authoring","original_tokens":3289,"prompt_tokens":137,"workflow_tokens":209,"maintained_tokens":346,"maintained_change_pct":-89.5},
+      {"id":"systematic-debugging","label":"Superpowers systematic debugging","original_tokens":2226,"prompt_tokens":137,"workflow_tokens":226,"maintained_tokens":363,"maintained_change_pct":-83.7},
+      {"id":"vercel-deploy","label":"Vercel deploy","original_tokens":2898,"prompt_tokens":108,"workflow_tokens":290,"maintained_tokens":398,"maintained_change_pct":-86.3},
+      {"id":"mcp-builder","label":"Microsoft MCP builder","original_tokens":2648,"prompt_tokens":131,"workflow_tokens":291,"maintained_tokens":422,"maintained_change_pct":-84.1},
+      {"id":"actions-auditor","label":"Trail of Bits actions auditor","original_tokens":4846,"prompt_tokens":132,"workflow_tokens":222,"maintained_tokens":354,"maintained_change_pct":-92.7}
+    ]
+  },
+  "behavior": {
+    "methodology_version": "0.3",
+    "generated_at": "2026-08-01T13:59:25.489Z",
+    "model": "gpt-5.6-terra",
+    "fixture_count": 4,
+    "repeats": 3,
+    "paid_model_runs": 36,
+    "arms": {
+      "original": {"oracle_passes":11,"samples":12,"detections":5,"positives":6,"clean_passes":6,"clean_controls":6,"median_input_tokens":235477.5},
+      "compressed": {"oracle_passes":12,"samples":12,"detections":6,"positives":6,"clean_passes":6,"clean_controls":6,"median_input_tokens":71905.5},
+      "yield": {"oracle_passes":12,"samples":12,"detections":6,"positives":6,"clean_passes":6,"clean_controls":6,"median_input_tokens":14027.5,"deterministic_replays":12}
+    },
+    "artifact": {
+      "status": "unpublished",
+      "reason": "The precursor run completed locally; its raw bundle has not been promoted to immutable public storage."
+    }
+  }
+}

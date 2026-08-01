@@ -1,0 +1,13 @@
+{
+  "name": "@operatorstack/yield-evals",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "validate": "node scripts/validate.mjs",
+    "measure": "node scripts/measure-source.mjs"
+  },
+  "dependencies": {
+    "gpt-tokenizer": "3.4.0"
+  }
+}
