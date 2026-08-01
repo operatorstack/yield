@@ -68,6 +68,8 @@ jobs:
           workload_identity_provider: ${{ vars.WIF_PROVIDER }}
           service_account: ${{ vars.DEPLOYER_SA_EMAIL }}
       - uses: google-github-actions/setup-gcloud@v2
+        with:
+          install_components: package-go-module
 
       - name: Verify Go SDK and runtime
         run: go test ./...
