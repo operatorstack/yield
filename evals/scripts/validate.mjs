@@ -24,7 +24,11 @@ for (const item of index.cases) {
   if (!isSha256(item.source.sha256)) fail(`${item.id}: source sha256 is invalid`)
   const skill = await readFile(join(root, "cases", item.thin_skill), "utf8")
   const workflow = await readFile(join(root, "cases", item.workflow), "utf8")
+  const readme = await readFile(join(root, "cases", item.id, "README.md"), "utf8")
   if (!skill.trim() || !workflow.trim()) fail(`${item.id}: conversion source is empty`)
+  for (const required of [item.source.repo, "convert-skill", "](SKILL.md)", "](workflow.ts)"]) {
+    if (!readme.includes(required)) fail(`${item.id}: README is missing ${required}`)
+  }
   localMeasurements.set(item.id, {
     prompt_tokens: countTokens(skill),
     workflow_tokens: countTokens(workflow),
