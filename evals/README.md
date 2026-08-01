@@ -1,9 +1,9 @@
 # Yield evaluations
 
 These evaluations test Yield itself. They do not compare Yield with another
-tool, company, prompt, or skill.
+tool or company.
 
-The suite answers two questions:
+The deterministic suite answers two questions:
 
 1. Can each checked-in example workflow reach its expected final result
    through every supported SDK?
@@ -47,9 +47,21 @@ A passing result proves that the tested Yield revision:
 
 This suite does not prove that Yield is better than prose, that an agent's
 judgment is correct, or that illustrative commands are production-safe. The
-Fixed test data supplies agent and human responses so the suite can test only
+fixed test data supplies agent and human responses so the suite can test only
 the code-controlled workflow layer.
 
 `results/latest.json` is a compact, website-safe result. Its source hash is
 computed from the CLI, engine, protocol, SDKs, example workflows, fixtures, and
 evaluation harness. CI reruns the suite instead of trusting that file alone.
+
+## Coding-agent workflow check
+
+The separate `agent/` suite runs the same owned workflow through a real coding
+agent in two forms: a long skill, and a thin skill backed by Yield code. It
+checks matching step order, gates, responses, and final status. It does not
+score the agent's domain judgment or claim that one form is better.
+
+```bash
+npm run eval:agent
+npm run test:agent
+```

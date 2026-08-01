@@ -1,0 +1,68 @@
+[
+  {
+    "id": "preflight-blocks",
+    "commands": {
+      "test-package": { "exit_code": 1, "stdout": "", "stderr": "tests failed\n" },
+      "publish-package": { "exit_code": 0, "stdout": "published\n", "stderr": "" },
+      "verify-package": { "exit_code": 0, "stdout": "verified\n", "stderr": "" }
+    },
+    "review": { "status": "pass", "critical": 0, "summary": "Release metadata is complete." },
+    "answers": { "approve-publish": "continue" },
+    "expected": { "steps": ["test-package"], "terminal": "blocked" }
+  },
+  {
+    "id": "review-blocks",
+    "commands": {
+      "test-package": { "exit_code": 0, "stdout": "tests passed\n", "stderr": "" },
+      "publish-package": { "exit_code": 0, "stdout": "published\n", "stderr": "" },
+      "verify-package": { "exit_code": 0, "stdout": "verified\n", "stderr": "" }
+    },
+    "review": { "status": "needs_work", "critical": 1, "summary": "The release notes omit a breaking API change." },
+    "answers": { "approve-publish": "continue" },
+    "expected": { "steps": ["test-package", "review-release"], "terminal": "blocked" }
+  },
+  {
+    "id": "approval-refuses",
+    "commands": {
+      "test-package": { "exit_code": 0, "stdout": "tests passed\n", "stderr": "" },
+      "publish-package": { "exit_code": 0, "stdout": "published\n", "stderr": "" },
+      "verify-package": { "exit_code": 0, "stdout": "verified\n", "stderr": "" }
+    },
+    "review": { "status": "pass", "critical": 0, "summary": "Release metadata is complete." },
+    "answers": { "approve-publish": "stop" },
+    "expected": { "steps": ["test-package", "review-release", "approve-publish"], "terminal": "refused" }
+  },
+  {
+    "id": "publish-blocks",
+    "commands": {
+      "test-package": { "exit_code": 0, "stdout": "tests passed\n", "stderr": "" },
+      "publish-package": { "exit_code": 1, "stdout": "", "stderr": "registry unavailable\n" },
+      "verify-package": { "exit_code": 0, "stdout": "verified\n", "stderr": "" }
+    },
+    "review": { "status": "pass", "critical": 0, "summary": "Release metadata is complete." },
+    "answers": { "approve-publish": "continue" },
+    "expected": { "steps": ["test-package", "review-release", "approve-publish", "publish-package"], "terminal": "blocked" }
+  },
+  {
+    "id": "verification-blocks",
+    "commands": {
+      "test-package": { "exit_code": 0, "stdout": "tests passed\n", "stderr": "" },
+      "publish-package": { "exit_code": 0, "stdout": "published\n", "stderr": "" },
+      "verify-package": { "exit_code": 1, "stdout": "", "stderr": "package not visible\n" }
+    },
+    "review": { "status": "pass", "critical": 0, "summary": "Release metadata is complete." },
+    "answers": { "approve-publish": "continue" },
+    "expected": { "steps": ["test-package", "review-release", "approve-publish", "publish-package", "verify-package"], "terminal": "blocked" }
+  },
+  {
+    "id": "success",
+    "commands": {
+      "test-package": { "exit_code": 0, "stdout": "tests passed\n", "stderr": "" },
+      "publish-package": { "exit_code": 0, "stdout": "published\n", "stderr": "" },
+      "verify-package": { "exit_code": 0, "stdout": "verified\n", "stderr": "" }
+    },
+    "review": { "status": "pass", "critical": 0, "summary": "Release metadata is complete." },
+    "answers": { "approve-publish": "continue" },
+    "expected": { "steps": ["test-package", "review-release", "approve-publish", "publish-package", "verify-package"], "terminal": "completed" }
+  }
+]

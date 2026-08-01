@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/operatorstack/yield/internal/engine"
 	"github.com/operatorstack/yield/internal/protocol"
@@ -60,7 +61,7 @@ func main() {
 func cmdRun(args []string) error {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	input := fs.String("input", "", "path to a JSON input file")
-	if err := fs.Parse(args); err != nil {
+	if err := parseOnePositional(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
@@ -90,7 +91,7 @@ func cmdResume(args []string) error {
 	response := fs.String("response", "", "path to the response envelope JSON")
 	skillDir := fs.String("skill", ".", "skill directory the run belongs to")
 	migrate := fs.Bool("accept-new-digest", false, "explicitly rebind the run to the current skill source digest")
-	if err := fs.Parse(args); err != nil {
+	if err := parseOnePositional(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 || *response == "" {
@@ -114,7 +115,7 @@ func cmdResume(args []string) error {
 func cmdInspect(args []string) error {
 	fs := flag.NewFlagSet("inspect", flag.ExitOnError)
 	skillDir := fs.String("skill", ".", "skill directory the run belongs to")
-	if err := fs.Parse(args); err != nil {
+	if err := parseOnePositional(fs, args); err != nil {
 		return err
 	}
 	e, err := engine.New(*skillDir)
@@ -144,7 +145,7 @@ func cmdInspect(args []string) error {
 func cmdReplay(args []string) error {
 	fs := flag.NewFlagSet("replay", flag.ExitOnError)
 	skillDir := fs.String("skill", ".", "skill directory the run belongs to")
-	if err := fs.Parse(args); err != nil {
+	if err := parseOnePositional(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
@@ -167,7 +168,7 @@ func cmdReplay(args []string) error {
 // real; everything else is answered from the script.
 func cmdTest(args []string) error {
 	fs := flag.NewFlagSet("test", flag.ExitOnError)
-	if err := fs.Parse(args); err != nil {
+	if err := parseOnePositional(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
@@ -211,6 +212,17 @@ func cmdTest(args []string) error {
 		return fmt.Errorf("terminal status %s: %s", p.Terminal.Status, p.Terminal.Reason)
 	}
 	return nil
+}
+
+// parseOnePositional accepts the documented command shape where the target
+// comes first and flags follow it. The standard flag package stops parsing at
+// the first positional argument, so move that one target behind the flags.
+// Flag-first calls keep working unchanged.
+func parseOnePositional(fs *flag.FlagSet, args []string) error {
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		args = append(append([]string{}, args[1:]...), args[0])
+	}
+	return fs.Parse(args)
 }
 
 func printProgress(p *engine.Progress) error {

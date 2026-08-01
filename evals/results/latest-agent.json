@@ -1,0 +1,769 @@
+{
+  "schema_version": 1,
+  "methodology_version": "agent-equivalence-v1",
+  "generated_at": "2026-08-01T18:41:10.110Z",
+  "source_hash": "0b51a9b75ae3e788cdc0a80c633c003913ac7be2f50832b809a2a5082cbd89b0",
+  "status": "passed",
+  "agent": {
+    "product": "Codex CLI",
+    "cli_version": "codex-cli 0.145.0",
+    "model": "gpt-5.6-terra",
+    "reasoning": "medium"
+  },
+  "coverage": {
+    "cases": 6,
+    "arms": [
+      "long",
+      "yield"
+    ],
+    "repeats": 1,
+    "agent_runs": 12
+  },
+  "runs": [
+    {
+      "case": "preflight-blocks",
+      "arm": "long",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 8797,
+      "usage": {
+        "input_tokens": 61796,
+        "cached_input_tokens": 48783,
+        "cache_write_input_tokens": 12998,
+        "output_tokens": 748,
+        "reasoning_output_tokens": 66
+      },
+      "steps": [
+        "test-package"
+      ],
+      "terminal": "blocked",
+      "requirements": [
+        false
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 1
+        }
+      ],
+      "accepted_agent_tasks": 0,
+      "accepted_user_answers": 0
+    },
+    {
+      "case": "preflight-blocks",
+      "arm": "yield",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 10958,
+      "usage": {
+        "input_tokens": 61391,
+        "cached_input_tokens": 48552,
+        "cache_write_input_tokens": 12824,
+        "output_tokens": 742,
+        "reasoning_output_tokens": 98
+      },
+      "steps": [
+        "test-package"
+      ],
+      "terminal": "blocked",
+      "requirements": [
+        false
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 1
+        }
+      ],
+      "accepted_agent_tasks": 0,
+      "accepted_user_answers": 0,
+      "response_rejections": [],
+      "event_counts": {
+        "operation.completed": 1,
+        "operation.requested": 1,
+        "requirement.failed": 1,
+        "run.blocked": 1,
+        "run.started": 1
+      }
+    },
+    {
+      "case": "review-blocks",
+      "arm": "long",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 17218,
+      "usage": {
+        "input_tokens": 142302,
+        "cached_input_tokens": 128466,
+        "cache_write_input_tokens": 13803,
+        "output_tokens": 1400,
+        "reasoning_output_tokens": 217
+      },
+      "steps": [
+        "test-package",
+        "review-release"
+      ],
+      "terminal": "blocked",
+      "requirements": [
+        true,
+        false
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 0
+        }
+      ],
+      "accepted_agent_tasks": 1,
+      "accepted_user_answers": 0
+    },
+    {
+      "case": "review-blocks",
+      "arm": "yield",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 11800,
+      "usage": {
+        "input_tokens": 88064,
+        "cached_input_tokens": 74740,
+        "cache_write_input_tokens": 13303,
+        "output_tokens": 929,
+        "reasoning_output_tokens": 158
+      },
+      "steps": [
+        "test-package",
+        "review-release"
+      ],
+      "terminal": "blocked",
+      "requirements": [
+        true,
+        false
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 0
+        }
+      ],
+      "accepted_agent_tasks": 1,
+      "accepted_user_answers": 0,
+      "response_rejections": [],
+      "event_counts": {
+        "operation.completed": 2,
+        "operation.requested": 2,
+        "requirement.failed": 1,
+        "requirement.passed": 1,
+        "run.blocked": 1,
+        "run.started": 1
+      }
+    },
+    {
+      "case": "approval-refuses",
+      "arm": "long",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 15068,
+      "usage": {
+        "input_tokens": 128054,
+        "cached_input_tokens": 114318,
+        "cache_write_input_tokens": 13706,
+        "output_tokens": 1194,
+        "reasoning_output_tokens": 83
+      },
+      "steps": [
+        "test-package",
+        "review-release",
+        "approve-publish"
+      ],
+      "terminal": "refused",
+      "requirements": [
+        true,
+        true
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 0
+        }
+      ],
+      "accepted_agent_tasks": 1,
+      "accepted_user_answers": 1
+    },
+    {
+      "case": "approval-refuses",
+      "arm": "yield",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 15466,
+      "usage": {
+        "input_tokens": 129932,
+        "cached_input_tokens": 115871,
+        "cache_write_input_tokens": 14031,
+        "output_tokens": 1339,
+        "reasoning_output_tokens": 151
+      },
+      "steps": [
+        "test-package",
+        "review-release",
+        "approve-publish"
+      ],
+      "terminal": "refused",
+      "requirements": [
+        true,
+        true
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 0
+        }
+      ],
+      "accepted_agent_tasks": 1,
+      "accepted_user_answers": 1,
+      "response_rejections": [],
+      "event_counts": {
+        "operation.completed": 3,
+        "operation.requested": 3,
+        "requirement.passed": 2,
+        "run.refused": 1,
+        "run.started": 1
+      }
+    },
+    {
+      "case": "publish-blocks",
+      "arm": "long",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 14641,
+      "usage": {
+        "input_tokens": 141305,
+        "cached_input_tokens": 127522,
+        "cache_write_input_tokens": 13750,
+        "output_tokens": 1347,
+        "reasoning_output_tokens": 96
+      },
+      "steps": [
+        "test-package",
+        "review-release",
+        "approve-publish",
+        "publish-package"
+      ],
+      "terminal": "blocked",
+      "requirements": [
+        true,
+        true,
+        false
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 0
+        },
+        {
+          "kind": "run_command",
+          "id": "publish-package",
+          "exit_code": 1
+        }
+      ],
+      "accepted_agent_tasks": 1,
+      "accepted_user_answers": 1
+    },
+    {
+      "case": "publish-blocks",
+      "arm": "yield",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 16878,
+      "usage": {
+        "input_tokens": 131091,
+        "cached_input_tokens": 116928,
+        "cache_write_input_tokens": 14133,
+        "output_tokens": 1292,
+        "reasoning_output_tokens": 162
+      },
+      "steps": [
+        "test-package",
+        "review-release",
+        "approve-publish",
+        "publish-package"
+      ],
+      "terminal": "blocked",
+      "requirements": [
+        true,
+        true,
+        false
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 0
+        },
+        {
+          "kind": "run_command",
+          "id": "publish-package",
+          "exit_code": 1
+        }
+      ],
+      "accepted_agent_tasks": 1,
+      "accepted_user_answers": 1,
+      "response_rejections": [],
+      "event_counts": {
+        "operation.completed": 4,
+        "operation.requested": 4,
+        "requirement.failed": 1,
+        "requirement.passed": 2,
+        "run.blocked": 1,
+        "run.started": 1
+      }
+    },
+    {
+      "case": "verification-blocks",
+      "arm": "long",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 23277,
+      "usage": {
+        "input_tokens": 184440,
+        "cached_input_tokens": 169988,
+        "cache_write_input_tokens": 14410,
+        "output_tokens": 1660,
+        "reasoning_output_tokens": 114
+      },
+      "steps": [
+        "test-package",
+        "review-release",
+        "approve-publish",
+        "publish-package",
+        "verify-package"
+      ],
+      "terminal": "blocked",
+      "requirements": [
+        true,
+        true,
+        true,
+        false
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 0
+        },
+        {
+          "kind": "run_command",
+          "id": "publish-package",
+          "exit_code": 0
+        },
+        {
+          "kind": "run_command",
+          "id": "verify-package",
+          "exit_code": 1
+        }
+      ],
+      "accepted_agent_tasks": 1,
+      "accepted_user_answers": 1
+    },
+    {
+      "case": "verification-blocks",
+      "arm": "yield",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 15430,
+      "usage": {
+        "input_tokens": 129225,
+        "cached_input_tokens": 115301,
+        "cache_write_input_tokens": 13894,
+        "output_tokens": 1270,
+        "reasoning_output_tokens": 167
+      },
+      "steps": [
+        "test-package",
+        "review-release",
+        "approve-publish",
+        "publish-package",
+        "verify-package"
+      ],
+      "terminal": "blocked",
+      "requirements": [
+        true,
+        true,
+        true,
+        false
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 0
+        },
+        {
+          "kind": "run_command",
+          "id": "publish-package",
+          "exit_code": 0
+        },
+        {
+          "kind": "run_command",
+          "id": "verify-package",
+          "exit_code": 1
+        }
+      ],
+      "accepted_agent_tasks": 1,
+      "accepted_user_answers": 1,
+      "response_rejections": [],
+      "event_counts": {
+        "operation.completed": 5,
+        "operation.requested": 5,
+        "requirement.failed": 1,
+        "requirement.passed": 3,
+        "run.blocked": 1,
+        "run.started": 1
+      }
+    },
+    {
+      "case": "success",
+      "arm": "long",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 21019,
+      "usage": {
+        "input_tokens": 156788,
+        "cached_input_tokens": 142604,
+        "cache_write_input_tokens": 14148,
+        "output_tokens": 1557,
+        "reasoning_output_tokens": 215
+      },
+      "steps": [
+        "test-package",
+        "review-release",
+        "approve-publish",
+        "publish-package",
+        "verify-package"
+      ],
+      "terminal": "completed",
+      "requirements": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 0
+        },
+        {
+          "kind": "run_command",
+          "id": "publish-package",
+          "exit_code": 0
+        },
+        {
+          "kind": "run_command",
+          "id": "verify-package",
+          "exit_code": 0
+        }
+      ],
+      "accepted_agent_tasks": 1,
+      "accepted_user_answers": 1
+    },
+    {
+      "case": "success",
+      "arm": "yield",
+      "repeat": 1,
+      "passed": true,
+      "failures": [],
+      "duration_ms": 17399,
+      "usage": {
+        "input_tokens": 129615,
+        "cached_input_tokens": 115624,
+        "cache_write_input_tokens": 13961,
+        "output_tokens": 1284,
+        "reasoning_output_tokens": 162
+      },
+      "steps": [
+        "test-package",
+        "review-release",
+        "approve-publish",
+        "publish-package",
+        "verify-package"
+      ],
+      "terminal": "completed",
+      "requirements": [
+        true,
+        true,
+        true,
+        true
+      ],
+      "command_evidence": [
+        {
+          "kind": "run_command",
+          "id": "test-package",
+          "exit_code": 0
+        },
+        {
+          "kind": "run_command",
+          "id": "publish-package",
+          "exit_code": 0
+        },
+        {
+          "kind": "run_command",
+          "id": "verify-package",
+          "exit_code": 0
+        }
+      ],
+      "accepted_agent_tasks": 1,
+      "accepted_user_answers": 1,
+      "response_rejections": [],
+      "event_counts": {
+        "operation.completed": 5,
+        "operation.requested": 5,
+        "requirement.passed": 4,
+        "run.completed": 1,
+        "run.started": 1
+      }
+    }
+  ],
+  "equivalence": {
+    "passed": 6,
+    "total": 6,
+    "comparisons": [
+      {
+        "case": "preflight-blocks",
+        "repeat": 1,
+        "equivalent": true,
+        "long_steps": [
+          "test-package"
+        ],
+        "yield_steps": [
+          "test-package"
+        ],
+        "long_terminal": "blocked",
+        "yield_terminal": "blocked",
+        "long_requirements": [
+          false
+        ],
+        "yield_requirements": [
+          false
+        ],
+        "accepted_agent_tasks": {
+          "long": 0,
+          "yield": 0
+        },
+        "accepted_user_answers": {
+          "long": 0,
+          "yield": 0
+        }
+      },
+      {
+        "case": "review-blocks",
+        "repeat": 1,
+        "equivalent": true,
+        "long_steps": [
+          "test-package",
+          "review-release"
+        ],
+        "yield_steps": [
+          "test-package",
+          "review-release"
+        ],
+        "long_terminal": "blocked",
+        "yield_terminal": "blocked",
+        "long_requirements": [
+          true,
+          false
+        ],
+        "yield_requirements": [
+          true,
+          false
+        ],
+        "accepted_agent_tasks": {
+          "long": 1,
+          "yield": 1
+        },
+        "accepted_user_answers": {
+          "long": 0,
+          "yield": 0
+        }
+      },
+      {
+        "case": "approval-refuses",
+        "repeat": 1,
+        "equivalent": true,
+        "long_steps": [
+          "test-package",
+          "review-release",
+          "approve-publish"
+        ],
+        "yield_steps": [
+          "test-package",
+          "review-release",
+          "approve-publish"
+        ],
+        "long_terminal": "refused",
+        "yield_terminal": "refused",
+        "long_requirements": [
+          true,
+          true
+        ],
+        "yield_requirements": [
+          true,
+          true
+        ],
+        "accepted_agent_tasks": {
+          "long": 1,
+          "yield": 1
+        },
+        "accepted_user_answers": {
+          "long": 1,
+          "yield": 1
+        }
+      },
+      {
+        "case": "publish-blocks",
+        "repeat": 1,
+        "equivalent": true,
+        "long_steps": [
+          "test-package",
+          "review-release",
+          "approve-publish",
+          "publish-package"
+        ],
+        "yield_steps": [
+          "test-package",
+          "review-release",
+          "approve-publish",
+          "publish-package"
+        ],
+        "long_terminal": "blocked",
+        "yield_terminal": "blocked",
+        "long_requirements": [
+          true,
+          true,
+          false
+        ],
+        "yield_requirements": [
+          true,
+          true,
+          false
+        ],
+        "accepted_agent_tasks": {
+          "long": 1,
+          "yield": 1
+        },
+        "accepted_user_answers": {
+          "long": 1,
+          "yield": 1
+        }
+      },
+      {
+        "case": "verification-blocks",
+        "repeat": 1,
+        "equivalent": true,
+        "long_steps": [
+          "test-package",
+          "review-release",
+          "approve-publish",
+          "publish-package",
+          "verify-package"
+        ],
+        "yield_steps": [
+          "test-package",
+          "review-release",
+          "approve-publish",
+          "publish-package",
+          "verify-package"
+        ],
+        "long_terminal": "blocked",
+        "yield_terminal": "blocked",
+        "long_requirements": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "yield_requirements": [
+          true,
+          true,
+          true,
+          false
+        ],
+        "accepted_agent_tasks": {
+          "long": 1,
+          "yield": 1
+        },
+        "accepted_user_answers": {
+          "long": 1,
+          "yield": 1
+        }
+      },
+      {
+        "case": "success",
+        "repeat": 1,
+        "equivalent": true,
+        "long_steps": [
+          "test-package",
+          "review-release",
+          "approve-publish",
+          "publish-package",
+          "verify-package"
+        ],
+        "yield_steps": [
+          "test-package",
+          "review-release",
+          "approve-publish",
+          "publish-package",
+          "verify-package"
+        ],
+        "long_terminal": "completed",
+        "yield_terminal": "completed",
+        "long_requirements": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "yield_requirements": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "accepted_agent_tasks": {
+          "long": 1,
+          "yield": 1
+        },
+        "accepted_user_answers": {
+          "long": 1,
+          "yield": 1
+        }
+      }
+    ]
+  },
+  "claim_boundary": {
+    "summary": "The same Codex model followed the owned long skill and the thin-skill-plus-Yield workflow with the same tested step order and final status.",
+    "exclusions": [
+      "This does not measure general coding-agent quality.",
+      "This does not claim Yield is better than a long skill.",
+      "This covers the declared cases, not every possible workflow."
+    ]
+  }
+}

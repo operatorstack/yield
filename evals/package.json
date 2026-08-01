@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "eval": "node scripts/run.mjs --write",
+    "eval:agent": "node agent/scripts/run.mjs --write",
+    "eval:agent:smoke": "node agent/scripts/run.mjs --case success --repeat 1",
     "test": "node scripts/validate.mjs && node scripts/run.mjs --check",
+    "test:agent": "node agent/scripts/validate.mjs",
     "validate": "node scripts/validate.mjs"
   }
 }
