@@ -1,0 +1,37 @@
+{
+  "files": {
+    ".gitignore": "65db75cfdb1c7cb42eb226ab5952426ed43f90654df9541a05721c29a045d355",
+    "LICENSE": "fff261ce507eabd57666c283a621f33e183a3aedebda04c4ecbc6309a62f5edf",
+    "README.md": "3296a179571d6f356d7f8e36f6378b8b54073d3e0e0050c045fc2316261d5bba",
+    "cmd/yskill/main.go": "a88bdd133118aa7b86cdf021e67052bd8e64e63b3792c091f7612699af89648b",
+    "docs/locus-yield.md": "c29d0c5801f32591828fc348385fb25c1850b39afc22770098eae0614fc3a417",
+    "docs/locus/drv-998aecbcb0b652eeb2c966a86c871c2a187729f224435ebf9fe20e9eb7be788e.json": "ff2fab51682f58cfe22ff23ae566e359b9337d9f9cc7ee7452ed991538dfdf23",
+    "docs/locus/yield-diag-correlated.json": "9427e2135066d6a89999178b3c6467799153ceb155543e3d9777b39a27193c73",
+    "docs/locus/yield-diag-portable.json": "71f2880721196f42c82cc152c49dff6d0fd4ac71a84586c468f66442bc305051",
+    "docs/locus/yield-protocol.json": "82c3490000357d66bc1f35623176a9b0279800340684047d46696d2eb43677d2",
+    "examples/investigate/SKILL.md": "401fc32bdfa594c8c2189723dbabf135365705281a3a75d6aee910d9126d297e",
+    "examples/investigate/fixtures/responses.json": "b17bde7104427926d120d14e2f989186a1834b78a0a039384f34a2847cbd787e",
+    "examples/investigate/main.go": "2e1a21e347791a0ecfc740f862631e7e6af6d518fb26fc4b0062d9170bcae44b",
+    "go.mod": "c35e7f0d4566798616c7021c367bdb87b188246f81a7f7fd540770e6b16e2366",
+    "go.sum": "63c93a009db9ad922511c645e7216a59837b8c33aec5f77a8fab84ba01d0a13d",
+    "internal/engine/engine.go": "5526ddeb2944c1b2cb8058d699794fee161d6694206b98b939c97bcd6af53d20",
+    "internal/engine/engine_test.go": "a48cac286f8b193c3d470984e3f96e4bc658cf7ca2f060d52f35adc0337dbba8",
+    "internal/engine/testdata/skill-basic/main.go": "b2c0a732a29db321f3cfd5bf4a890893cfd06904ad159aaccf5c852286f2cd46",
+    "internal/engine/testdata/skill-envbranch/main.go": "7a41ffab373e7acc7754abb4c3c251a7f2c3ca594051a1b0a4860c2592f23b32",
+    "internal/engine/testdata/skill-reqfail/main.go": "163ad3c842b8a8f88e843e408b3ef701cea82933c8d48dd948b914c3f7e97f7b",
+    "internal/guard/guard.go": "d670d77469468b1e4c42a2de0d6e66f9a624f2fe0240259b4d7c13c22d32247c",
+    "internal/guard/guard_test.go": "8e0ed25898e4c9892fe1f6fd0bdc3bdfae9ff9382c9ae436a99bdc2b90855dcf",
+    "internal/protocol/protocol.go": "5c544d0de4b0e1be8463907ca9c4484feda6d9468625e676a5c4a0f70536f9d5",
+    "internal/protocol/protocol_test.go": "c26deb3486b62f29fff21dd83fcbc71696ee894168b92a545813721e6c0fe4f4",
+    "internal/runlog/runlog.go": "eedce24e718e37f018c0d7188c697ff12e80f9f440a97bd15f8bc18fd411ce11",
+    "internal/runlog/runlog_test.go": "35fc0478d9e50f6c474c0826beb8ca6c4d0ce7ef09b5d9239ce2bb46117539ec",
+    "sdk/yield/yield.go": "5250ded7e18be107b1ccbd5a46ab41f7baeeedbfe5b88a11b5a860b05b11625a"
+  },
+  "generator": "operatorstack/yield:project",
+  "schema_version": 1,
+  "source": {
+    "commit": "a4f19d45a76daba1ec9dcbabb820ef9e874b29c4",
+    "path": "labs/22-yield",
+    "repository": "operatorstack/intelligence-flow"
+  }
+}

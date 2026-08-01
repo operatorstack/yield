@@ -1,0 +1,35 @@
+{
+  "collect-evidence": {
+    "observations": [
+      "CI fails on ubuntu only with 'Text file busy' (exit 126)",
+      "failure started after the hydrate step became concurrent",
+      "macOS and windows runners are green"
+    ]
+  },
+  "form-hypotheses": {
+    "hypotheses": [
+      {
+        "id": "h1",
+        "statement": "The runner image is missing the binary entirely",
+        "disprove_command": "exit 1"
+      },
+      {
+        "id": "h2",
+        "statement": "Concurrent hydrate writes the binary while another process execs it (ETXTBSY)",
+        "disprove_command": "true"
+      },
+      {
+        "id": "h3",
+        "statement": "A permissions regression strips the execute bit",
+        "disprove_command": "true"
+      }
+    ]
+  },
+  "assess-h1": {
+    "refuted": true
+  },
+  "assess-h2": {
+    "refuted": false,
+    "causal_chain": "concurrent hydrate holds the binary open for write -> exec of the same inode returns ETXTBSY -> shell reports exit 126 -> job fails only where hydrate and exec overlap (ubuntu)"
+  }
+}
