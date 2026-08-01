@@ -77,19 +77,22 @@ jobs:
       - name: Publish Go module
         run: |
           set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
           if gcloud artifacts versions describe "v${{ steps.version.outputs.version }}" \
             --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
             --repository="${{ vars.AR_GO_REPO }}" --package=github.com/operatorstack/yield \
             >/dev/null 2>&1; then
             echo "Go module already published."
           else
+            source_dir="$(mktemp -d)"
+            git archive "v${version}" | tar -x -C "$source_dir"
             gcloud artifacts go upload \
               --project="${{ vars.AR_PROJECT }}" \
               --location="${{ vars.AR_LOCATION }}" \
               --repository="${{ vars.AR_GO_REPO }}" \
               --module-path=github.com/operatorstack/yield \
-              --version="v${{ steps.version.outputs.version }}" \
-              --source=.
+              --version="v${version}" \
+              --source="$source_dir"
           fi
 
       - name: Publish TypeScript SDK
@@ -142,10 +145,10 @@ jobs:
           jq -nc --arg vers "$version" --arg cksum "$checksum" '{
             name:"yieldskill",vers:$vers,
             deps:[
-              {name:"hex",req:"^0.4",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:null},
-              {name:"serde",req:"^1",features:["derive"],optional:false,default_features:true,target:null,kind:"normal",registry:null},
-              {name:"serde_json",req:"^1",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:null},
-              {name:"sha2",req:"^0.10",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:null}
+              {name:"hex",req:"^0.4",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:"https://github.com/rust-lang/crates.io-index"},
+              {name:"serde",req:"^1",features:["derive"],optional:false,default_features:true,target:null,kind:"normal",registry:"https://github.com/rust-lang/crates.io-index"},
+              {name:"serde_json",req:"^1",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:"https://github.com/rust-lang/crates.io-index"},
+              {name:"sha2",req:"^0.10",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:"https://github.com/rust-lang/crates.io-index"}
             ],
             cksum:$cksum,features:{},yanked:false,links:null
           }' >> yieldskill-index.json
