@@ -1,15 +1,25 @@
 # CLI reference
 
-`yskill` is the supervisor. It owns run logs, validates responses, executes
-commands, and starts the skill program.
+`yskill` runs workflows. It owns run logs, validates responses, executes
+commands, and starts the skill program. It comes with each language package.
 
 ## `init`
 
 ```bash
-yskill init <directory>
+yskill init <directory> --language typescript|python|go|rust
 ```
 
 Scaffolds a new skill or adds a Yield program beside an existing prose skill.
+Generated dependencies are pinned to the installed `yskill` version.
+
+## `version`
+
+```bash
+yskill --version
+yskill version
+```
+
+Prints the runtime version and platform.
 
 ## `run`
 

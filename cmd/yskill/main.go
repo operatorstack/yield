@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/debug"
 	"strings"
 
 	"github.com/operatorstack/yield/internal/engine"
@@ -19,13 +21,29 @@ const usage = `yskill — turn SKILL.md workflows into resumable programs
 
 Usage:
   yskill init <dir>                          scaffold a skill (or wrap an existing prose skill)
+         [--language typescript|python|go|rust]
   yskill run <skill-dir> [--input file]      start a run; prints the first operation envelope
   yskill resume <run-id> --response file     feed a response; prints the next operation
          [--skill dir] [--accept-new-digest]
   yskill inspect <run-id> [--skill dir]      print the run's event log
   yskill replay <run-id> [--skill dir]       re-derive the run from its log; verify determinism
   yskill test <skill-dir>                    run the skill against fixtures/responses.json
+  yskill version                             print the runtime version and target
 `
+
+// version is set from the release tag with -ldflags "-X main.version=<version>".
+var version = "dev"
+var readBuildInfo = debug.ReadBuildInfo
+
+func runtimeVersion() string {
+	if version != "" && version != "dev" {
+		return strings.TrimPrefix(version, "v")
+	}
+	if info, ok := readBuildInfo(); ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
+		return strings.TrimPrefix(info.Main.Version, "v")
+	}
+	return "dev"
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -46,6 +64,8 @@ func main() {
 		err = cmdReplay(os.Args[2:])
 	case "test":
 		err = cmdTest(os.Args[2:])
+	case "version", "--version":
+		fmt.Printf("yskill %s %s/%s\n", runtimeVersion(), runtime.GOOS, runtime.GOARCH)
 	case "help", "-h", "--help":
 		fmt.Print(usage)
 	default:
@@ -258,84 +278,12 @@ func compact(raw json.RawMessage) string {
 func cmdInit(args []string) error {
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
 	sdkPath := fs.String("sdk", "", "filesystem path to the yield module (written as a go.mod replace directive)")
-	if err := fs.Parse(args); err != nil {
+	language := fs.String("language", defaultLanguage(), "workflow language: typescript, python, go, or rust")
+	if err := parseOnePositional(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
 		return fmt.Errorf("init takes exactly one directory")
 	}
-	dir := fs.Arg(0)
-	name := filepath.Base(dir)
-	if err := os.MkdirAll(filepath.Join(dir, "fixtures"), 0o755); err != nil {
-		return err
-	}
-	writeIfAbsent := func(rel, content string) error {
-		path := filepath.Join(dir, rel)
-		if _, err := os.Stat(path); err == nil {
-			fmt.Printf("init: %s exists, preserved\n", rel)
-			return nil
-		}
-		return os.WriteFile(path, []byte(content), 0o644)
-	}
-	if err := writeIfAbsent("SKILL.md", fmt.Sprintf(skillMD, name)); err != nil {
-		return err
-	}
-	if err := writeIfAbsent("main.go", mainGo); err != nil {
-		return err
-	}
-	if err := writeIfAbsent("fixtures/responses.json", "{\n  \"confirm-start\": {\"value\": \"yes\"}\n}\n"); err != nil {
-		return err
-	}
-	gomod := fmt.Sprintf("module %s\n\ngo 1.26.5\n\nrequire github.com/operatorstack/yield v0.0.0\n", name)
-	if *sdkPath != "" {
-		gomod += fmt.Sprintf("\nreplace github.com/operatorstack/yield => %s\n", *sdkPath)
-	} else {
-		gomod += "\n// Point this at your yield checkout:\n// replace github.com/operatorstack/yield => ../path/to/yield\n"
-	}
-	if err := writeIfAbsent("go.mod", gomod); err != nil {
-		return err
-	}
-	fmt.Printf("init: skill %q scaffolded in %s\n", name, dir)
-	return nil
+	return scaffoldSkill(fs.Arg(0), *language, *sdkPath)
 }
-
-const skillMD = `---
-name: %s
-description: TODO — one line on what this skill does.
----
-
-Run:
-
-    yskill run .
-
-Follow each returned operation exactly.
-
-- ` + "`ask_user`" + `: ask the user using the host's normal interface.
-- ` + "`agent_task`" + `: perform the task and return schema-valid JSON.
-- ` + "`run_command`" + `: yskill executes it itself; you will not see this kind.
-
-Resume the run after each operation:
-
-    yskill resume <run-id> --response response.json
-
-Do not skip an operation or invent its response.
-`
-
-const mainGo = `package main
-
-import (
-	"github.com/operatorstack/yield/sdk/yield"
-)
-
-func main() {
-	yield.Main(func(ctx *yield.Context) (yield.Outcome, error) {
-		answer := ctx.AskUser("confirm-start", "Ready to start?")
-		if answer != "yes" {
-			return yield.Outcome{}, ctx.Refused("user declined to start")
-		}
-		tests := ctx.RunCommand("run-tests", "true", 60)
-		ctx.Require(tests.ExitCode == 0, "the test command passes", tests)
-		return ctx.Complete(map[string]string{"status": "ok"})
-	})
-}
-`

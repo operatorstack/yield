@@ -8,20 +8,20 @@ program:
 3. stop unless the result has zero critical findings;
 4. save the structured review.
 
-You need Go 1.24 or newer and Node.js 24 or newer.
+You need Node.js 24 or newer.
 
-## 1. Install the supervisor and SDK
+## 1. Install Yield
 
 ```bash
-go install github.com/operatorstack/yield/cmd/yskill@latest
-
 mkdir review-skill
 cd review-skill
-mkdir -p fixtures
+npm init -y
+npm install @operatorstack/yield \
+  --registry=https://get.operatorstack.systems/npm/
+npm exec -- yskill init . --language typescript
 ```
 
-Make sure the Go bin directory is on your `PATH`. `go env GOPATH` prints its
-parent directory; the binary normally lives in `$(go env GOPATH)/bin`.
+The package includes the TypeScript SDK and its matching Yield runtime.
 
 ## 2. Create the package
 
@@ -35,13 +35,6 @@ Create `package.json`:
     "check": "node --check main.ts"
   }
 }
-```
-
-Install the SDK:
-
-```bash
-npm install @operatorstack/yield \
-  --registry=https://get.operatorstack.systems/npm/
 ```
 
 ## 3. Add the workflow
@@ -95,10 +88,10 @@ name: review
 description: Check and review the current branch before it is shipped.
 ---
 
-Run `yskill run .` and follow each returned operation exactly.
+Run `npm exec -- yskill run .` and follow each returned operation exactly.
 
 For `agent_task`, perform the task and return schema-valid JSON. Resume with
-`yskill resume <run-id> --response response.json --skill .`.
+`npm exec -- yskill resume <run-id> --response response.json --skill .`.
 
 Do not skip an operation or invent a response. The program owns the order and
 the finish rule.
@@ -123,7 +116,7 @@ Create `fixtures/responses.json`:
 Run:
 
 ```bash
-yskill test .
+npm exec -- yskill test .
 ```
 
 `run_command` operations execute for real. The fixture supplies only the model

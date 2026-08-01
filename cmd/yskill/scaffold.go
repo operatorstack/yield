@@ -1,0 +1,190 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+)
+
+var releaseVersionPattern = regexp.MustCompile(`^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$`)
+var unsafePackageCharacter = regexp.MustCompile(`[^a-z0-9_-]+`)
+
+func defaultLanguage() string {
+	if language := strings.TrimSpace(os.Getenv("YIELD_LANGUAGE")); language != "" {
+		return language
+	}
+	return "go"
+}
+
+func packageVersion() string {
+	v := runtimeVersion()
+	if releaseVersionPattern.MatchString(v) {
+		return v
+	}
+	return "0.0.0"
+}
+
+func scaffoldSkill(dir, language, sdkPath string) error {
+	language = strings.ToLower(strings.TrimSpace(language))
+	if language != "typescript" && language != "python" && language != "go" && language != "rust" {
+		return fmt.Errorf("unsupported language %q; choose typescript, python, go, or rust", language)
+	}
+	if sdkPath != "" && language != "go" {
+		return fmt.Errorf("--sdk is only valid with --language go")
+	}
+	name := safePackageName(filepath.Base(filepath.Clean(dir)))
+	writeIfAbsent := func(rel, content string) error {
+		path := filepath.Join(dir, filepath.FromSlash(rel))
+		if _, err := os.Stat(path); err == nil {
+			fmt.Printf("init: %s exists, preserved\n", rel)
+			return nil
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			return err
+		}
+		return os.WriteFile(path, []byte(content), 0o644)
+	}
+
+	launcher := map[string]string{
+		"typescript": "npm exec -- yskill",
+		"python":     "python -m yieldskill",
+		"go":         "yskill",
+		"rust":       "yskill",
+	}[language]
+	files := scaffoldFiles(name, language, sdkPath)
+	files["SKILL.md"] = fmt.Sprintf(skillMD, name, launcher, launcher)
+	files["fixtures/responses.json"] = "{\n  \"confirm-start\": {\"value\": \"yes\"}\n}\n"
+	keys := make([]string, 0, len(files))
+	for key := range files {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, rel := range keys {
+		if err := writeIfAbsent(rel, files[rel]); err != nil {
+			return err
+		}
+	}
+	fmt.Printf("init: %s skill %q scaffolded in %s\n", language, name, dir)
+	return nil
+}
+
+func scaffoldFiles(name, language, sdkPath string) map[string]string {
+	v := packageVersion()
+	switch language {
+	case "typescript":
+		return map[string]string{
+			"main.ts": mainTypeScript,
+			"package.json": fmt.Sprintf(`{
+  "private": true,
+  "type": "module",
+  "dependencies": { "@operatorstack/yield": "%s" }
+}
+`, v),
+			"skill.json": "{\"run\":[\"node\",\"main.ts\"]}\n",
+		}
+	case "python":
+		python := strings.TrimSpace(os.Getenv("YIELD_PYTHON"))
+		if python == "" {
+			python = "python"
+		}
+		return map[string]string{
+			"main.py":          mainPython,
+			"requirements.txt": fmt.Sprintf("--index-url https://get.operatorstack.systems/pip/simple/\nyieldskill==%s\n", v),
+			"skill.json":       fmt.Sprintf("{\"run\":[%q,\"main.py\"]}\n", python),
+		}
+	case "rust":
+		return map[string]string{
+			".cargo/config.toml": "[registries.operatorstack]\nindex = \"sparse+https://get.operatorstack.systems/cargo/index/\"\n",
+			"Cargo.toml":         fmt.Sprintf("[package]\nname = %q\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nyieldskill = { version = \"=%s\", registry = \"operatorstack\" }\nserde_json = \"1\"\n", name, v),
+			"src/main.rs":        mainRust,
+			"skill.json":         "{\"run\":[\"cargo\",\"run\",\"--quiet\"]}\n",
+		}
+	default:
+		gomod := fmt.Sprintf("module %s\n\ngo 1.26.5\n\nrequire github.com/operatorstack/yield v%s\n", name, v)
+		if sdkPath != "" {
+			gomod += fmt.Sprintf("\nreplace github.com/operatorstack/yield => %s\n", sdkPath)
+		}
+		return map[string]string{"main.go": mainGo, "go.mod": gomod}
+	}
+}
+
+func safePackageName(value string) string {
+	value = unsafePackageCharacter.ReplaceAllString(strings.ToLower(value), "-")
+	value = strings.Trim(value, "-_")
+	if value == "" {
+		return "yield-skill"
+	}
+	return value
+}
+
+const skillMD = `---
+name: %s
+description: TODO — one line on what this skill does.
+---
+
+Run:
+
+    %s run .
+
+Follow each returned operation exactly. Resume after each response:
+
+    %s resume <run-id> --response response.json --skill .
+
+Do not skip an operation or invent a response.
+`
+
+const mainGo = `package main
+
+import "github.com/operatorstack/yield/sdk/yield"
+
+func main() {
+	yield.Main(func(ctx *yield.Context) (yield.Outcome, error) {
+		answer := ctx.AskUser("confirm-start", "Ready to start?")
+		if answer != "yes" {
+			return yield.Outcome{}, ctx.Refused("user declined to start")
+		}
+		return ctx.Complete(map[string]string{"status": "ready"})
+	})
+}
+`
+
+const mainTypeScript = `import { defineSkill } from "@operatorstack/yield"
+
+defineSkill((ctx) => {
+  const answer = ctx.askUser("confirm-start", "Ready to start?", [
+    { value: "yes" }, { value: "no" }
+  ])
+  if (answer !== "yes") ctx.refused("user declined to start")
+  return { status: "ready" }
+})
+`
+
+const mainPython = `from yieldskill import define_skill
+
+def program(ctx):
+    answer = ctx.ask_user("confirm-start", "Ready to start?", options=[{"value": "yes"}, {"value": "no"}])
+    if answer != "yes":
+        ctx.refused("user declined to start")
+    return {"status": "ready"}
+
+define_skill(program)
+`
+
+const mainRust = `use serde_json::json;
+use yieldskill::{define_skill, Context, SkillResult};
+
+fn program(ctx: &mut Context) -> SkillResult {
+    let answer = ctx.ask_user("confirm-start", "Ready to start?", &[("yes", "Yes"), ("no", "No")]);
+    if answer != "yes" {
+        return Err(ctx.refused("user declined to start"));
+    }
+    Ok(json!({"status": "ready"}))
+}
+
+fn main() { define_skill(program); }
+`
