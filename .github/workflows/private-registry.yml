@@ -175,6 +175,8 @@ jobs:
           fi
 
       - name: Build and publish Python wheels
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -euo pipefail
           python -m pip install --quiet build twine keyrings.google-artifactregistry-auth
@@ -182,9 +184,19 @@ jobs:
           for directory in dist/packages/python/*; do
             python -m build --wheel --outdir "$GITHUB_WORKSPACE/dist/python-wheels" "$directory"
           done
-          twine upload --skip-existing \
-            --repository-url "https://${{ vars.AR_LOCATION }}-python.pkg.dev/${{ vars.AR_PROJECT }}/${{ vars.AR_PYTHON_REPO }}/" \
-            dist/python-wheels/*
+          existing="$(gcloud artifacts files list \
+            --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
+            --repository="${{ vars.AR_PYTHON_REPO }}" --package=yieldskill --version="$VERSION" \
+            --format='value(name)' 2>/dev/null || true)"
+          for wheel in dist/python-wheels/*; do
+            filename="$(basename "$wheel")"
+            if ! grep -Fq "$filename" <<<"$existing"; then
+              twine upload \
+                --repository-url "https://${{ vars.AR_LOCATION }}-python.pkg.dev/${{ vars.AR_PROJECT }}/${{ vars.AR_PYTHON_REPO }}/" \
+                "$wheel"
+              existing="${existing}"$'\n'"${filename}"
+            fi
+          done
 
       - name: Publish Rust runtime crates
         env:
