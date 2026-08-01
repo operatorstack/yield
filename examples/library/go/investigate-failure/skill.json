@@ -1,0 +1,7 @@
+{
+  "run": [
+    "go",
+    "run",
+    "../src/investigate-failure/main.go"
+  ]
+}

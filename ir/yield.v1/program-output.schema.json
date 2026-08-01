@@ -1,54 +1,40 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "yield.v1 program output \u2014 the single output of one skill-program execution",
-  "type": "object",
-  "required": [
-    "type"
-  ],
-  "properties": {
-    "type": {
-      "enum": [
-        "request",
-        "terminal",
-        "diverged"
-      ]
-    },
-    "envelope": {
-      "$ref": "request-envelope.schema.json"
+  "title": "yield.v1 program output — the single output of one skill-program execution",
+  "$defs": {
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["claim", "passed"],
+        "properties": {
+          "claim": { "type": "string", "minLength": 1 },
+          "passed": { "type": "boolean" },
+          "evidence_digest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "terminal": {
       "type": "object",
-      "required": [
-        "status"
-      ],
+      "required": ["status"],
       "properties": {
         "status": {
-          "enum": [
-            "completed",
-            "blocked",
-            "refused",
-            "requirement_failed"
-          ]
+          "enum": ["completed", "blocked", "refused", "requirement_failed"]
         },
         "result": {},
-        "reason": {
-          "type": "string"
-        }
+        "reason": { "type": "string" }
       },
       "additionalProperties": false
     },
     "divergence": {
       "type": "object",
-      "required": [
-        "sequence",
-        "expected_digest",
-        "got_digest"
-      ],
+      "required": ["sequence", "expected_digest", "got_digest"],
       "properties": {
-        "sequence": {
-          "type": "integer",
-          "minimum": 1
-        },
+        "sequence": { "type": "integer", "minimum": 1 },
         "expected_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
@@ -57,80 +43,41 @@
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
         },
-        "detail": {
-          "type": "string"
-        }
+        "detail": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["type", "envelope"],
+      "properties": {
+        "type": { "const": "request" },
+        "envelope": { "$ref": "request-envelope.schema.json" },
+        "requirements": { "$ref": "#/$defs/requirements" }
       },
       "additionalProperties": false
     },
-    "requirements": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "claim",
-          "passed"
-        ],
-        "properties": {
-          "claim": {
-            "type": "string",
-            "minLength": 1
-          },
-          "passed": {
-            "type": "boolean"
-          },
-          "evidence_digest": {
-            "type": "string",
-            "pattern": "^sha256:[0-9a-f]{64}$"
-          }
-        },
-        "additionalProperties": false
-      }
-    }
-  },
-  "allOf": [
     {
-      "if": {
-        "properties": {
-          "type": {
-            "const": "request"
-          }
-        }
+      "type": "object",
+      "required": ["type", "terminal"],
+      "properties": {
+        "type": { "const": "terminal" },
+        "terminal": { "$ref": "#/$defs/terminal" },
+        "requirements": { "$ref": "#/$defs/requirements" }
       },
-      "then": {
-        "required": [
-          "envelope"
-        ]
-      }
+      "additionalProperties": false
     },
     {
-      "if": {
-        "properties": {
-          "type": {
-            "const": "terminal"
-          }
-        }
+      "type": "object",
+      "required": ["type", "divergence"],
+      "properties": {
+        "type": { "const": "diverged" },
+        "divergence": { "$ref": "#/$defs/divergence" },
+        "requirements": { "$ref": "#/$defs/requirements" }
       },
-      "then": {
-        "required": [
-          "terminal"
-        ]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "type": {
-            "const": "diverged"
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "divergence"
-        ]
-      }
+      "additionalProperties": false
     }
-  ],
-  "additionalProperties": false
+  ]
 }

@@ -1,0 +1,112 @@
+[
+  {
+    "slug": "review-branch",
+    "title": "Review a branch",
+    "summary": "Run mechanical checks, inspect the diff, and stop on critical findings.",
+    "languages": [
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ]
+  },
+  {
+    "slug": "investigate-failure",
+    "title": "Investigate a failure",
+    "summary": "Capture evidence, test the likely cause, and finish only with a causal explanation.",
+    "languages": [
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ]
+  },
+  {
+    "slug": "qa-web-change",
+    "title": "QA a web change",
+    "summary": "Build first, exercise changed routes, and finish only with no blocking regressions.",
+    "languages": [
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ]
+  },
+  {
+    "slug": "release-package",
+    "title": "Release a package",
+    "summary": "Test, review the release, ask for approval, publish, and verify.",
+    "languages": [
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ]
+  },
+  {
+    "slug": "triage-issue",
+    "title": "Triage an issue",
+    "summary": "Read the report, classify impact, and return one evidence-backed next action.",
+    "languages": [
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ]
+  },
+  {
+    "slug": "repair-ci",
+    "title": "Repair a CI failure",
+    "summary": "Read the failed job, apply one supported repair, and rerun the failing check.",
+    "languages": [
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ]
+  },
+  {
+    "slug": "upgrade-dependency",
+    "title": "Upgrade a dependency",
+    "summary": "Establish a baseline, review compatibility, approve the change, and rerun tests.",
+    "languages": [
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ]
+  },
+  {
+    "slug": "migrate-database",
+    "title": "Run a database migration",
+    "summary": "Dry-run, inspect risk, approve, apply, and verify the real result.",
+    "languages": [
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ]
+  },
+  {
+    "slug": "audit-security",
+    "title": "Audit a change for security",
+    "summary": "Collect mechanical audit output, inspect trust boundaries, and reject critical risk.",
+    "languages": [
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ]
+  },
+  {
+    "slug": "publish-ios",
+    "title": "Publish an iOS build",
+    "summary": "Archive, review release metadata, approve upload, publish, and verify processing.",
+    "languages": [
+      "typescript",
+      "python",
+      "go",
+      "rust"
+    ]
+  }
+]

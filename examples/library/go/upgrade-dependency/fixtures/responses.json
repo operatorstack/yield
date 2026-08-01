@@ -1,0 +1,10 @@
+{
+  "review-upgrade": {
+    "status": "pass",
+    "critical": 0,
+    "summary": "Fixture result: Establish a baseline, review compatibility, approve the change, and rerun tests."
+  },
+  "approve-upgrade": {
+    "value": "continue"
+  }
+}

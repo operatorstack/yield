@@ -5,7 +5,7 @@
   "evidence": [
     {
       "path": "labs/22-yield/yield/sdk/yield/yield.go",
-      "note": "Go SDK: step() replay/compare/emit, Main() terminal emission \u2014 the behavior TS/Python SDKs must refine"
+      "note": "Go SDK: step() replay/compare/emit and Main() terminal emission \u2014 the reference behavior all four SDKs refine"
     },
     {
       "path": "labs/22-yield/yield/internal/engine/engine.go",
@@ -225,7 +225,7 @@
     "selector": "marked"
   },
   "unknowns": [
-    "The TS and Python SDKs are not yet implemented; this contract is what they must exhibit, discharged by running each example skill through yskill test.",
+    "A future output variant must be added coherently to every SDK surface, the canonical IR, protocol admission, engine dispatch, and conformance fixtures.",
     "Determinism between yields is the program author's obligation in every language; the contract detects divergence, it cannot prevent nondeterminism."
   ]
 }

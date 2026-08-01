@@ -1,0 +1,7 @@
+{
+  "plan-ci-repair": {
+    "status": "pass",
+    "critical": 0,
+    "summary": "Fixture result: Read the failed job, apply one supported repair, and rerun the failing check."
+  }
+}

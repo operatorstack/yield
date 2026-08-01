@@ -6,9 +6,10 @@ resumable programs.**
 > The skill yields the next typed operation. The coding agent performs it
 > and resumes the skill.
 
-Write control flow in Go. Yield user questions, agent tasks, and commands
-to the coding agent. Resume from the result. No custom agent runtime
-required — the agent only runs a CLI and follows envelopes.
+Write control flow in TypeScript, Python, Go, or Rust. Yield user
+questions, agent tasks, and commands to the coding agent. Resume from the
+result. No custom agent runtime required — the agent only runs a CLI and
+follows envelopes.
 
 A skill keeps its thin `SKILL.md` (so it works wherever skills work today)
 and moves the part prose loses under context pressure — order, branching,
@@ -59,16 +60,41 @@ four languages and asserts identical observable protocol behavior.
 Non-Go skills declare their runner in `skill.json`:
 `{"run": ["node", "main.ts"]}`.
 
-Already have prose skills? `examples/convert-skill` is a converter —
-itself a Yield skill — that extracts the implicit flow from an existing
-`SKILL.md`, asks you which language you want, has the model write the
-program, and completes only when the generated skill passes its own
-fixture run. A conversion that was never executed is never "done".
+## Ten workflows, every language
+
+The [example library](examples/library/) recreates ten common coding-agent
+workflows independently in all four SDKs: branch review, failure
+investigation, web QA, package release, issue triage, CI repair, dependency
+upgrade, database migration, security audit, and iOS publishing.
+
+Each language has the same workflow, a thin `SKILL.md`, and a scripted
+fixture. Start from the work you already do instead of starting from a
+framework tutorial.
+
+## Documentation
+
+Start with the [ten-minute TypeScript quickstart](docs/quickstart.md), then
+use the documentation by job:
+
+- [primitive guides](docs/primitives/README.md) — commands, model work,
+  human input, evidence gates, and outcomes;
+- [tutorials](docs/tutorials/README.md) — review, approval, environment
+  repair, bounded debugging, and migration;
+- [examples](docs/examples.md) — working programs in all four languages;
+- [convert an existing skill](docs/convert-existing-skill.md) — move
+  control flow into code without claiming that fixture execution proves
+  every reading of the original prose;
+- [CLI and runtime reference](docs/reference/cli.md).
 
 ## Try it
 
 ```
 go build -o yskill ./cmd/yskill
+./yskill test examples/library/typescript/review-branch
+./yskill test examples/library/python/review-branch
+./yskill test examples/library/go/review-branch
+./yskill test examples/library/rust/review-branch
+YSKILL="$PWD/yskill" bash ./examples/library/test-all.sh
 ./yskill test examples/investigate        # Go: scripted fixture run to completion
 ./yskill test examples/release-checklist  # TypeScript (Node >= 23.6)
 ./yskill test examples/env-doctor         # Python 3.10+

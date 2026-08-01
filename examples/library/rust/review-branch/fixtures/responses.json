@@ -1,0 +1,7 @@
+{
+  "review-diff": {
+    "status": "pass",
+    "critical": 0,
+    "summary": "Fixture result: Run mechanical checks, inspect the diff, and stop on critical findings."
+  }
+}

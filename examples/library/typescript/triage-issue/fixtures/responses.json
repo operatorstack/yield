@@ -1,0 +1,7 @@
+{
+  "classify-issue": {
+    "status": "pass",
+    "critical": 0,
+    "summary": "Fixture result: Read the report, classify impact, and return one evidence-backed next action."
+  }
+}

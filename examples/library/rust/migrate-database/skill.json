@@ -1,0 +1,11 @@
+{
+  "run": [
+    "cargo",
+    "run",
+    "--quiet",
+    "--manifest-path",
+    "../Cargo.toml",
+    "--bin",
+    "migrate-database"
+  ]
+}

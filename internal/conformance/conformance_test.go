@@ -149,7 +149,7 @@ func runComplete(t *testing.T, lang language) trace {
 	if p.Terminal == nil || p.Terminal.Status != protocol.StatusCompleted {
 		t.Fatalf("[%s] must complete, got %+v", lang.name, p)
 	}
-	tr.Terminal = p.Terminal.Status
+	tr.Terminal = string(p.Terminal.Status)
 
 	l, err := e.Log(p.RunID)
 	if err != nil {

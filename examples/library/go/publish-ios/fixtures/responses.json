@@ -1,0 +1,10 @@
+{
+  "review-ios-release": {
+    "status": "pass",
+    "critical": 0,
+    "summary": "Fixture result: Archive, review release metadata, approve upload, publish, and verify processing."
+  },
+  "approve-ios-upload": {
+    "value": "continue"
+  }
+}

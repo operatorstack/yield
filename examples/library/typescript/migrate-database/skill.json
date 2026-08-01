@@ -1,0 +1,6 @@
+{
+  "run": [
+    "node",
+    "../src/migrate-database.ts"
+  ]
+}

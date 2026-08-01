@@ -13,6 +13,14 @@ discharges the whole program's obligations. Models and derivations live in
 | `sdk-contract.json` | control.nonblockingness | **nonblocking** — every SDK execution reaches an emit |
 | `divergence-in-sdk.json` vs `divergence-supervisor-only.json` | verification.safety-reachability (rival designs, `drv-ad50b13e…`) | **decided** — in-SDK per-step checking satisfies `forbidden-unreachable`; supervisor-only is rejected with the verbatim trace `op_drifts → consume_unchecked → CONSUMED_MISMATCHED` |
 
+The feature-extension boundary also passed
+`practice.boundary-conformance`. Its control law is deliberately small:
+SDK stdout becomes engine authority only after the protocol package admits
+exactly one complete `request`, `terminal`, or `diverged` variant. Unknown
+fields and malformed, missing, or ambiguous variants fail before dispatch.
+The canonical IR uses the same exact-one shape, while TypeScript and Rust
+encode it with closed surface types.
+
 The decided comparison is why per-step digest comparison is a MANDATORY
 part of the SDK contract in every language, not an optional nicety: without
 it, a drifted operation silently consumes a recorded response meant for a
@@ -41,6 +49,11 @@ scenario matrix and what each observes:
 | `TestFailedRequirementNeverCompletes` | `complete_unproven` refused; `run.blocked`, never `run.completed` |
 | `TestGuardRefusals` | schema-invalid, duplicate-rewrite, wrong-run refusals through the live engine |
 | `TestDivergenceFailsLoudlyEverywhere` | the decided design: a tampered recorded operation is detected by every SDK at replay |
+
+`internal/protocol/ir_test.go` adds the feature-upgrade gate: positive and
+negative outputs must receive the same decision from protocol admission and
+the canonical schema. `internal/engine/engine_test.go` proves ambiguous SDK
+output is refused at the real subprocess boundary.
 
 Languages whose toolchain is missing are skipped locally; CI provides all
 four (`.github/workflows/yield-lab.yml`).

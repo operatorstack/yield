@@ -180,6 +180,29 @@ func TestReplayDivergenceFailsLoudly(t *testing.T) {
 	}
 }
 
+func TestExecuteRejectsAmbiguousProgramOutput(t *testing.T) {
+	dir := t.TempDir()
+	manifest := `{"run":["sh","-c","printf '%s\\n' '{\"type\":\"request\",\"envelope\":{},\"terminal\":{\"status\":\"completed\"}}'"]}`
+	if err := os.WriteFile(filepath.Join(dir, "skill.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	e := &Engine{SkillDir: dir, RunsDir: t.TempDir(), Stderr: os.Stderr}
+	l, err := runlog.Create(e.RunsDir, "run_1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := l.Append(runlog.RunStarted, map[string]any{
+		"run_id": "run_1",
+		"skill":  protocol.SkillRef{Name: "invalid", Digest: protocol.DigestBytes([]byte("invalid"))},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = e.execute(l, "run_1")
+	if err == nil || !strings.Contains(err.Error(), "exactly one variant") {
+		t.Fatalf("engine must reject ambiguous output before dispatch, got %v", err)
+	}
+}
+
 func TestFailedRequirementBlocksRun(t *testing.T) {
 	e := testEngine(t, "skill-reqfail")
 	p, err := e.StartRun(nil)
