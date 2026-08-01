@@ -16,6 +16,31 @@ and moves the part prose loses under context pressure — order, branching,
 retries, approval, state, completion — into a deterministic program. The
 model keeps reasoning, exploration, editing, and judgment.
 
+## Install
+
+Choose one language package. It includes the SDK and the matching `yskill`
+runtime.
+
+```bash
+# TypeScript
+npm install @operatorstack/yield --registry=https://get.operatorstack.systems/npm/
+npm exec -- yskill --version
+
+# Python
+python -m pip install yieldskill --index-url https://get.operatorstack.systems/pip/simple/
+python -m yieldskill --version
+
+# Go
+GOPROXY=https://get.operatorstack.systems/go,direct \
+  go install github.com/operatorstack/yield/cmd/yskill@latest
+yskill --version
+
+# Rust
+cargo install yieldskill \
+  --index sparse+https://get.operatorstack.systems/cargo/index/ --locked
+yskill --version
+```
+
 ## How it works
 
 Deterministic re-execution: on every run/resume, `yskill` re-executes the
@@ -25,7 +50,7 @@ and the process exits — no daemon. A replayed step that produces a
 different operation than the journal recorded is a divergence and fails
 the run loudly; it never silently forks.
 
-- **`yskill` (supervisor)** owns the append-only run log
+- **`yskill`** owns the append-only run log
   (`.yield/runs/<id>.jsonl`), sequence and digest binding, response
   validation, and every refusal (stale, duplicate, wrong-run,
   schema-invalid, digest-mismatch, completion-unproven).
@@ -45,7 +70,7 @@ Five primitives, two exits:
 ## Four languages, one protocol
 
 Write the skill program in Go, TypeScript, Python, or Rust — the
-supervisor doesn't care. Every SDK implements the same certified
+runtime doesn't care. Every SDK implements the same certified
 execution contract over the canonical `ir/yield.v1` schemas, and the
 conformance suite (`internal/conformance`) runs the *same program* in all
 four languages and asserts identical observable protocol behavior.

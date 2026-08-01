@@ -5,9 +5,13 @@
   "license": "MIT",
   "type": "module",
   "files": [
+    "bin",
     "dist",
     "src"
   ],
+  "bin": {
+    "yskill": "bin/yskill.mjs"
+  },
   "exports": {
     ".": {
       "types": "./src/index.ts",
@@ -17,6 +21,7 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "test": "node --test",
     "prepack": "npm run build"
   },
   "engines": {

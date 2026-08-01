@@ -9,9 +9,15 @@ requires-python = ">=3.10"
 [project.urls]
 Repository = "https://github.com/operatorstack/yield"
 
+[project.scripts]
+yskill = "yieldskill._cli:main"
+
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=68", "wheel>=0.42"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["yieldskill"]
+
+[tool.setuptools.package-data]
+yieldskill = ["_runtime/*"]
