@@ -1,6 +1,8 @@
 name: Publish SDKs to OperatorStack Registry
 
 on:
+  pull_request:
+    paths: [".github/workflows/private-registry.yml"]
   push:
     tags: ["v*"]
   workflow_run:
@@ -11,7 +13,7 @@ on:
       version:
         description: "Existing release version without the leading v"
         required: true
-        default: "0.1.4"
+        default: "0.1.8"
         type: string
 
 permissions:
@@ -23,9 +25,28 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+  validate:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Verify the current release source
+        run: go test ./...
+      - name: Check the one-package release contract
+        run: |
+          set -euo pipefail
+          grep -F 'CGO_ENABLED=0' .github/workflows/private-registry.yml
+          grep -F 'packaging/assemble.mjs' .github/workflows/private-registry.yml
+          grep -F 'Install and test all language packages' .github/workflows/private-registry.yml
+
+  publish:
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -74,11 +95,42 @@ jobs:
       - name: Verify Go SDK and runtime
         run: go test ./...
 
+      - name: Build immutable runtimes and language packages
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/bin
+          while read -r goos goarch; do
+            suffix=""
+            if [[ "$goos" == "windows" ]]; then suffix=".exe"; fi
+            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" go build \
+              -trimpath -ldflags "-s -w -X main.version=${VERSION}" \
+              -o "dist/bin/yskill-${goos}-${goarch}${suffix}" ./cmd/yskill
+          done <<'TARGETS'
+          darwin amd64
+          darwin arm64
+          linux amd64
+          linux arm64
+          windows amd64
+          windows arm64
+          TARGETS
+          node packaging/assemble.mjs --version "$VERSION" --binaries dist/bin --output dist/packages
+
+      - name: Keep runtime checksums with the release run
+        uses: actions/upload-artifact@v4
+        with:
+          name: yskill-${{ steps.version.outputs.version }}-runtimes
+          path: |
+            dist/bin/
+            dist/packages/SHA256SUMS.json
+          if-no-files-found: error
+
       - name: Publish Go module
         run: |
           set -euo pipefail
           version="${{ steps.version.outputs.version }}"
-          if gcloud artifacts versions describe "v${{ steps.version.outputs.version }}" \
+          if gcloud artifacts versions describe "v${version}" \
             --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
             --repository="${{ vars.AR_GO_REPO }}" --package=github.com/operatorstack/yield \
             >/dev/null 2>&1; then
@@ -95,68 +147,157 @@ jobs:
               --source="$source_dir"
           fi
 
-      - name: Publish TypeScript SDK
-        working-directory: sdk/typescript
+      - name: Configure npm publishing
+        run: |
+          gcloud artifacts print-settings npm \
+            --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
+            --repository="${{ vars.AR_NPM_REPO }}" --scope=@operatorstack > "$RUNNER_TEMP/yield.npmrc"
+          npx -y google-artifactregistry-auth "$RUNNER_TEMP/yield.npmrc"
+
+      - name: Publish TypeScript package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          NPM_CONFIG_USERCONFIG: ${{ runner.temp }}/yield.npmrc
         run: |
           set -euo pipefail
-          if gcloud artifacts versions describe "${{ steps.version.outputs.version }}" \
-            --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
-            --repository="${{ vars.AR_NPM_REPO }}" --package=@operatorstack/yield \
-            >/dev/null 2>&1; then
-            echo "TypeScript SDK already published."
-          else
-            npm version "${{ steps.version.outputs.version }}" --no-git-tag-version --allow-same-version
-            gcloud artifacts print-settings npm \
+          for directory in dist/packages/npm/darwin-amd64 dist/packages/npm/darwin-arm64 dist/packages/npm/linux-amd64 dist/packages/npm/linux-arm64 dist/packages/npm/windows-amd64 dist/packages/npm/windows-arm64; do
+            package="$(node -p "require('./${directory}/package.json').name")"
+            if ! gcloud artifacts versions describe "$VERSION" \
               --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
-              --repository="${{ vars.AR_NPM_REPO }}" --scope=@operatorstack > .npmrc
-            npx -y google-artifactregistry-auth .npmrc
-            npm publish
-          fi
-
-      - name: Build and publish Python SDK
-        working-directory: sdk/python
-        run: |
-          set -euo pipefail
-          if gcloud artifacts versions describe "${{ steps.version.outputs.version }}" \
+              --repository="${{ vars.AR_NPM_REPO }}" --package="$package" >/dev/null 2>&1; then
+              npm publish "$directory"
+            fi
+          done
+          if ! gcloud artifacts versions describe "$VERSION" \
             --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
-            --repository="${{ vars.AR_PYTHON_REPO }}" --package=yieldskill \
-            >/dev/null 2>&1; then
-            echo "Python SDK already published."
-          else
-            sed -i 's/^version = .*/version = "${{ steps.version.outputs.version }}"/' pyproject.toml
-            python -m pip install --quiet build twine keyrings.google-artifactregistry-auth
-            python -m build
-            twine upload \
-              --repository-url "https://${{ vars.AR_LOCATION }}-python.pkg.dev/${{ vars.AR_PROJECT }}/${{ vars.AR_PYTHON_REPO }}/" \
-              dist/*
+            --repository="${{ vars.AR_NPM_REPO }}" --package=@operatorstack/yield >/dev/null 2>&1; then
+            npm publish dist/packages/npm/yield
           fi
 
-      - name: Build Rust crate and sparse-index record
-        working-directory: sdk/rust
+      - name: Build and publish Python wheels
         run: |
           set -euo pipefail
-          version="${{ steps.version.outputs.version }}"
-          sed -i "s/^version = .*/version = \"${version}\"/" Cargo.toml
-          cargo package --allow-dirty
-          crate="target/package/yieldskill-${version}.crate"
+          python -m pip install --quiet build twine keyrings.google-artifactregistry-auth
+          mkdir -p dist/python-wheels
+          for directory in dist/packages/python/*; do
+            python -m build --wheel --outdir "$GITHUB_WORKSPACE/dist/python-wheels" "$directory"
+          done
+          twine upload --skip-existing \
+            --repository-url "https://${{ vars.AR_LOCATION }}-python.pkg.dev/${{ vars.AR_PROJECT }}/${{ vars.AR_PYTHON_REPO }}/" \
+            dist/python-wheels/*
+
+      - name: Publish Rust runtime crates
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist/rust-runtime-publish
+          for directory in dist/packages/rust/runtime/*; do
+            name="$(sed -n 's/^name = "\(.*\)"/\1/p' "$directory/Cargo.toml")"
+            cargo package --manifest-path "$directory/Cargo.toml" --allow-dirty --no-verify
+            crate="$directory/target/package/${name}-${VERSION}.crate"
+            checksum="$(sha256sum "$crate" | cut -d' ' -f1)"
+            curl -fsSL "https://get.operatorstack.systems/cargo/index/$(printf '%s' "$name" | cut -c1-2)/$(printf '%s' "$name" | cut -c3-4)/${name}" \
+              -o "dist/rust-runtime-publish/${name}-index.json" || true
+            node packaging/cargo-index.mjs --name "$name" --version "$VERSION" --checksum "$checksum" \
+              --output "dist/rust-runtime-publish/${name}-index.json"
+            cp "$crate" dist/rust-runtime-publish/
+          done
+          gcloud artifacts generic upload \
+            --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
+            --repository="${{ vars.AR_GENERIC_REPO }}" --package=yield-rust --version="$VERSION" \
+            --source-directory=dist/rust-runtime-publish --skip-existing
+
+      - name: Publish Rust public crate
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.cargo" dist/rust-public-publish
+          printf '[registries.operatorstack]\nindex = "sparse+https://get.operatorstack.systems/cargo/index/"\n' > "$HOME/.cargo/config.toml"
+          directory=dist/packages/rust/yieldskill
+          rm -f "$directory/Cargo.lock"
+          cargo generate-lockfile --manifest-path "$directory/Cargo.toml"
+          cargo package --manifest-path "$directory/Cargo.toml" --registry operatorstack --allow-dirty
+          crate="$directory/target/package/yieldskill-${VERSION}.crate"
           checksum="$(sha256sum "$crate" | cut -d' ' -f1)"
           curl -fsSL https://get.operatorstack.systems/cargo/index/yi/el/yieldskill \
-            | grep -v "\"vers\":\"${version}\"" > yieldskill-index.json || true
-          jq -nc --arg vers "$version" --arg cksum "$checksum" '{
-            name:"yieldskill",vers:$vers,
-            deps:[
-              {name:"hex",req:"^0.4",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:"https://github.com/rust-lang/crates.io-index"},
-              {name:"serde",req:"^1",features:["derive"],optional:false,default_features:true,target:null,kind:"normal",registry:"https://github.com/rust-lang/crates.io-index"},
-              {name:"serde_json",req:"^1",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:"https://github.com/rust-lang/crates.io-index"},
-              {name:"sha2",req:"^0.10",features:[],optional:false,default_features:true,target:null,kind:"normal",registry:"https://github.com/rust-lang/crates.io-index"}
-            ],
-            cksum:$cksum,features:{},yanked:false,links:null
-          }' >> yieldskill-index.json
-          mkdir publish
-          cp "$crate" yieldskill-index.json publish/
+            -o dist/rust-public-publish/yieldskill-index.json || true
+          node packaging/cargo-index.mjs --name yieldskill --version "$VERSION" --checksum "$checksum" \
+            --output dist/rust-public-publish/yieldskill-index.json
+          cp "$crate" dist/rust-public-publish/
           gcloud artifacts generic upload \
-            --project="${{ vars.AR_PROJECT }}" \
-            --location="${{ vars.AR_LOCATION }}" \
-            --repository="${{ vars.AR_GENERIC_REPO }}" \
-            --package=yield-rust --version="$version" \
-            --source-directory=publish --skip-existing
+            --project="${{ vars.AR_PROJECT }}" --location="${{ vars.AR_LOCATION }}" \
+            --repository="${{ vars.AR_GENERIC_REPO }}" --package=yield-rust --version="$VERSION" \
+            --source-directory=dist/rust-public-publish --skip-existing
+
+  install-journeys:
+    name: Install journeys (${{ matrix.target }})
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-amd64
+            runner: ubuntu-24.04
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+          - target: darwin-amd64
+            runner: macos-15-intel
+          - target: darwin-arm64
+            runner: macos-15
+          - target: windows-amd64
+            runner: windows-2025
+          - target: windows-arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install and test all language packages
+        shell: bash
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
+          GOPROXY: https://get.operatorstack.systems/go,direct
+        run: |
+          set -euo pipefail
+          workspace="$RUNNER_TEMP/yield-install"
+          mkdir -p "$workspace/typescript" "$workspace/python" "$workspace/go" "$workspace/rust"
+
+          cd "$workspace/typescript"
+          npm init -y >/dev/null
+          npm install "@operatorstack/yield@${VERSION}" --registry=https://get.operatorstack.systems/npm/
+          npm exec -- yskill --version | grep -F "yskill ${VERSION}"
+          npm exec -- yskill init skill --language typescript
+          npm exec -- yskill test skill
+
+          cd "$workspace/python"
+          python -m venv .venv
+          if [[ "$RUNNER_OS" == "Windows" ]]; then python_bin=.venv/Scripts/python; else python_bin=.venv/bin/python; fi
+          "$python_bin" -m pip install "yieldskill==${VERSION}" --index-url https://get.operatorstack.systems/pip/simple/
+          "$python_bin" -m yieldskill --version | grep -F "yskill ${VERSION}"
+          "$python_bin" -m yieldskill init skill --language python
+          "$python_bin" -m yieldskill test skill
+
+          cd "$workspace/go"
+          go install "github.com/operatorstack/yield/cmd/yskill@v${VERSION}"
+          go_cli="$(go env GOPATH)/bin/yskill"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then go_cli="${go_cli}.exe"; fi
+          "$go_cli" --version | grep -F "yskill ${VERSION}"
+          "$go_cli" init skill --language go
+          "$go_cli" test skill
+
+          cd "$workspace/rust"
+          cargo install "yieldskill@${VERSION}" --index sparse+https://get.operatorstack.systems/cargo/index/ --locked --root .cargo-root
+          if [[ "$RUNNER_OS" == "Windows" ]]; then rust_cli=.cargo-root/bin/yskill.exe; else rust_cli=.cargo-root/bin/yskill; fi
+          "$rust_cli" --version | grep -F "yskill ${VERSION}"
+          "$rust_cli" init skill --language rust
+          "$rust_cli" test skill
