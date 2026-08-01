@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "methodology_version": "0.1",
+  "cases": [
+    {
+      "id": "gstack-review",
+      "label": "GStack review",
+      "source": {
+        "repo": "garrytan/gstack",
+        "commit": "a3259400a366593e0c909dd9ac3e59752efd2488",
+        "path": "review/SKILL.md",
+        "license": "MIT",
+        "sha256": "92ee16af71d5e0088326869b0a211c50f94b9261eeae75656bc21f9bcfae2031"
+      },
+      "thin_skill": "gstack-review/SKILL.md",
+      "workflow": "gstack-review/workflow.ts"
+    },
+    {
+      "id": "doc-coauthoring",
+      "label": "Anthropic doc co-authoring",
+      "source": {
+        "repo": "anthropics/skills",
+        "commit": "b29e7cf65e5cb78a5ac33d582270551bc74a14eb",
+        "path": "skills/doc-coauthoring/SKILL.md",
+        "license": "See source repository",
+        "sha256": "2e47d78846faeea4a56e9809c52700087a15a2155a3f293a3efbaded81398ef4"
+      },
+      "thin_skill": "doc-coauthoring/SKILL.md",
+      "workflow": "doc-coauthoring/workflow.ts"
+    },
+    {
+      "id": "systematic-debugging",
+      "label": "Superpowers systematic debugging",
+      "source": {
+        "repo": "obra/superpowers",
+        "commit": "44c9b2d6e889982ac18c27d05a19fefe335194e1",
+        "path": "skills/systematic-debugging/SKILL.md",
+        "license": "MIT",
+        "sha256": "808fc5717aa88ad65efff312b11c186294d3e6ee301afb584e2f86599b137787"
+      },
+      "thin_skill": "systematic-debugging/SKILL.md",
+      "workflow": "systematic-debugging/workflow.ts"
+    },
+    {
+      "id": "vercel-deploy",
+      "label": "Vercel deploy",
+      "source": {
+        "repo": "vercel-labs/agent-skills",
+        "commit": "7c180d9044c9ae2b442b567aad4e42a28dd5ed62",
+        "path": "skills/deploy-to-vercel/SKILL.md",
+        "license": "See source repository",
+        "sha256": "cfcc3dd479ab2e0ae721ddf39b8af84d977321487672f1487c8d6855f576927b"
+      },
+      "thin_skill": "vercel-deploy/SKILL.md",
+      "workflow": "vercel-deploy/workflow.ts"
+    },
+    {
+      "id": "mcp-builder",
+      "label": "Microsoft MCP builder",
+      "source": {
+        "repo": "microsoft/skills",
+        "commit": "4a2873faffc1b101a33a0b59c24713d4ed78142f",
+        "path": ".github/skills/mcp-builder/SKILL.md",
+        "license": "MIT",
+        "sha256": "621e771c22224140752ddf933923467b2d1148580194ad59d3f1f21f9f27bdc9"
+      },
+      "thin_skill": "mcp-builder/SKILL.md",
+      "workflow": "mcp-builder/workflow.ts"
+    },
+    {
+      "id": "actions-auditor",
+      "label": "Trail of Bits actions auditor",
+      "source": {
+        "repo": "trailofbits/skills",
+        "commit": "1256982d4d925a0acfe11e26c2253c32052c6247",
+        "path": "plugins/agentic-actions-auditor/skills/agentic-actions-auditor/SKILL.md",
+        "license": "CC-BY-SA-4.0",
+        "sha256": "80e36ab06e3ee667ac45bab036ed395fc425c4d54fa72c4b4981a5b982a389aa"
+      },
+      "thin_skill": "actions-auditor/SKILL.md",
+      "workflow": "actions-auditor/workflow.ts"
+    }
+  ]
+}

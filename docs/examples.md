@@ -60,3 +60,15 @@ YSKILL=/tmp/yskill /tmp/yskill test examples/convert-skill
 When adapting an example, change the repository-specific commands and model
 instructions. Keep stable operation IDs for existing steps so saved runs can
 replay them.
+
+## Conversion cases used by evaluations
+
+The [evaluation cases](../evals/cases/) are different from the example library.
+Each one pins a public third-party skill to an exact commit and digest, then
+shows the smaller model-facing `SKILL.md` beside the TypeScript workflow that
+owns its order, commands, gates, and completion.
+
+The source-size harness and early summaries live in [`evals/`](../evals/).
+Large transcripts and temporary repositories are external artifacts, never
+committed source. A behavioral result is publishable only when its summary
+binds the exact artifact URI and SHA-256.

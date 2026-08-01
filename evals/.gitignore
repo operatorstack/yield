@@ -1,0 +1,5 @@
+runs/
+raw/
+artifacts/
+.worktrees/
+node_modules/
