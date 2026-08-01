@@ -1,39 +1,55 @@
 # Yield evaluations
 
-This directory contains the public, reviewable part of Yield's evaluation
-system: case definitions, pinned source identities, conversion programs,
-measurement code, validation rules, and small result summaries.
+These evaluations test Yield itself. They do not compare Yield with another
+tool, company, prompt, or skill.
 
-Raw agent transcripts, temporary repositories, command logs, and model
-responses do not belong in Git. A full campaign uploads those files as one
-immutable artifact bundle and records its URI and SHA-256 in the published
-summary. Until that bundle exists, the summary must say `unpublished`.
+The suite answers two questions:
 
-## Layout
+1. Can each checked-in example workflow reach its expected final result
+   through every supported SDK?
+2. Does the runtime behave correctly when a run resumes, replays, blocks, or
+   encounters changed code?
 
-- `cases/` — pinned public source identities plus the thin skill and Yield
-  program used for each conversion.
-- `scripts/measure-source.mjs` — reproduces the source-size comparison from
-  pinned upstream files.
-- `scripts/validate.mjs` — fail-closed validation for cases and summaries.
-- `results/latest.json` — small website-safe summary. It is not raw evidence.
-- `runs/` — local or CI output; ignored by Git and projected releases.
+## Current coverage
 
-## Run
+- 10 workflow patterns written by this project.
+- 4 SDKs: TypeScript, Python, Go, and Rust.
+- 40 end-to-end workflow tests.
+- 5 runtime checks: resume and complete, repeat the same saved step, stop when
+  behavior changes, block when a rule fails, and require approval for changed
+  source.
+
+Run the exact suite and refresh the checked-in result:
 
 ```bash
-npm install
-npm run validate
-npm run measure
+cd evals
+npm run eval
 ```
 
-`npm run measure` writes a fresh summary under `runs/`. Publishing that result
-requires a separate promotion step that binds the raw artifact digest, the
-exact Yield commit, model identity, harness version, and case-set digest.
+Check that the published result still matches the current source:
 
-## Claim boundary
+```bash
+npm test
+```
 
-Source-size measurements show how much model-facing text and workflow source
-the prototypes contain. They do not prove behavioral equivalence. Behavioral
-claims require executable fixtures, held-out oracles, repeated model runs, and
-the immutable raw artifact named by the result summary.
+## What a passing result proves
+
+A passing result proves that the tested Yield revision:
+
+- executes each owned workflow test to `completed`;
+- runs command steps rather than asking the model to invent their outputs;
+- presents requests in the program-defined order;
+- resumes from recorded responses;
+- returns to the same saved step during replay;
+- stops on changed behavior or failed requirements.
+
+## What it does not prove
+
+This suite does not prove that Yield is better than prose, that an agent's
+judgment is correct, or that illustrative commands are production-safe. The
+Fixed test data supplies agent and human responses so the suite can test only
+the code-controlled workflow layer.
+
+`results/latest.json` is a compact, website-safe result. Its source hash is
+computed from the CLI, engine, protocol, SDKs, example workflows, fixtures, and
+evaluation harness. CI reruns the suite instead of trusting that file alone.
