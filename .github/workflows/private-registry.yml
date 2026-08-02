@@ -283,6 +283,30 @@ jobs:
           set -euo pipefail
           workspace="$RUNNER_TEMP/yield-install"
           mkdir -p "$workspace/typescript" "$workspace/python" "$workspace/go" "$workspace/rust"
+          python_cmd=python
+          if ! command -v "$python_cmd" >/dev/null 2>&1; then python_cmd=python3; fi
+
+          finish_starter() {
+            FILE="$1" OLD="$2" NEW="$3" "$python_cmd" - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ["FILE"])
+          source = path.read_text()
+          old = os.environ["OLD"]
+          if old not in source:
+              raise SystemExit(f"starter line not found in {path}")
+          path.write_text(source.replace(old, os.environ["NEW"], 1))
+          PY
+          }
+
+          expect_incomplete_starter() {
+            if "$@" > "$RUNNER_TEMP/starter-test.log" 2>&1; then
+              echo "starter workflow unexpectedly passed" >&2
+              exit 1
+            fi
+            grep -F "replace the starter workflow and fixture before testing" "$RUNNER_TEMP/starter-test.log"
+          }
 
           cd "$workspace/typescript"
           git init -q
@@ -290,18 +314,28 @@ jobs:
           npm install "@operatorstack/yield@${VERSION}" --registry=https://get.operatorstack.systems/npm/
           npm exec -- yskill --version | grep -F "yskill ${VERSION}"
           npm exec -- yskill init skill --language typescript --description "Run this workflow when checking the installed TypeScript package."
+          expect_incomplete_starter npm exec -- yskill doctor skill --test
+          finish_starter skill/main.ts \
+            '  ctx.blocked("replace the starter workflow and fixture before testing")' \
+            '  return { installed: true }'
+          npm exec -- yskill doctor skill --test
           npm exec -- yskill register skill --agent cursor,codex,claude-code
-          npm exec -- yskill doctor skill --agent cursor,codex,claude-code --test
+          npm exec -- yskill doctor skill --agent cursor,codex,claude-code
 
           cd "$workspace/python"
           git init -q
-          python -m venv .venv
+          "$python_cmd" -m venv .venv
           if [[ "$RUNNER_OS" == "Windows" ]]; then python_bin=.venv/Scripts/python; else python_bin=.venv/bin/python; fi
           "$python_bin" -m pip install "yieldskill==${VERSION}" --index-url https://get.operatorstack.systems/pip/simple/
           "$python_bin" -m yieldskill --version | grep -F "yskill ${VERSION}"
           "$python_bin" -m yieldskill init skill --language python --description "Run this workflow when checking the installed Python package."
+          expect_incomplete_starter "$python_bin" -m yieldskill doctor skill --test
+          finish_starter skill/main.py \
+            '    ctx.blocked("replace the starter workflow and fixture before testing")' \
+            '    return {"installed": True}'
+          "$python_bin" -m yieldskill doctor skill --test
           "$python_bin" -m yieldskill register skill --agent cursor,codex,claude-code
-          "$python_bin" -m yieldskill doctor skill --agent cursor,codex,claude-code --test
+          "$python_bin" -m yieldskill doctor skill --agent cursor,codex,claude-code
 
           cd "$workspace/go"
           git init -q
@@ -310,8 +344,13 @@ jobs:
           if [[ "$RUNNER_OS" == "Windows" ]]; then go_cli="${go_cli}.exe"; fi
           "$go_cli" --version | grep -F "yskill ${VERSION}"
           "$go_cli" init skill --language go --description "Run this workflow when checking the installed Go package."
+          expect_incomplete_starter "$go_cli" doctor skill --test
+          finish_starter skill/main.go \
+            'return yield.Outcome{}, ctx.Blocked("replace the starter workflow and fixture before testing")' \
+            'return ctx.Complete(map[string]any{"installed": true})'
+          "$go_cli" doctor skill --test
           "$go_cli" register skill --agent cursor,codex,claude-code
-          "$go_cli" doctor skill --agent cursor,codex,claude-code --test
+          "$go_cli" doctor skill --agent cursor,codex,claude-code
 
           cd "$workspace/rust"
           git init -q
@@ -319,5 +358,10 @@ jobs:
           if [[ "$RUNNER_OS" == "Windows" ]]; then rust_cli=.cargo-root/bin/yskill.exe; else rust_cli=.cargo-root/bin/yskill; fi
           "$rust_cli" --version | grep -F "yskill ${VERSION}"
           "$rust_cli" init skill --language rust --description "Run this workflow when checking the installed Rust package."
+          expect_incomplete_starter "$rust_cli" doctor skill --test
+          finish_starter skill/src/main.rs \
+            '    Err(ctx.blocked("replace the starter workflow and fixture before testing"))' \
+            '    Ok(json!({"installed": true}))'
+          "$rust_cli" doctor skill --test
           "$rust_cli" register skill --agent cursor,codex,claude-code
-          "$rust_cli" doctor skill --agent cursor,codex,claude-code --test
+          "$rust_cli" doctor skill --agent cursor,codex,claude-code
