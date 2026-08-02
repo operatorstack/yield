@@ -7,7 +7,7 @@
 - persistent append-only run state;
 - per-step digest checks during replay;
 - rejection of stale, duplicate, wrong-run, and schema-invalid responses;
-- real command execution by the supervisor;
+- real command execution by the Yield CLI;
 - requirements that prevent later completion after failure;
 - recorded completed, blocked, and refused outcomes.
 

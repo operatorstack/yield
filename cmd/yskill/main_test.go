@@ -78,14 +78,21 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.language, func(t *testing.T) {
-			dir := filepath.Join(t.TempDir(), "My Skill")
-			if err := scaffoldSkill(dir, tt.language, ""); err != nil {
+			dir := filepath.Join(t.TempDir(), "my-skill")
+			if err := scaffoldSkill(dir, tt.language, "", "Run the test workflow when checking Yield setup."); err != nil {
 				t.Fatal(err)
 			}
 			for _, rel := range append(tt.files, "SKILL.md", "fixtures/responses.json") {
 				if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
 					t.Fatalf("%s: %v", rel, err)
 				}
+			}
+			generated, err := readSkillManifest(dir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if generated.Version != 1 || generated.Language != tt.language {
+				t.Fatalf("skill.json = version %d language %q", generated.Version, generated.Language)
 			}
 			skill := readTestFile(t, filepath.Join(dir, "SKILL.md"))
 			if !strings.Contains(skill, tt.command) {
@@ -122,11 +129,11 @@ func TestGoScaffoldCanResolveItsPinnedModuleOnFirstRun(t *testing.T) {
 		tidyGoModule = previousTidyGoModule
 	})
 	dir := filepath.Join(t.TempDir(), "go-skill")
-	if err := scaffoldSkill(dir, "go", ""); err != nil {
+	if err := scaffoldSkill(dir, "go", "", "Run the Go workflow when checking Yield setup."); err != nil {
 		t.Fatal(err)
 	}
 	manifest := readTestFile(t, filepath.Join(dir, "skill.json"))
-	if manifest != "{\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n" {
+	if manifest != "{\"version\":1,\"language\":\"go\",\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n" {
 		t.Fatalf("skill.json = %q", manifest)
 	}
 }
@@ -137,7 +144,7 @@ func TestPythonScaffoldUsesInvokingInterpreter(t *testing.T) {
 	t.Cleanup(func() { version = previousVersion })
 	t.Setenv("YIELD_PYTHON", "/opt/yield/.venv/bin/python")
 	dir := filepath.Join(t.TempDir(), "python-skill")
-	if err := scaffoldSkill(dir, "python", ""); err != nil {
+	if err := scaffoldSkill(dir, "python", "", "Run the Python workflow when checking Yield setup."); err != nil {
 		t.Fatal(err)
 	}
 	skill := readTestFile(t, filepath.Join(dir, "skill.json"))
@@ -148,17 +155,24 @@ func TestPythonScaffoldUsesInvokingInterpreter(t *testing.T) {
 
 func TestScaffoldSkillPreservesExistingSkillAndRejectsUnknownLanguage(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte("keep me\n"), 0o644); err != nil {
+	existing := "---\nname: " + filepath.Base(dir) + "\ndescription: Keep this existing workflow when wrapping it with Yield.\n---\n\nKeep me.\n"
+	if err := os.WriteFile(filepath.Join(dir, "SKILL.md"), []byte(existing), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := scaffoldSkill(dir, "typescript", ""); err != nil {
+	if err := scaffoldSkill(dir, "typescript", "", ""); err != nil {
 		t.Fatal(err)
 	}
-	if got := readTestFile(t, filepath.Join(dir, "SKILL.md")); got != "keep me\n" {
+	if got := readTestFile(t, filepath.Join(dir, "SKILL.md")); got != existing {
 		t.Fatalf("existing SKILL.md changed: %q", got)
 	}
-	if err := scaffoldSkill(t.TempDir(), "java", ""); err == nil || !strings.Contains(err.Error(), "unsupported language") {
+	if err := scaffoldSkill(t.TempDir(), "java", "", "A valid description for the invalid language test."); err == nil || !strings.Contains(err.Error(), "unsupported language") {
 		t.Fatalf("unknown language error = %v", err)
+	}
+}
+
+func TestScaffoldRequiresDescriptionForNewSkill(t *testing.T) {
+	if err := scaffoldSkill(filepath.Join(t.TempDir(), "new-skill"), "typescript", "", ""); err == nil || !strings.Contains(err.Error(), "--description is required") {
+		t.Fatalf("missing description error = %v", err)
 	}
 }
 

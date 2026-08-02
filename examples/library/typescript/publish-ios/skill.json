@@ -1,4 +1,6 @@
 {
+  "version": 1,
+  "language": "typescript",
   "run": [
     "node",
     "../src/publish-ios.ts"

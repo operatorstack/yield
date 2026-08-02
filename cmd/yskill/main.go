@@ -1,6 +1,6 @@
-// yskill is the supervisor CLI for Yield: it starts runs, validates and
+// yskill is the command-line interface for Yield: it starts runs, validates and
 // accepts responses, executes commands as observed fact, and owns the
-// append-only run log. The coding agent drives it through six verbs.
+// append-only run log. The coding agent drives it through a small set of verbs.
 package main
 
 import (
@@ -21,7 +21,12 @@ const usage = `yskill — turn SKILL.md workflows into resumable programs
 
 Usage:
   yskill init <dir>                          scaffold a skill (or wrap an existing prose skill)
-         [--language typescript|python|go|rust]
+         [--language typescript|python|go|rust] [--description text]
+  yskill register <skill-dir>                expose one workflow to coding agents
+         [--agent cursor,codex,...|auto] [--root repo]
+  yskill agents                              list supported coding agents and paths
+  yskill doctor <skill-dir>                  check package, workflow, and adapters
+         [--agent cursor,codex,...|auto] [--root repo] [--test]
   yskill run <skill-dir> [--input file]      start a run; prints the first operation envelope
   yskill resume <run-id> --response file     feed a response; prints the next operation
          [--skill dir] [--accept-new-digest]
@@ -54,6 +59,12 @@ func main() {
 	switch os.Args[1] {
 	case "init":
 		err = cmdInit(os.Args[2:])
+	case "register":
+		err = cmdRegister(os.Args[2:])
+	case "agents":
+		err = cmdAgents(os.Args[2:])
+	case "doctor":
+		err = cmdDoctor(os.Args[2:])
 	case "run":
 		err = cmdRun(os.Args[2:])
 	case "resume":
@@ -279,11 +290,12 @@ func cmdInit(args []string) error {
 	fs := flag.NewFlagSet("init", flag.ExitOnError)
 	sdkPath := fs.String("sdk", "", "filesystem path to the yield module (written as a go.mod replace directive)")
 	language := fs.String("language", defaultLanguage(), "workflow language: typescript, python, go, or rust")
+	description := fs.String("description", "", "what the skill does and when an agent should use it")
 	if err := parseOnePositional(fs, args); err != nil {
 		return err
 	}
 	if fs.NArg() != 1 {
 		return fmt.Errorf("init takes exactly one directory")
 	}
-	return scaffoldSkill(fs.Arg(0), *language, *sdkPath)
+	return scaffoldSkill(fs.Arg(0), *language, *sdkPath, *description)
 }

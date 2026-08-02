@@ -29,7 +29,7 @@ The arguments are:
 3. optional structured context;
 4. an optional JSON Schema for the response.
 
-The supervisor validates the response schema before accepting it. Schema-valid
+The Yield CLI validates the response schema before accepting it. Schema-valid
 does not mean true; use `RunCommand`, human approval, or another explicit check
 when the workflow needs stronger evidence.
 

@@ -1,45 +1,43 @@
 # Run your first Yield skill
 
 This tutorial turns a repeated review checklist into a small TypeScript
-program:
-
-1. run a real check;
-2. ask the coding agent to review the branch;
-3. stop unless the result has zero critical findings;
-4. save the structured review.
+program: run a real check, ask the coding agent to review the branch, stop on
+critical findings, and save the structured result.
 
 You need Node.js 24 or newer.
 
 ## 1. Install Yield
 
 ```bash
-mkdir review-skill
-cd review-skill
+mkdir yield-example
+cd yield-example
 npm init -y
 npm install @operatorstack/yield \
   --registry=https://get.operatorstack.systems/npm/
-npm exec -- yskill init . --language typescript
+npm exec -- yskill --version
 ```
 
 The package includes the TypeScript SDK and its matching Yield runtime.
 
-## 2. Create the package
+## 2. Create the canonical workflow
 
-Create `package.json`:
-
-```json
-{
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "check": "node --check main.ts"
-  }
-}
+```bash
+npm exec -- yskill init skills/review \
+  --language typescript \
+  --description "Check and review the current branch before it is shipped."
 ```
 
-## 3. Add the workflow
+The workflow stays under `skills/review`, inside the same dependency tree as
+`@operatorstack/yield`. The generated `skill.json` records the language and
+program entry point:
 
-Create `main.ts`:
+```json
+{"version":1,"language":"typescript","run":["node","main.ts"]}
+```
+
+## 3. Add the workflow logic
+
+Replace `skills/review/main.ts`:
 
 ```ts
 import { defineSkill } from "@operatorstack/yield";
@@ -72,37 +70,41 @@ defineSkill((ctx) => {
 });
 ```
 
-Add `skill.json` so Yield knows how to start the program:
+Add the real project check to the root `package.json`:
 
 ```json
-{"run":["node","main.ts"]}
+{"scripts":{"check":"node --check skills/review/main.ts"}}
 ```
 
-## 4. Add the thin skill file
+The generated `skills/review/SKILL.md` remains short. It tells the agent when
+to use the workflow and how to follow the yielded operations; the program owns
+the order and finish rule.
 
-Create `SKILL.md`:
+## 4. Register it with coding agents
 
-```markdown
----
-name: review
-description: Check and review the current branch before it is shipped.
----
+```bash
+# Detect installed verified agents
+npm exec -- yskill register skills/review
 
-Run `npm exec -- yskill run .` and follow each returned operation exactly.
-
-For `agent_task`, perform the task and return schema-valid JSON. Resume with
-`npm exec -- yskill resume <run-id> --response response.json --skill .`.
-
-Do not skip an operation or invent a response. The program owns the order and
-the finish rule.
+# Or select them explicitly
+npm exec -- yskill register skills/review \
+  --agent cursor,codex,claude-code
 ```
 
-The file still tells the agent what the skill is for. It no longer has to
-describe every branch and gate in prose.
+Yield keeps one workflow and writes only generated adapters:
+
+```text
+.cursor/skills/review/SKILL.md   # Cursor
+.agents/skills/review/SKILL.md   # Codex
+.claude/skills/review/SKILL.md   # Claude Code
+```
+
+Start a new agent session after registration, then invoke `/review` or ask for
+the task described by the skill.
 
 ## 5. Prove the workflow locally
 
-Create `fixtures/responses.json`:
+Replace `skills/review/fixtures/responses.json`:
 
 ```json
 {
@@ -113,24 +115,33 @@ Create `fixtures/responses.json`:
 }
 ```
 
-Run:
+Run the complete setup check:
 
 ```bash
-npm exec -- yskill test .
+npm exec -- yskill doctor skills/review \
+  --agent cursor,codex,claude-code \
+  --test
 ```
 
-`run_command` operations execute for real. The fixture supplies only the model
-and user responses. A successful result ends with:
+`run_command` operations execute for real. The fixture supplies only model and
+user responses. A successful result ends with `reached completed` and a doctor
+summary.
 
-```text
-test: run <run-id> reached completed
+## Run an existing workflow
+
+Initialization is only for creating or wrapping a workflow. For an existing
+workflow, install the matching language package, register it for the agents in
+the project, then run it directly when needed:
+
+```bash
+npm exec -- yskill register skills/review --agent cursor
+npm exec -- yskill run skills/review
 ```
 
-## 6. Use it from your coding agent
+The agent reads the generated adapter, starts the canonical workflow, performs
+each yielded operation, and resumes the saved run. If the session closes, the
+run remains on disk.
 
-Ask the agent to run the `review` skill in this directory. The agent reads
-`SKILL.md`, starts `yskill`, performs the review operation, and resumes the
-saved run. If the session closes, the run remains on disk.
-
-Next: [understand each primitive](primitives/README.md), or follow the
-[complete review tutorial](tutorials/code-review.md).
+Next: [set up coding agents](agent-setup.md), [understand each
+primitive](primitives/README.md), or follow the [complete review
+tutorial](tutorials/code-review.md).

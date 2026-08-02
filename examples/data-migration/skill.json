@@ -1,3 +1,9 @@
 {
-  "run": ["cargo", "run", "--quiet"]
+  "version": 1,
+  "language": "rust",
+  "run": [
+    "cargo",
+    "run",
+    "--quiet"
+  ]
 }
