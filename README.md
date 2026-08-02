@@ -41,6 +41,28 @@ cargo install yieldskill \
 yskill --version
 ```
 
+## Create and register a workflow
+
+Keep the real workflow beside the language dependencies it uses. Yield writes
+small adapters into each coding agent's project skill directory; it does not
+copy the workflow or install its dependencies again.
+
+```bash
+# TypeScript example
+npm exec -- yskill init skills/review \
+  --language typescript \
+  --description "Review changed code when the user wants a branch checked before shipping."
+
+# Detect installed agents, or pass --agent cursor,codex,claude-code
+npm exec -- yskill register skills/review
+npm exec -- yskill doctor skills/review --test
+```
+
+`yskill agents` lists the available agent IDs and project paths. Cursor,
+Codex, and Claude Code are verified. Remaining entries support explicit path
+registration from the pinned open registry; they are not presented as
+end-to-end verified.
+
 ## How it works
 
 Deterministic re-execution: on every run/resume, `yskill` re-executes the
@@ -82,8 +104,8 @@ four languages and asserts identical observable protocol behavior.
 | Python | `sdk/python` (`yieldskill`) | `examples/env-doctor` — probe, branch, resume after the human |
 | Rust | `sdk/rust` (`yieldskill`) | `examples/data-migration` — dry-run → approve → apply → verify |
 
-Non-Go skills declare their runner in `skill.json`:
-`{"run": ["node", "main.ts"]}`.
+Skills declare their language and runner in `skill.json`:
+`{"version": 1, "language": "typescript", "run": ["node", "main.ts"]}`.
 
 ## Ten workflows, every language
 
@@ -106,6 +128,8 @@ use the documentation by job:
 - [tutorials](docs/tutorials/README.md) — review, approval, environment
   repair, bounded debugging, and migration;
 - [examples](docs/examples.md) — working programs in all four languages;
+- [coding-agent setup](docs/agent-setup.md) — register one workflow with the
+  agents used by the project;
 - [evaluations](evals/README.md) — first-party workflow conformance and runtime
   invariant results, including the exact claim boundary;
 - [convert an existing skill](docs/convert-existing-skill.md) — move
@@ -127,7 +151,9 @@ YSKILL="$PWD/yskill" bash ./examples/library/test-all.sh
 ./yskill test examples/env-doctor         # Python 3.10+
 ./yskill test examples/data-migration     # Rust (cargo)
 ./yskill run  examples/investigate        # prints the first operation envelope
-./yskill init my-skill                    # scaffold, or wrap an existing prose skill
+./yskill init my-skill --description "Run this workflow when ..."
+./yskill register my-skill --agent codex # write a thin project adapter
+./yskill doctor my-skill --agent codex   # verify package + adapter wiring
 ```
 
 The reference skill, `examples/investigate`, encodes an investigation
@@ -144,7 +170,7 @@ rejection, evidence-bound completion.
 Not guaranteed: that the agent performed *only* the requested operation,
 or that a schema-valid `agent_task` result is true — schema validity is
 not truth. `RunCommand` is the exception by construction: commands are
-executed by the supervisor, so exit codes and output enter the log as
+executed by the Yield CLI, so exit codes and output enter the log as
 observed fact. The formal analysis behind this line is in
 `docs/locus-yield.md`.
 

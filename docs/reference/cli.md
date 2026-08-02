@@ -6,11 +6,50 @@ commands, and starts the skill program. It comes with each language package.
 ## `init`
 
 ```bash
-yskill init <directory> --language typescript|python|go|rust
+yskill init <directory> --description "What it does and when to use it"
+  [--language typescript|python|go|rust]
 ```
 
 Scaffolds a new skill or adds a Yield program beside an existing prose skill.
 Generated dependencies are pinned to the installed `yskill` version.
+New skills require a real trigger-oriented description. Existing `SKILL.md`
+files are preserved and validated.
+
+## `register`
+
+```bash
+yskill register <skill-directory> [--agent cursor,codex,...|auto]
+  [--root repository]
+```
+
+Writes generated, project-local `SKILL.md` adapters for the selected coding
+agents. Without `--agent`, Yield detects verified agents. Explicit IDs work for
+every entry printed by `yskill agents`. Workflow code, dependencies, fixtures,
+and run state remain in the canonical skill directory.
+
+Registration updates only adapters previously generated from the same source.
+It refuses user-owned files, workflows outside the repository, and canonical
+workflows stored inside a selected agent's discovery directory.
+
+## `agents`
+
+```bash
+yskill agents
+```
+
+Lists agent IDs, project skill directories, detection state, and whether each
+entry is verified or registry-supported.
+
+## `doctor`
+
+```bash
+yskill doctor <skill-directory> [--agent cursor,codex,...|auto]
+  [--root repository] [--test]
+```
+
+Checks the manifest, package launcher, portable metadata, adapter ownership,
+source path, and source digest. `--test` also runs the workflow against
+`fixtures/responses.json`.
 
 ## `version`
 

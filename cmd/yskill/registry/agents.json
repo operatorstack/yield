@@ -1,0 +1,466 @@
+{
+  "source": {
+    "repository": "https://github.com/vercel-labs/skills",
+    "commit": "1164afa5f0e21ebd01e6fc11249759353f494ad1",
+    "license": "MIT",
+    "path": "src/agents.ts"
+  },
+  "agents": [
+    {
+      "id": "adal",
+      "display_name": "AdaL",
+      "project_dir": ".adal/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "aider-desk",
+      "display_name": "AiderDesk",
+      "project_dir": ".aider-desk/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "amp",
+      "display_name": "Amp",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "antigravity",
+      "display_name": "Antigravity",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "antigravity-cli",
+      "display_name": "Antigravity CLI",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "astrbot",
+      "display_name": "AstrBot",
+      "project_dir": "data/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "augment",
+      "display_name": "Augment",
+      "project_dir": ".augment/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "autohand-code",
+      "display_name": "Autohand Code CLI",
+      "project_dir": ".autohand/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "bob",
+      "display_name": "IBM Bob",
+      "project_dir": ".bob/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "claude-code",
+      "display_name": "Claude Code",
+      "project_dir": ".claude/skills",
+      "tier": "verified"
+    },
+    {
+      "id": "cline",
+      "display_name": "Cline",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "codearts-agent",
+      "display_name": "CodeArts Agent",
+      "project_dir": ".codeartsdoer/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "codebuddy",
+      "display_name": "CodeBuddy",
+      "project_dir": ".codebuddy/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "codemaker",
+      "display_name": "Codemaker",
+      "project_dir": ".codemaker/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "codestudio",
+      "display_name": "Code Studio",
+      "project_dir": ".codestudio/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "codex",
+      "display_name": "Codex",
+      "project_dir": ".agents/skills",
+      "tier": "verified"
+    },
+    {
+      "id": "command-code",
+      "display_name": "Command Code",
+      "project_dir": ".commandcode/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "continue",
+      "display_name": "Continue",
+      "project_dir": ".continue/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "cortex",
+      "display_name": "Cortex Code",
+      "project_dir": ".cortex/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "crush",
+      "display_name": "Crush",
+      "project_dir": ".crush/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "cursor",
+      "display_name": "Cursor",
+      "project_dir": ".cursor/skills",
+      "tier": "verified"
+    },
+    {
+      "id": "deepagents",
+      "display_name": "Deep Agents",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "devin",
+      "display_name": "Devin for Terminal",
+      "project_dir": ".devin/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "dexto",
+      "display_name": "Dexto",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "droid",
+      "display_name": "Droid",
+      "project_dir": ".factory/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "eve",
+      "display_name": "Eve",
+      "project_dir": "agent/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "firebender",
+      "display_name": "Firebender",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "forgecode",
+      "display_name": "ForgeCode",
+      "project_dir": ".forge/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "gemini-cli",
+      "display_name": "Gemini CLI",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "github-copilot",
+      "display_name": "GitHub Copilot",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "goose",
+      "display_name": "Goose",
+      "project_dir": ".goose/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "grok",
+      "display_name": "Grok Build",
+      "project_dir": ".grok/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "hermes-agent",
+      "display_name": "Hermes Agent",
+      "project_dir": ".hermes/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "iflow-cli",
+      "display_name": "iFlow CLI",
+      "project_dir": ".iflow/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "inference-sh",
+      "display_name": "inference.sh",
+      "project_dir": ".inferencesh/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "jazz",
+      "display_name": "Jazz",
+      "project_dir": ".jazz/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "junie",
+      "display_name": "Junie",
+      "project_dir": ".junie/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "kilo",
+      "display_name": "Kilo Code",
+      "project_dir": ".kilocode/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "kimchi",
+      "display_name": "Kimchi",
+      "project_dir": ".kimchi/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "kimi-code-cli",
+      "display_name": "Kimi Code CLI",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "kiro-cli",
+      "display_name": "Kiro CLI",
+      "project_dir": ".kiro/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "kode",
+      "display_name": "Kode",
+      "project_dir": ".kode/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "lingma",
+      "display_name": "Lingma",
+      "project_dir": ".lingma/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "loaf",
+      "display_name": "Loaf",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "mcpjam",
+      "display_name": "MCPJam",
+      "project_dir": ".mcpjam/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "minimax-code",
+      "display_name": "MiniMax Code",
+      "project_dir": ".minimax/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "mistral-vibe",
+      "display_name": "Mistral Vibe",
+      "project_dir": ".vibe/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "moxby",
+      "display_name": "Moxby",
+      "project_dir": ".moxby/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "mux",
+      "display_name": "Mux",
+      "project_dir": ".mux/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "neovate",
+      "display_name": "Neovate",
+      "project_dir": ".neovate/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "ona",
+      "display_name": "Ona",
+      "project_dir": ".ona/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "openclaw",
+      "display_name": "OpenClaw",
+      "project_dir": "skills",
+      "tier": "registry"
+    },
+    {
+      "id": "opencode",
+      "display_name": "OpenCode",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "openhands",
+      "display_name": "OpenHands",
+      "project_dir": ".openhands/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "pi",
+      "display_name": "Pi",
+      "project_dir": ".pi/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "pochi",
+      "display_name": "Pochi",
+      "project_dir": ".pochi/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "promptscript",
+      "display_name": "PromptScript",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "qoder",
+      "display_name": "Qoder",
+      "project_dir": ".qoder/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "qoder-cn",
+      "display_name": "Qoder CN",
+      "project_dir": ".qoder/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "qwen-code",
+      "display_name": "Qwen Code",
+      "project_dir": ".qwen/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "reasonix",
+      "display_name": "Reasonix",
+      "project_dir": ".reasonix/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "replit",
+      "display_name": "Replit",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "roo",
+      "display_name": "Roo Code",
+      "project_dir": ".roo/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "rovodev",
+      "display_name": "Rovo Dev",
+      "project_dir": ".rovodev/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "tabnine-cli",
+      "display_name": "Tabnine CLI",
+      "project_dir": ".tabnine/agent/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "terramind",
+      "display_name": "Terramind",
+      "project_dir": ".terramind/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "tinycloud",
+      "display_name": "Tinycloud",
+      "project_dir": ".tinycloud/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "trae",
+      "display_name": "Trae",
+      "project_dir": ".trae/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "trae-cn",
+      "display_name": "Trae CN",
+      "project_dir": ".trae/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "universal",
+      "display_name": "Universal",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "warp",
+      "display_name": "Warp",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "windsurf",
+      "display_name": "Windsurf",
+      "project_dir": ".windsurf/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "zcode",
+      "display_name": "ZCode",
+      "project_dir": ".zcode/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "zed",
+      "display_name": "Zed",
+      "project_dir": ".agents/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "zencoder",
+      "display_name": "Zencoder",
+      "project_dir": ".zencoder/skills",
+      "tier": "registry"
+    },
+    {
+      "id": "zenflow",
+      "display_name": "Zenflow",
+      "project_dir": ".zencoder/skills",
+      "tier": "registry"
+    }
+  ]
+}

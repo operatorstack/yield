@@ -10,10 +10,10 @@ contract.
 | Go | `github.com/operatorstack/yield/sdk/yield` | `yield.Main(program)` |
 | Rust | `yieldskill` | `yieldskill::define_skill(program)` |
 
-Non-Go skills declare their runner in `skill.json`, for example:
+Skills declare their language and runner in `skill.json`, for example:
 
 ```json
-{"run":["node","main.ts"]}
+{"version":1,"language":"typescript","run":["node","main.ts"]}
 ```
 
 The conformance suite runs the same workflow in all four languages and compares

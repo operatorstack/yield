@@ -14,13 +14,15 @@ is finished.
 
 1. [Build and run your first skill](quickstart.md) — a TypeScript workflow you
    can test in about ten minutes.
-2. [Learn the primitives](primitives/README.md) — commands, model work, human
+2. [Register it with your coding agents](agent-setup.md) — keep one workflow
+   and generate the small discovery adapters each agent needs.
+3. [Learn the primitives](primitives/README.md) — commands, model work, human
    input, gates, and honest outcomes.
-3. [Follow a complete tutorial](tutorials/README.md) — review, approval,
+4. [Follow a complete tutorial](tutorials/README.md) — review, approval,
    environment repair, bounded debugging, and migration.
-4. [Browse the examples](examples.md) — working programs in Go, TypeScript,
+5. [Browse the examples](examples.md) — working programs in Go, TypeScript,
    Python, and Rust.
-5. [Convert an existing prose skill](convert-existing-skill.md) — use Yield's
+6. [Convert an existing prose skill](convert-existing-skill.md) — use Yield's
    verified converter after you understand one ordinary workflow.
 
 ## The split to remember
@@ -41,6 +43,7 @@ next unanswered operation.
 ## Reference
 
 - [CLI commands](reference/cli.md)
+- [Coding-agent registration](agent-setup.md)
 - [Run, pause, resume, and replay](reference/execution-model.md)
 - [The four SDKs](reference/sdk-parity.md)
 - [Guarantees and limits](reference/guarantees.md)

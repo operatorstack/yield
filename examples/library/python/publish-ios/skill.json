@@ -1,4 +1,6 @@
 {
+  "version": 1,
+  "language": "python",
   "run": [
     "python3",
     "../src/publish-ios.py"

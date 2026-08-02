@@ -11,7 +11,6 @@ import (
 )
 
 var releaseVersionPattern = regexp.MustCompile(`^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$`)
-var unsafePackageCharacter = regexp.MustCompile(`[^a-z0-9_-]+`)
 var tidyGoModule = func(dir string) error {
 	cmd := exec.Command("go", "mod", "tidy")
 	cmd.Dir = dir
@@ -38,7 +37,7 @@ func packageVersion() string {
 	return "0.0.0"
 }
 
-func scaffoldSkill(dir, language, sdkPath string) error {
+func scaffoldSkill(dir, language, sdkPath, description string) error {
 	language = strings.ToLower(strings.TrimSpace(language))
 	if language != "typescript" && language != "python" && language != "go" && language != "rust" {
 		return fmt.Errorf("unsupported language %q; choose typescript, python, go, or rust", language)
@@ -46,7 +45,16 @@ func scaffoldSkill(dir, language, sdkPath string) error {
 	if sdkPath != "" && language != "go" {
 		return fmt.Errorf("--sdk is only valid with --language go")
 	}
-	name := safePackageName(filepath.Base(filepath.Clean(dir)))
+	name := filepath.Base(filepath.Clean(dir))
+	if !portableSkillName.MatchString(name) || len(name) > 64 {
+		return fmt.Errorf("skill directory name must match [a-z0-9]+(-[a-z0-9]+)* and be at most 64 characters")
+	}
+	skillPath := filepath.Join(dir, "SKILL.md")
+	if _, err := os.Stat(skillPath); os.IsNotExist(err) && strings.TrimSpace(description) == "" {
+		return fmt.Errorf("--description is required for a new skill; describe what it does and when an agent should use it")
+	} else if err != nil && !os.IsNotExist(err) {
+		return err
+	}
 	writeIfAbsent := func(rel, content string) error {
 		path := filepath.Join(dir, filepath.FromSlash(rel))
 		if _, err := os.Stat(path); err == nil {
@@ -68,7 +76,7 @@ func scaffoldSkill(dir, language, sdkPath string) error {
 		"rust":       "yskill",
 	}[language]
 	files := scaffoldFiles(name, language, sdkPath)
-	files["SKILL.md"] = fmt.Sprintf(skillMD, name, launcher, launcher)
+	files["SKILL.md"] = fmt.Sprintf(skillMD, name, yamlString(strings.TrimSpace(description)), launcher, launcher)
 	files["fixtures/responses.json"] = "{\n  \"confirm-start\": {\"value\": \"yes\"}\n}\n"
 	keys := make([]string, 0, len(files))
 	for key := range files {
@@ -85,7 +93,12 @@ func scaffoldSkill(dir, language, sdkPath string) error {
 			return err
 		}
 	}
+	if _, err := readSkillMetadata(dir); err != nil {
+		return fmt.Errorf("validate SKILL.md: %w", err)
+	}
 	fmt.Printf("init: %s skill %q scaffolded in %s\n", language, name, dir)
+	fmt.Printf("next: %s register %s\n", launcher, shellQuote(dir))
+	fmt.Printf("check: %s doctor %s --test\n", launcher, shellQuote(dir))
 	return nil
 }
 
@@ -101,7 +114,7 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
   "dependencies": { "@operatorstack/yield": "%s" }
 }
 `, v),
-			"skill.json": "{\"run\":[\"node\",\"main.ts\"]}\n",
+			"skill.json": "{\"version\":1,\"language\":\"typescript\",\"run\":[\"node\",\"main.ts\"]}\n",
 		}
 	case "python":
 		python := strings.TrimSpace(os.Getenv("YIELD_PYTHON"))
@@ -111,14 +124,14 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
 		return map[string]string{
 			"main.py":          mainPython,
 			"requirements.txt": fmt.Sprintf("--index-url https://get.operatorstack.systems/pip/simple/\nyieldskill==%s\n", v),
-			"skill.json":       fmt.Sprintf("{\"run\":[%q,\"main.py\"]}\n", python),
+			"skill.json":       fmt.Sprintf("{\"version\":1,\"language\":\"python\",\"run\":[%q,\"main.py\"]}\n", python),
 		}
 	case "rust":
 		return map[string]string{
 			".cargo/config.toml": "[registries.operatorstack]\nindex = \"sparse+https://get.operatorstack.systems/cargo/index/\"\n",
 			"Cargo.toml":         fmt.Sprintf("[package]\nname = %q\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nyieldskill = { version = \"=%s\", registry = \"operatorstack\" }\nserde_json = \"1\"\n", name, v),
 			"src/main.rs":        mainRust,
-			"skill.json":         "{\"run\":[\"cargo\",\"run\",\"--quiet\"]}\n",
+			"skill.json":         "{\"version\":1,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\"]}\n",
 		}
 	default:
 		gomod := fmt.Sprintf("module %s\n\ngo 1.26.5\n\nrequire github.com/operatorstack/yield v%s\n", name, v)
@@ -128,23 +141,14 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
 		return map[string]string{
 			"main.go":    mainGo,
 			"go.mod":     gomod,
-			"skill.json": "{\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n",
+			"skill.json": "{\"version\":1,\"language\":\"go\",\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n",
 		}
 	}
 }
 
-func safePackageName(value string) string {
-	value = unsafePackageCharacter.ReplaceAllString(strings.ToLower(value), "-")
-	value = strings.Trim(value, "-_")
-	if value == "" {
-		return "yield-skill"
-	}
-	return value
-}
-
 const skillMD = `---
 name: %s
-description: TODO — one line on what this skill does.
+description: %s
 ---
 
 Run:
