@@ -10,7 +10,7 @@ Create a virtual environment before installation:
 # macOS and Linux
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install yieldskill==0.1.23 \
+python -m pip install yieldskill==0.1.26 \
   --index-url https://get.operatorstack.systems/pip/simple/
 ```
 
@@ -18,7 +18,7 @@ python -m pip install yieldskill==0.1.23 \
 # Windows PowerShell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install yieldskill==0.1.23 `
+python -m pip install yieldskill==0.1.26 `
   --index-url https://get.operatorstack.systems/pip/simple/
 ```
 

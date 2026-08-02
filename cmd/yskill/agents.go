@@ -517,6 +517,33 @@ func ensureContainedWrite(repoRoot, destination string) error {
 
 func commandExists(name string) bool { _, err := exec.LookPath(name); return err == nil }
 
+var currentExecutable = os.Executable
+
+func repositoryRootFromLocalRuntime() (string, bool) {
+	executable := strings.TrimSpace(os.Getenv("YIELD_LAUNCHER_PATH"))
+	if executable == "" {
+		var err error
+		executable, err = currentExecutable()
+		if err != nil {
+			return "", false
+		}
+	}
+	executable, err := filepath.Abs(executable)
+	if err != nil {
+		return "", false
+	}
+	name := strings.ToLower(filepath.Base(executable))
+	if name != "yskill" && name != "yskill.exe" {
+		return "", false
+	}
+	bin := filepath.Dir(executable)
+	state := filepath.Dir(bin)
+	if filepath.Base(bin) != "bin" || filepath.Base(state) != ".yield" {
+		return "", false
+	}
+	return filepath.Dir(state), true
+}
+
 func findRepoRoot(skillDir, explicit string) (string, error) {
 	if explicit != "" {
 		root, err := filepath.Abs(explicit)
@@ -526,6 +553,9 @@ func findRepoRoot(skillDir, explicit string) (string, error) {
 		if info, err := os.Stat(root); err != nil || !info.IsDir() {
 			return "", fmt.Errorf("repository root %s is not a directory", root)
 		}
+		return filepath.Clean(root), nil
+	}
+	if root, ok := repositoryRootFromLocalRuntime(); ok && within(root, skillDir) {
 		return filepath.Clean(root), nil
 	}
 	for current := filepath.Clean(skillDir); ; current = filepath.Dir(current) {

@@ -86,6 +86,8 @@ answer, the adapter uses `yskill respond`; it does not create `response.json`.
 Use `--value` for a person’s answer and `--result-json` for structured agent
 work. The file-based `resume --response` command remains available for CI.
 
-Workflow-only `doctor` works without `.git`. For registration in such a
-directory, pass `--root` so Yield knows where agent adapters belong.
+Workflow-only `doctor` works without `.git`. A Go or Rust runtime under
+`.yield/bin` also identifies the project root for `init`, `doctor`, and
+registration. For other non-Git layouts, pass `--root` so Yield knows where
+agent adapters belong.
 ```
