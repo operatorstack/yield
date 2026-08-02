@@ -91,4 +91,5 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --title "$VERSION" \
             --generate-notes \
+            --draft \
             --verify-tag

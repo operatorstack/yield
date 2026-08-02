@@ -33,8 +33,13 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
       - name: Verify the current release source
-        run: go test ./...
+        run: |
+          go test ./...
+          node --test packaging/*.test.mjs
       - name: Check the one-package release contract
         run: |
           set -euo pipefail
@@ -47,6 +52,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      previous_version: ${{ steps.version.outputs.previous_version }}
+      source_sha: ${{ steps.version.outputs.source_sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -81,7 +88,16 @@ jobs:
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           git rev-parse --verify "refs/tags/v${version}"
           test "$(git rev-list -n 1 "v${version}")" = "$(git rev-parse HEAD)"
+          previous="$(git tag --list 'v[0-9]*' --sort=-v:refname \
+            | sed 's/^v//' \
+            | awk -F. '$1 > 0 || $2 > 1 || ($2 == 1 && $3 >= 23)' \
+            | awk -F. -v current="$version" '
+                BEGIN { split(current, part, ".") }
+                $1 < part[1] || ($1 == part[1] && $2 < part[2]) || ($1 == part[1] && $2 == part[2] && $3 < part[3]) { print; exit }
+              ')"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "previous_version=$previous" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - id: auth
         uses: google-github-actions/auth@v2
@@ -243,6 +259,28 @@ jobs:
             --repository="${{ vars.AR_GENERIC_REPO }}" --package=yield-rust --version="$VERSION" \
             --source-directory=dist/rust-public-publish --skip-existing
 
+      - name: Verify complete package history
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          versions="$(git tag --list 'v[0-9]*' --sort=v:refname \
+            | sed 's/^v//' \
+            | awk -F. '$1 > 0 || $2 > 1 || ($2 == 1 && $3 >= 23)' \
+            | awk -v current="$VERSION" '{ print; if ($0 == current) exit }' \
+            | paste -sd, -)"
+          test -n "$versions"
+          for attempt in {1..12}; do
+            if node packaging/verify-registry-history.mjs --versions "$versions"; then
+              exit 0
+            fi
+            if [[ "$attempt" == 12 ]]; then
+              echo "Package history was still incomplete after 12 checks." >&2
+              exit 1
+            fi
+            sleep 10
+          done
+
   install-journeys:
     name: Install journeys (${{ matrix.target }})
     needs: publish
@@ -278,6 +316,7 @@ jobs:
         shell: bash
         env:
           VERSION: ${{ needs.publish.outputs.version }}
+          PREVIOUS_VERSION: ${{ needs.publish.outputs.previous_version }}
           GOPROXY: https://get.operatorstack.systems/go,direct
         run: |
           set -euo pipefail
@@ -327,23 +366,30 @@ jobs:
           "$python_cmd" -m venv .venv
           if [[ "$RUNNER_OS" == "Windows" ]]; then python_bin=.venv/Scripts/python; else python_bin=.venv/bin/python; fi
           "$python_bin" -m pip install "yieldskill==${VERSION}" --index-url https://get.operatorstack.systems/pip/simple/
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            printf '@echo off\r\necho venv-tool-ready\r\n' > .venv/Scripts/yield-venv-tool.cmd
+          else
+            printf '#!/bin/sh\necho venv-tool-ready\n' > .venv/bin/yield-venv-tool
+            chmod +x .venv/bin/yield-venv-tool
+          fi
           "$python_bin" -m yieldskill --version | grep -F "yskill ${VERSION}"
           "$python_bin" -m yieldskill init skill --language python --description "Run this workflow when checking the installed Python package."
           expect_incomplete_starter "$python_bin" -m yieldskill doctor skill --test
           finish_starter skill/main.py \
             '    ctx.blocked("replace the starter workflow and fixture before testing")' \
-            '    return {"installed": True}'
+            $'    python = ctx.run_command("venv-python", "python --version", 30)\n    ctx.require(python.exit_code == 0, "the selected Python environment is on PATH", python)\n    tool = ctx.run_command("venv-tool", "yield-venv-tool", 30)\n    ctx.require(tool.exit_code == 0, "environment-local console scripts are on PATH", tool)\n    return {"installed": True}'
           "$python_bin" -m yieldskill doctor skill --test
           "$python_bin" -m yieldskill register skill --agent cursor,codex,claude-code
           "$python_bin" -m yieldskill doctor skill --agent cursor,codex,claude-code
 
           cd "$workspace/go"
-          git init -q
           mkdir -p .yield/bin
           GOBIN="$PWD/.yield/bin" go install "github.com/operatorstack/yield/cmd/yskill@v${VERSION}"
-          if [[ "$RUNNER_OS" == "Windows" ]]; then go_cli=.yield/bin/yskill.exe; else go_cli=.yield/bin/yskill; fi
+          if [[ "$RUNNER_OS" == "Windows" ]]; then go_cli=.yield/bin/yskill.exe; go_launcher='.\.yield\bin\yskill.exe'; else go_cli=.yield/bin/yskill; go_launcher=.yield/bin/yskill; fi
           "$go_cli" --version | grep -F "yskill ${VERSION}"
-          "$go_cli" init skill --language go --description "Run this workflow when checking the installed Go package."
+          "$go_cli" init skill --language go --description "Run this workflow when checking the installed Go package." | tee "$RUNNER_TEMP/go-init.log"
+          grep -F "$go_launcher doctor 'skill' --test" "$RUNNER_TEMP/go-init.log"
+          grep -F "$go_launcher run 'skill'" skill/SKILL.md
           expect_incomplete_starter "$go_cli" doctor skill --test
           finish_starter skill/main.go \
             'return yield.Outcome{}, ctx.Blocked("replace the starter workflow and fixture before testing")' \
@@ -353,11 +399,12 @@ jobs:
           "$go_cli" doctor skill --agent cursor,codex,claude-code
 
           cd "$workspace/rust"
-          git init -q
           cargo install "yieldskill@${VERSION}" --index sparse+https://get.operatorstack.systems/cargo/index/ --locked --root .yield
-          if [[ "$RUNNER_OS" == "Windows" ]]; then rust_cli=.yield/bin/yskill.exe; else rust_cli=.yield/bin/yskill; fi
+          if [[ "$RUNNER_OS" == "Windows" ]]; then rust_cli=.yield/bin/yskill.exe; rust_launcher='.\.yield\bin\yskill.exe'; else rust_cli=.yield/bin/yskill; rust_launcher=.yield/bin/yskill; fi
           "$rust_cli" --version | grep -F "yskill ${VERSION}"
-          "$rust_cli" init skill --language rust --description "Run this workflow when checking the installed Rust package."
+          "$rust_cli" init skill --language rust --description "Run this workflow when checking the installed Rust package." | tee "$RUNNER_TEMP/rust-init.log"
+          grep -F "$rust_launcher doctor 'skill' --test" "$RUNNER_TEMP/rust-init.log"
+          grep -F "$rust_launcher run 'skill'" skill/SKILL.md
           expect_incomplete_starter "$rust_cli" doctor skill --test
           finish_starter skill/src/main.rs \
             '    Err(ctx.blocked("replace the starter workflow and fixture before testing"))' \
@@ -365,3 +412,73 @@ jobs:
           "$rust_cli" doctor skill --test
           "$rust_cli" register skill --agent cursor,codex,claude-code
           "$rust_cli" doctor skill --agent cursor,codex,claude-code
+
+          if [[ -n "$PREVIOUS_VERSION" ]]; then
+            cd "$workspace"
+            mkdir -p previous/typescript previous/python previous/go previous/rust
+
+            cd previous/typescript
+            npm init -y >/dev/null
+            npm install --save-exact "@operatorstack/yield@${PREVIOUS_VERSION}" --registry=https://get.operatorstack.systems/npm/
+            npm exec -- yskill --version | grep -F "yskill ${PREVIOUS_VERSION}"
+
+            cd "$workspace/previous/python"
+            "$python_cmd" -m venv .venv
+            if [[ "$RUNNER_OS" == "Windows" ]]; then previous_python=.venv/Scripts/python; else previous_python=.venv/bin/python; fi
+            "$previous_python" -m pip install "yieldskill==${PREVIOUS_VERSION}" --index-url https://get.operatorstack.systems/pip/simple/
+            "$previous_python" -m yieldskill --version | grep -F "yskill ${PREVIOUS_VERSION}"
+
+            cd "$workspace/previous/go"
+            mkdir -p .yield/bin
+            GOBIN="$PWD/.yield/bin" go install "github.com/operatorstack/yield/cmd/yskill@v${PREVIOUS_VERSION}"
+            if [[ "$RUNNER_OS" == "Windows" ]]; then previous_go=.yield/bin/yskill.exe; else previous_go=.yield/bin/yskill; fi
+            "$previous_go" --version | grep -F "yskill ${PREVIOUS_VERSION}"
+
+            cd "$workspace/previous/rust"
+            cargo install "yieldskill@${PREVIOUS_VERSION}" --index sparse+https://get.operatorstack.systems/cargo/index/ --locked --root .yield
+            if [[ "$RUNNER_OS" == "Windows" ]]; then previous_rust=.yield/bin/yskill.exe; else previous_rust=.yield/bin/yskill; fi
+            "$previous_rust" --version | grep -F "yskill ${PREVIOUS_VERSION}"
+          fi
+
+  finalize-release:
+    name: Publish verified release receipt
+    needs: [publish, install-journeys]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Attach package contract and publish the draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.publish.outputs.version }}
+          PREVIOUS_VERSION: ${{ needs.publish.outputs.previous_version }}
+          SOURCE_SHA: ${{ needs.publish.outputs.source_sha }}
+        run: |
+          set -euo pipefail
+          if ! gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "v${VERSION}" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "v${VERSION}" \
+              --generate-notes \
+              --draft \
+              --verify-tag
+          fi
+          jq -n \
+            --arg version "$VERSION" \
+            --arg previous_version "$PREVIOUS_VERSION" \
+            --arg source_sha "$SOURCE_SHA" \
+            --arg repository "$GITHUB_REPOSITORY" \
+            '{
+              schema_version: 1,
+              version: $version,
+              previous_version: $previous_version,
+              source_sha: $source_sha,
+              repository: $repository,
+              languages: ["typescript", "python", "go", "rust"],
+              targets: ["linux-amd64", "linux-arm64", "darwin-amd64", "darwin-arm64", "windows-amd64", "windows-arm64"],
+              package_history_from: "0.1.23",
+              current_and_previous_install_journeys: true,
+              package_history_complete: true
+            }' > yield-package-contract.json
+          gh release upload "v${VERSION}" yield-package-contract.json --repo "$GITHUB_REPOSITORY" --clobber
+          gh release edit "v${VERSION}" --repo "$GITHUB_REPOSITORY" --draft=false --latest
