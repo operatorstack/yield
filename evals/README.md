@@ -5,19 +5,18 @@ tool or company.
 
 The deterministic suite answers two questions:
 
-1. Can each checked-in example workflow reach its expected final result
+1. Can each checked-in example skill workflow reach its expected final result
    through every supported SDK?
 2. Does the runtime behave correctly when a run resumes, replays, blocks, or
    encounters changed code?
 
 ## Current coverage
 
-- 10 workflow patterns written by this project.
+- 10 skill workflow patterns written by this project.
 - 4 SDKs: TypeScript, Python, Go, and Rust.
 - 40 end-to-end workflow tests.
-- 5 runtime checks: resume and complete, repeat the same saved step, stop when
-  behavior changes, block when a rule fails, and require approval for changed
-  source.
+- 8 runtime checks: response locking and recovery, declared user choices,
+  resume, replay, changed behavior, failed requirements, and changed source.
 
 Run the exact suite and refresh the checked-in result:
 
@@ -36,7 +35,7 @@ npm test
 
 A passing result proves that the tested Yield revision:
 
-- executes each owned workflow test to `completed`;
+- executes each owned skill workflow test to `completed`;
 - runs command steps rather than asking the model to invent their outputs;
 - presents requests in the program-defined order;
 - resumes from recorded responses;

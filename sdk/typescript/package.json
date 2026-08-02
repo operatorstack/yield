@@ -1,7 +1,7 @@
 {
   "name": "@operatorstack/yield",
   "version": "0.1.0",
-  "description": "Yield skill-program SDK for TypeScript: turn SKILL.md workflows into resumable programs.",
+  "description": "Build portable, resumable skill workflows in TypeScript.",
   "license": "MIT",
   "type": "module",
   "files": [

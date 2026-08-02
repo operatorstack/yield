@@ -1,28 +1,35 @@
 # Yield documentation
 
-You already know the workflow. You may be repeating it in a prompt:
+You already know the skill workflow. You may be repeating it in a prompt:
 
 > Run the checks. Review the diff. Stop if anything critical remains. Ask me
 > before publishing. If the session ends, start again without losing our place.
 
-Yield lets you keep the useful words and put the order in normal code. The
-coding agent still investigates, reviews, edits, and explains. Your program
+Yield lets you keep the useful words and put the repeatable flow in normal
+code. The coding agent still investigates, reviews, edits, and explains. Your program
 decides which operation comes next, what evidence must exist, and when the run
 is finished.
 
+A **skill workflow** is a portable, executable process that combines agent
+skills with deterministic code, state, and verification. The canonical
+workflow is the source you edit. Generated adapters let coding agents discover
+and start it.
+
 ## Start here
 
-1. [Build and run your first skill](quickstart.md) — a TypeScript workflow you
-   can test in about ten minutes.
-2. [Register it with your coding agents](agent-setup.md) — keep one workflow
+1. [Understand skill workflows](skill-workflows.md) — the canonical workflow,
+   generated adapter, and execution boundary.
+2. [Build and run your first skill workflow](quickstart.md) — a TypeScript
+   workflow you can test in about ten minutes.
+3. [Register it with your coding agents](agent-setup.md) — keep one workflow
    and generate the small discovery adapters each agent needs.
-3. [Learn the primitives](primitives/README.md) — commands, model work, human
+4. [Learn the primitives](primitives/README.md) — commands, model work, human
    input, gates, and honest outcomes.
-4. [Follow a complete tutorial](tutorials/README.md) — review, approval,
+5. [Follow a complete tutorial](tutorials/README.md) — review, approval,
    environment repair, bounded debugging, and migration.
-5. [Browse the examples](examples.md) — working programs in Go, TypeScript,
-   Python, and Rust.
-6. [Convert an existing prose skill](convert-existing-skill.md) — use Yield's
+6. [Browse the examples](examples.md) — working skill workflows in Go,
+   TypeScript, Python, and Rust.
+7. [Convert an existing prose skill](convert-existing-skill.md) — use Yield's
    verified converter after you understand one ordinary workflow.
 
 ## The split to remember
@@ -42,6 +49,7 @@ next unanswered operation.
 
 ## Reference
 
+- [Skill workflow concepts](skill-workflows.md)
 - [CLI commands](reference/cli.md)
 - [Coding-agent registration](agent-setup.md)
 - [Run, pause, resume, and replay](reference/execution-model.md)

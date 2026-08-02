@@ -1,10 +1,10 @@
-# Example library
+# Skill workflow library
 
-The library contains ten common coding-agent workflows. Every workflow is
+The library contains ten common skill workflows for coding agents. Every workflow is
 implemented in TypeScript, Python, Go, and Rust, so the first choice is your
 repository's language—not which example happens to exist.
 
-| Workflow | Control flow moved into code |
+| Skill workflow | Control flow moved into code |
 |---|---|
 | [Review a branch](../examples/library/typescript/review-branch/) | checks, review, zero-critical gate |
 | [Investigate a failure](../examples/library/typescript/investigate-failure/) | evidence, diagnosis, supported cause |
@@ -31,7 +31,7 @@ Run all forty fixtures:
     YSKILL=/tmp/yskill bash ./examples/library/test-all.sh
 
 The included commands produce harmless evidence so the examples run in this
-repository. Replace them with project commands before adopting a workflow.
+repository. Replace them with project commands before adopting a skill workflow.
 
 ## Complete walkthroughs
 
@@ -67,6 +67,6 @@ The [first-party evaluation suite](../evals/) runs every example-library
 pattern through TypeScript, Python, Go, and Rust. It also checks resume, replay,
 changed behavior, blocking, and changed source.
 
-These results show that the tested Yield version runs the workflow steps in
+These results show that the tested Yield version runs the skill workflow steps in
 code. They do not compare Yield with prose or test whether an agent's judgment
 is correct.

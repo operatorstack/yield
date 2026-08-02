@@ -1,4 +1,4 @@
-# yieldskill — Yield skill-program SDK for Python
+# yieldskill — Yield skill workflow SDK for Python
 
 The Python implementation of the yield.v1 SDK execution contract (see
 `ir/README.md`). The import name is `yieldskill` because `yield` is a

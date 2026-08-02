@@ -1,4 +1,4 @@
-# Run your first Yield skill
+# Create your first skill workflow
 
 This tutorial turns a repeated review checklist into a small TypeScript
 program: run a real check, ask the coding agent to review the branch, stop on
@@ -19,7 +19,7 @@ npm exec -- yskill --version
 
 The package includes the TypeScript SDK and its matching Yield runtime.
 
-## 2. Create the canonical workflow
+## 2. Initialize the skill workflow
 
 ```bash
 npm exec -- yskill init skills/review \
@@ -27,7 +27,7 @@ npm exec -- yskill init skills/review \
   --description "Check and review the current branch before it is shipped."
 ```
 
-The workflow stays under `skills/review`, inside the same dependency tree as
+The canonical workflow stays under `skills/review`, inside the same dependency tree as
 `@operatorstack/yield`. The generated `skill.json` records the language and
 program entry point:
 
@@ -35,7 +35,10 @@ program entry point:
 {"version":1,"language":"typescript","run":["node","main.ts"]}
 ```
 
-## 3. Add the workflow logic
+The starter is intentionally incomplete. It cannot pass `doctor --test` until
+you replace its program and fixture with the behavior described by the skill.
+
+## 3. Implement the workflow and fixture
 
 Replace `skills/review/main.ts`:
 
@@ -80,7 +83,7 @@ The generated `skills/review/SKILL.md` remains short. It tells the agent when
 to use the workflow and how to follow the yielded operations; the program owns
 the order and finish rule.
 
-## 4. Prove the workflow locally
+## 4. Test the skill workflow
 
 Replace `skills/review/fixtures/responses.json`:
 
@@ -103,7 +106,7 @@ npm exec -- yskill doctor skills/review --test
 user responses. A successful result ends with `reached completed` and a doctor
 summary.
 
-## 5. Register it with coding agents
+## 5. Generate coding-agent adapters
 
 ```bash
 # Detect installed verified agents
@@ -114,7 +117,7 @@ npm exec -- yskill register skills/review \
   --agent cursor,codex,claude-code
 ```
 
-Yield keeps one workflow and writes only generated adapters:
+Yield keeps one canonical skill workflow and writes only generated adapters:
 
 ```text
 .cursor/skills/review/SKILL.md   # Cursor
@@ -143,10 +146,11 @@ npm exec -- yskill register skills/review --agent cursor
 npm exec -- yskill run skills/review
 ```
 
-The agent reads the generated adapter, starts the canonical workflow, performs
+The agent reads the generated adapter, starts the canonical skill workflow, performs
 each yielded operation, and answers with `yskill respond`. If the session
 closes, the run remains on disk.
 
-Next: [set up coding agents](agent-setup.md), [understand each
+Next: [understand skill workflows](skill-workflows.md), [set up coding
+agents](agent-setup.md), [understand each
 primitive](primitives/README.md), or follow the [complete review
 tutorial](tutorials/code-review.md).
