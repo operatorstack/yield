@@ -366,18 +366,12 @@ jobs:
           "$python_cmd" -m venv .venv
           if [[ "$RUNNER_OS" == "Windows" ]]; then python_bin=.venv/Scripts/python; else python_bin=.venv/bin/python; fi
           "$python_bin" -m pip install "yieldskill==${VERSION}" --index-url https://get.operatorstack.systems/pip/simple/
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            printf '@echo off\r\necho venv-tool-ready\r\n' > .venv/Scripts/yield-venv-tool.cmd
-          else
-            printf '#!/bin/sh\necho venv-tool-ready\n' > .venv/bin/yield-venv-tool
-            chmod +x .venv/bin/yield-venv-tool
-          fi
           "$python_bin" -m yieldskill --version | grep -F "yskill ${VERSION}"
           "$python_bin" -m yieldskill init skill --language python --description "Run this workflow when checking the installed Python package."
           expect_incomplete_starter "$python_bin" -m yieldskill doctor skill --test
           finish_starter skill/main.py \
             '    ctx.blocked("replace the starter workflow and fixture before testing")' \
-            $'    python = ctx.run_command("venv-python", "python --version", 30)\n    ctx.require(python.exit_code == 0, "the selected Python environment is on PATH", python)\n    tool = ctx.run_command("venv-tool", "yield-venv-tool", 30)\n    ctx.require(tool.exit_code == 0, "environment-local console scripts are on PATH", tool)\n    return {"installed": True}'
+            $'    python = ctx.run_command("venv-python", "python --version", 30)\n    ctx.require(python.exit_code == 0, "the selected Python environment is on PATH", python)\n    tool = ctx.run_command("venv-tool", "pip --version", 30)\n    ctx.require(tool.exit_code == 0 and ".venv" in tool.stdout.lower(), "environment-local console scripts are on PATH", tool)\n    return {"installed": True}'
           "$python_bin" -m yieldskill doctor skill --test
           "$python_bin" -m yieldskill register skill --agent cursor,codex,claude-code
           "$python_bin" -m yieldskill doctor skill --agent cursor,codex,claude-code
