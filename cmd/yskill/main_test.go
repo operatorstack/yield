@@ -5,6 +5,7 @@ import (
 	"flag"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
@@ -210,8 +211,10 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 				t.Fatalf("skill.json = version %d language %q", generated.Version, generated.Language)
 			}
 			skill := readTestFile(t, filepath.Join(dir, "SKILL.md"))
-			if !strings.Contains(skill, tt.command) {
-				t.Fatalf("SKILL.md does not contain %q:\n%s", tt.command, skill)
+			workflow := shellQuoteForPlatform(dir, runtime.GOOS)
+			command := strings.Replace(tt.command, " .", " "+workflow, 1)
+			if !strings.Contains(skill, command) {
+				t.Fatalf("SKILL.md does not contain %q:\n%s", command, skill)
 			}
 			entrypoint := map[string]string{
 				"typescript": "main.ts",
@@ -241,6 +244,97 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 	}
 	if tidyCalls != 1 {
 		t.Fatalf("go mod tidy calls = %d, want 1", tidyCalls)
+	}
+}
+
+func TestPackageScaffoldsPrintCreatedWorkflowInNextCommands(t *testing.T) {
+	previousVersion := version
+	version = "0.1.28"
+	t.Cleanup(func() { version = previousVersion })
+
+	for _, tt := range []struct {
+		language string
+		launcher string
+	}{
+		{language: "typescript", launcher: "npm exec -- yskill"},
+		{language: "python", launcher: "python -m yieldskill"},
+	} {
+		t.Run(tt.language, func(t *testing.T) {
+			root := filepath.Join(t.TempDir(), "project with space")
+			dir := filepath.Join(root, "skills", "safe-change")
+			output := captureStdout(t, func() {
+				if err := scaffoldSkill(dir, tt.language, "", "Check a safe change before applying it."); err != nil {
+					t.Fatal(err)
+				}
+			})
+			workflow := shellQuoteForPlatform(dir, runtime.GOOS)
+			for _, line := range []string{
+				"test: " + tt.launcher + " doctor " + workflow + " --test",
+				"then: " + tt.launcher + " register " + workflow,
+			} {
+				if !strings.Contains(output, line) {
+					t.Fatalf("init output does not contain %q:\n%s", line, output)
+				}
+			}
+		})
+	}
+}
+
+func TestShellQuoteForPlatform(t *testing.T) {
+	for _, tt := range []struct {
+		name, value, goos, want string
+	}{
+		{name: "relative", value: "skills/review", goos: "linux", want: "'skills/review'"},
+		{name: "explicit relative", value: "./skills/review", goos: "linux", want: "'./skills/review'"},
+		{name: "absolute", value: "/tmp/project/skills/review", goos: "linux", want: "'/tmp/project/skills/review'"},
+		{name: "nested with space", value: "workflows/team one/safe change's", goos: "linux", want: `'workflows/team one/safe change'"'"'s'`},
+		{name: "windows", value: `skills\safe change's`, goos: "windows", want: `'skills\safe change''s'`},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shellQuoteForPlatform(tt.value, tt.goos); got != tt.want {
+				t.Fatalf("quote = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRustScaffoldNamesPrimaryBinary(t *testing.T) {
+	previousVersion := version
+	version = "0.1.28"
+	t.Cleanup(func() { version = previousVersion })
+	dir := filepath.Join(t.TempDir(), "safe-change")
+	if err := scaffoldSkill(dir, "rust", "", "Check a safe change before applying it."); err != nil {
+		t.Fatal(err)
+	}
+	manifest := readTestFile(t, filepath.Join(dir, "skill.json"))
+	if manifest != "{\"version\":1,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\",\"--bin\",\"safe-change\"]}\n" {
+		t.Fatalf("skill.json = %q", manifest)
+	}
+}
+
+func TestRustScaffoldRunsPrimaryBinaryWhenFixtureAddsAnotherBinary(t *testing.T) {
+	if _, err := exec.LookPath("cargo"); err != nil {
+		t.Skip("cargo is not installed")
+	}
+	dir := filepath.Join(t.TempDir(), "safe-change")
+	if err := scaffoldSkill(dir, "rust", "", "Check a safe change before applying it."); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(dir, "Cargo.toml"), "[package]\nname = \"safe-change\"\nversion = \"0.1.0\"\nedition = \"2021\"\n")
+	writeTestFile(t, filepath.Join(dir, "src", "main.rs"), "fn main() { println!(\"workflow\"); }\n")
+	writeTestFile(t, filepath.Join(dir, "src", "bin", "fixture-helper.rs"), "fn main() { println!(\"fixture\"); }\n")
+	manifest, err := readSkillManifest(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(manifest.Run[0], manifest.Run[1:]...)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("generated run command failed: %v\n%s", err, out)
+	}
+	if strings.TrimSpace(string(out)) != "workflow" {
+		t.Fatalf("generated run command selected %q", out)
 	}
 }
 
@@ -285,7 +379,7 @@ func TestLocalGoAndRustScaffoldsKeepTheInvokedRuntime(t *testing.T) {
 			}
 			skill := readTestFile(t, filepath.Join(dir, "SKILL.md"))
 			launcher := repositoryRuntimeLauncher(filepath.Join(".yield", "bin", filepath.Base(localRuntimePath(repo))), runtime.GOOS)
-			workflow := shellQuote("skills/safe-change")
+			workflow := shellQuote(filepath.Join("skills", "safe-change"))
 			for _, command := range []string{
 				launcher + " run " + workflow,
 				launcher + " respond <run-id> --value <answer> --skill " + workflow,
