@@ -405,6 +405,23 @@ func TestWorkflowSDKVersionMustMatchRuntime(t *testing.T) {
 	}
 }
 
+func TestGoWorkflowSDKVersionAcceptsGeneratedAndBlockForms(t *testing.T) {
+	repo := t.TempDir()
+	manifest := skillManifest{Version: 1, Language: "go", Run: []string{"go", "run", "."}}
+	for name, goMod := range map[string]string{
+		"generated": "module review\n\ngo 1.26.5\n\nrequire github.com/operatorstack/yield v0.1.23\n",
+		"block":     "module review\n\ngo 1.26.5\n\nrequire (\n\tgithub.com/operatorstack/yield v0.1.23\n)\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			skill := filepath.Join(repo, name)
+			writeTestFile(t, filepath.Join(skill, "go.mod"), goMod)
+			if err := verifyWorkflowSDKVersion(manifest, skill, repo, "0.1.23"); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
 func TestDoctorReportsSDKRuntimeAndAdapterVersionProblemsTogether(t *testing.T) {
 	repo := t.TempDir()
 	writeTestFile(t, filepath.Join(repo, ".git", "keep"), "")

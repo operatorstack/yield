@@ -660,7 +660,7 @@ func localRuntimeInstallCommand(language, expected string) string {
 
 var pinnedVersionPatterns = map[string]*regexp.Regexp{
 	"python": regexp.MustCompile(`(?m)^yieldskill==([^\s]+)$`),
-	"go":     regexp.MustCompile(`(?m)^\s*github\.com/operatorstack/yield\s+v([^\s]+)`),
+	"go":     regexp.MustCompile(`(?m)^\s*(?:require\s+)?github\.com/operatorstack/yield\s+v([^\s]+)`),
 	"rust":   regexp.MustCompile(`(?m)yieldskill\s*=\s*\{[^\n]*version\s*=\s*"=([^"]+)"`),
 }
 
