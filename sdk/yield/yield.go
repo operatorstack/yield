@@ -35,6 +35,12 @@ type Outcome struct {
 	Result any
 }
 
+// Option is one allowed answer to an AskUser question.
+type Option struct {
+	Value string
+	Label string
+}
+
 // Complete finishes the run with a result; evidence is the requirement
 // trail accumulated via Require.
 func (c *Context) Complete(result any) (Outcome, error) {
@@ -59,8 +65,12 @@ func (c *Context) Refused(reason string) error { return &RefusedError{Reason: re
 
 // AskUser yields a question to be asked through the host's normal
 // interface and returns the selected value on resume.
-func (c *Context) AskUser(id, question string, options ...protocol.Option) string {
-	payload := mustJSON(protocol.AskUserPayload{Question: question, Options: options})
+func (c *Context) AskUser(id, question string, options ...Option) string {
+	protocolOptions := make([]protocol.Option, 0, len(options))
+	for _, option := range options {
+		protocolOptions = append(protocolOptions, protocol.Option{Value: option.Value, Label: option.Label})
+	}
+	payload := mustJSON(protocol.AskUserPayload{Question: question, Options: protocolOptions})
 	valueSchema := map[string]any{"type": "string"}
 	if len(options) > 0 {
 		values := make([]string, 0, len(options))

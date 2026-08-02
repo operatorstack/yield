@@ -24,28 +24,34 @@ normal code owns the repeatable control flow.
 
 ## Install
 
-Choose one language package. It includes the SDK and the matching `yskill`
-runtime.
+Choose one language package. TypeScript and Python include a package-local
+runtime. Go and Rust install the matching runtime under `.yield/bin` in the
+repository. Generated adapters never use a global `yskill` from `PATH`.
 
 ```bash
 # TypeScript
-npm install @operatorstack/yield --registry=https://get.operatorstack.systems/npm/
+npm install --save-exact @operatorstack/yield@0.1.23 --registry=https://get.operatorstack.systems/npm/
 npm exec -- yskill --version
 
-# Python
-python -m pip install yieldskill --index-url https://get.operatorstack.systems/pip/simple/
+# Python, after creating and activating .venv
+python -m pip install yieldskill==0.1.23 --index-url https://get.operatorstack.systems/pip/simple/
 python -m yieldskill --version
 
-# Go
-GOPROXY=https://get.operatorstack.systems/go,direct \
-  go install github.com/operatorstack/yield/cmd/yskill@latest
-yskill --version
+# Go, from the repository root
+mkdir -p .yield/bin
+GOBIN="$PWD/.yield/bin" GOPROXY=https://get.operatorstack.systems/go,direct \
+  go install github.com/operatorstack/yield/cmd/yskill@v0.1.23
+.yield/bin/yskill --version
 
-# Rust
-cargo install yieldskill \
+# Rust, from the repository root
+cargo install yieldskill@0.1.23 --root .yield \
   --index sparse+https://get.operatorstack.systems/cargo/index/ --locked
-yskill --version
+.yield/bin/yskill --version
 ```
+
+Yield creates `.yield/.gitignore` when it registers a Go or Rust workflow, so
+the local runtime and run state stay out of Git.
+On Windows, run the local binary as `.\.yield\bin\yskill.exe`.
 
 ## Create and register a skill workflow
 
@@ -139,6 +145,8 @@ the documentation for your job:
 - [examples](docs/examples.md) — working programs in all four languages;
 - [coding-agent setup](docs/agent-setup.md) — register one skill workflow with the
   agents used by the project;
+- [test workflow effects](docs/testing-fixtures.md) — deterministic fixture
+  setup, response effects, standard-input JSON, and cleanup;
 - [evaluations](evals/README.md) — first-party workflow conformance and runtime
   invariant results, including the exact claim boundary;
 - [convert an existing skill](docs/convert-existing-skill.md) — move

@@ -78,6 +78,7 @@ func scaffoldSkill(dir, language, sdkPath, description string) error {
 	files := scaffoldFiles(name, language, sdkPath)
 	files["SKILL.md"] = fmt.Sprintf(skillMD, name, yamlString(strings.TrimSpace(description)), launcher, launcher)
 	files["fixtures/responses.json"] = "{\n  \"confirm-start\": {\"value\": \"yes\"}\n}\n"
+	files["fixtures/test.json"] = "{\n  \"version\": 1,\n  \"setup\": [],\n  \"after_response\": {},\n  \"teardown\": []\n}\n"
 	keys := make([]string, 0, len(files))
 	for key := range files {
 		keys = append(keys, key)
