@@ -45,7 +45,7 @@ func scaffoldCommand(language, dir string) (launcher, workflow string) {
 		"go":         "yskill",
 		"rust":       "yskill",
 	}[language]
-	workflow = "."
+	workflow = shellQuoteForPlatform(dir, runtime.GOOS)
 	if language != "go" && language != "rust" {
 		return launcher, workflow
 	}
@@ -65,7 +65,14 @@ func scaffoldCommand(language, dir string) (launcher, workflow string) {
 	if err != nil {
 		return launcher, workflow
 	}
-	return repositoryRuntimeLauncher(runtimeRel, runtime.GOOS), shellQuote(filepath.ToSlash(skillRel))
+	return repositoryRuntimeLauncher(runtimeRel, runtime.GOOS), shellQuoteForPlatform(skillRel, runtime.GOOS)
+}
+
+func shellQuoteForPlatform(value, goos string) string {
+	if goos == "windows" {
+		return "'" + strings.ReplaceAll(value, "'", "''") + "'"
+	}
+	return shellQuote(filepath.ToSlash(value))
 }
 
 func scaffoldSkill(dir, language, sdkPath, description string) error {
@@ -155,7 +162,7 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
 			".cargo/config.toml": "[registries.operatorstack]\nindex = \"sparse+https://get.operatorstack.systems/cargo/index/\"\n",
 			"Cargo.toml":         fmt.Sprintf("[package]\nname = %q\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nyieldskill = { version = \"=%s\", registry = \"operatorstack\" }\nserde_json = \"1\"\n", name, v),
 			"src/main.rs":        mainRust,
-			"skill.json":         "{\"version\":1,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\"]}\n",
+			"skill.json":         fmt.Sprintf("{\"version\":1,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\",\"--bin\",%q]}\n", name),
 		}
 	default:
 		gomod := fmt.Sprintf("module %s\n\ngo 1.26.5\n\nrequire github.com/operatorstack/yield v%s\n", name, v)

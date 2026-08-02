@@ -24,3 +24,7 @@ first. `teardown` runs after success or failure. Every hook receives
 
 Keep hooks small and repeatable. They should prepare or clean fixture state,
 not replace the workflow behavior being tested.
+
+For Rust, a fixture helper may add another binary under `src/bin/`. New
+workflows name the primary workflow binary in `skill.json`, so Cargo still
+runs the workflow without asking you to choose a binary.
