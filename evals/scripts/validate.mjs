@@ -7,7 +7,7 @@ const result = JSON.parse(await readFile(join(root, "results/latest.json"), "utf
 const fail = (message) => { throw new Error(message) }
 
 if (result.schema_version !== 2) fail("unsupported result schema")
-if (result.methodology_version !== "1.0") fail("unsupported methodology")
+if (result.methodology_version !== "1.1") fail("unsupported methodology")
 if (!/^[0-9a-f]{64}$/.test(result.source_digest)) fail("source hash is invalid")
 if (result.status !== "passed") fail("published result is not passing")
 
@@ -21,7 +21,7 @@ if (workflows.total !== 40 || workflows.passed !== workflows.total) {
 if (workflows.cases.length !== workflows.total) fail("workflow case list is incomplete")
 
 const runtime = result.runtime_invariants
-if (runtime.total !== 5 || runtime.passed !== runtime.total) {
+if (runtime.total !== 8 || runtime.passed !== runtime.total) {
   fail("not every runtime check passed")
 }
 if (runtime.cases.length !== runtime.total) fail("runtime case list is incomplete")

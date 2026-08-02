@@ -200,6 +200,100 @@ func TestDoctorDetectsCurrentAndStaleAdapters(t *testing.T) {
 	}
 }
 
+func TestDoctorWithoutAgentChecksWorkflowOnly(t *testing.T) {
+	repo := t.TempDir()
+	writeTestFile(t, filepath.Join(repo, ".git"), "gitdir: fixture\n")
+	skill := createTypeScriptSkill(t, repo, "review")
+	if err := cmdDoctor([]string{skill, "--root", repo}); err != nil {
+		t.Fatalf("workflow-only doctor required an adapter: %v", err)
+	}
+}
+
+func TestDoctorWorkflowOnlyDoesNotRequireRepository(t *testing.T) {
+	root := t.TempDir()
+	skill := createTypeScriptSkill(t, root, "review")
+	if err := cmdDoctor([]string{skill}); err != nil {
+		t.Fatalf("workflow-only doctor required a repository: %v", err)
+	}
+}
+
+func TestRegisterAllPreflightsAndWritesEveryWorkflow(t *testing.T) {
+	repo := t.TempDir()
+	writeTestFile(t, filepath.Join(repo, ".git"), "gitdir: fixture\n")
+	writeTestFile(t, filepath.Join(repo, "package.json"), `{"dependencies":{"@operatorstack/yield":"0.1.19"}}`)
+	for _, name := range []string{"review", "release"} {
+		skill := filepath.Join(repo, "skills", name)
+		writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: "+name+"\ndescription: Run "+name+" when the matching project workflow is requested.\n---\n")
+		writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"language":"typescript","run":["node","main.ts"]}`)
+		writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
+	}
+	if err := cmdRegisterAll([]string{filepath.Join(repo, "skills"), "--root", repo, "--agent", "codex", "--dry-run"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(repo, ".agents", "skills", "review", "SKILL.md")); !os.IsNotExist(err) {
+		t.Fatal("dry-run wrote an adapter")
+	}
+	if err := cmdRegisterAll([]string{filepath.Join(repo, "skills"), "--root", repo, "--agent", "codex"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"review", "release"} {
+		if _, err := os.Stat(filepath.Join(repo, ".agents", "skills", name, "SKILL.md")); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestRegisterAllPruneRemovesOnlyOwnedAdapterFile(t *testing.T) {
+	repo := t.TempDir()
+	writeTestFile(t, filepath.Join(repo, ".git"), "gitdir: fixture\n")
+	writeTestFile(t, filepath.Join(repo, "package.json"), `{"dependencies":{"@operatorstack/yield":"0.1.19"}}`)
+	for _, name := range []string{"review", "release"} {
+		skill := filepath.Join(repo, "skills", name)
+		writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: "+name+"\ndescription: Run "+name+" when the matching project workflow is requested.\n---\n")
+		writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"language":"typescript","run":["node","main.ts"]}`)
+		writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
+	}
+	if err := cmdRegisterAll([]string{filepath.Join(repo, "skills"), "--root", repo, "--agent", "codex"}); err != nil {
+		t.Fatal(err)
+	}
+	releaseAdapter := filepath.Join(repo, ".agents", "skills", "release")
+	writeTestFile(t, filepath.Join(releaseAdapter, "notes.txt"), "keep me\n")
+	if err := os.RemoveAll(filepath.Join(repo, "skills", "release")); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmdRegisterAll([]string{filepath.Join(repo, "skills"), "--root", repo, "--agent", "codex", "--prune"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(releaseAdapter, "SKILL.md")); !os.IsNotExist(err) {
+		t.Fatalf("obsolete generated adapter remains: %v", err)
+	}
+	if got := readTestFile(t, filepath.Join(releaseAdapter, "notes.txt")); got != "keep me\n" {
+		t.Fatalf("prune changed sibling file: %q", got)
+	}
+}
+
+func TestRegisterAllRefusesCrossDirectoryNameCollisionBeforeWrites(t *testing.T) {
+	repo := t.TempDir()
+	writeTestFile(t, filepath.Join(repo, ".git"), "gitdir: fixture\n")
+	writeTestFile(t, filepath.Join(repo, "package.json"), `{"dependencies":{"@operatorstack/yield":"0.1.19"}}`)
+	makeSkill := func(parent string) string {
+		skill := filepath.Join(repo, parent, "review")
+		writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: review\ndescription: Review the project when a user asks for a check.\n---\n")
+		writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"language":"typescript","run":["node","main.ts"]}`)
+		writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
+		return skill
+	}
+	first := makeSkill("typescript-skills")
+	second := makeSkill("python-skills")
+	if _, err := registerSkill(first, repo, []string{"codex"}); err != nil {
+		t.Fatal(err)
+	}
+	err := cmdRegisterAll([]string{filepath.Dir(second), "--root", repo, "--agent", "codex"})
+	if err == nil || !strings.Contains(err.Error(), "name collision") || !strings.Contains(err.Error(), "typescript-skills/review") || !strings.Contains(err.Error(), "python-skills/review") {
+		t.Fatalf("cross-directory collision = %v", err)
+	}
+}
+
 func TestShellQuoteEscapesSingleQuote(t *testing.T) {
 	if got := shellQuote("skills/team's-review"); got != `'skills/team'"'"'s-review'` {
 		t.Fatalf("shellQuote = %q", got)

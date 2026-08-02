@@ -13,8 +13,15 @@ yskill register skills/review
 # Or choose agents explicitly
 yskill register skills/review --agent cursor,codex,claude-code
 
-# Check the package and adapters; add --test to run fixture responses
+# Check the workflow itself
+yskill doctor skills/review --test
+
+# Check selected adapters too
 yskill doctor skills/review --agent cursor,codex,claude-code --test
+
+# Register a complete workflow directory in one pass
+yskill register-all skills --agent cursor,codex,claude-code --dry-run
+yskill register-all skills --agent cursor,codex,claude-code --prune
 ```
 
 Use the launcher installed by the selected language package:
@@ -34,7 +41,8 @@ end to end by Yield.
 
 Generated adapters are safe to commit. Regenerate them after changing the
 canonical workflow. Yield refuses to overwrite a user-owned skill with the
-same name.
+same name. Names must also be unique across languages because coding agents use
+one project-level skill namespace.
 
 ## Copy this to your agent
 
@@ -49,13 +57,28 @@ Set up a Yield workflow named [skill-name] in skills/[skill-name].
    manager. Do not install a second global runtime.
 3. Run yskill init with the detected language and this description:
    [what the workflow does and when it should run]
-4. Keep the workflow beside the project's language dependencies.
-5. Run yskill register for the coding agent you are currently using.
-6. Use the launcher from the installed language package for every yskill
+4. Replace the starter program and fixture with the requested workflow. The
+   starter is intentionally blocked and must not pass tests unchanged.
+5. Run yskill doctor with --test before registration.
+6. Keep the workflow beside the project's language dependencies.
+7. Run yskill register for the coding agent you are currently using.
+8. Use the launcher from the installed language package for every yskill
    command: npm exec -- yskill, python -m yieldskill, or yskill.
-7. Run yskill doctor with --test.
-8. Report the commands, generated adapter path, and every changed file.
+9. Run yskill doctor with --agent and --test.
+10. Report the commands, generated adapter path, and every changed file.
 
 Do not move the workflow into an agent discovery directory and do not copy its
 dependencies into an adapter.
+
+## Questions and agent results
+
+Yield emits a typed operation. The coding agent may show that operation using
+its native question UI. Yield does not render the UI. After collecting an
+answer, the adapter uses `yskill respond`; it does not create `response.json`.
+
+Use `--value` for a person’s answer and `--result-json` for structured agent
+work. The file-based `resume --response` command remains available for CI.
+
+Workflow-only `doctor` works without `.git`. For registration in such a
+directory, pass `--root` so Yield knows where agent adapters belong.
 ```

@@ -151,6 +151,8 @@ export class Context {
 
   /** Yield a question asked through the host's normal interface. */
   askUser(id: string, question: string, options?: Option[]): string {
+    const valueSchema: Record<string, unknown> = { type: "string" };
+    if (options?.length) valueSchema.enum = options.map((option) => option.value);
     const resp = this.step({
       id,
       kind: "ask_user",
@@ -158,7 +160,8 @@ export class Context {
       output_schema: {
         type: "object",
         required: ["value"],
-        properties: { value: { type: "string" } },
+        additionalProperties: false,
+        properties: { value: valueSchema },
       },
     });
     return (resp.result as { value: string }).value;

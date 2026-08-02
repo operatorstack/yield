@@ -1,10 +1,13 @@
 package engine
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/operatorstack/yield/internal/guard"
@@ -21,6 +24,202 @@ func testEngine(t *testing.T, skill string) *Engine {
 		t.Fatal(err)
 	}
 	return &Engine{SkillDir: abs, RunsDir: t.TempDir(), Stderr: os.Stderr}
+}
+
+func TestConcurrentIdenticalResumeCommitsOnce(t *testing.T) {
+	e := testEngine(t, "skill-basic")
+	p, err := e.StartRun(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := json.Marshal(protocol.ResponseEnvelope{
+		RunID: p.RunID, Sequence: p.Envelope.Sequence, RequestID: p.Envelope.Request.ID,
+		Status: "completed", Result: json.RawMessage(`{"value":"preserve"}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wg sync.WaitGroup
+	errs := make(chan error, 2)
+	for range 2 {
+		wg.Add(1)
+		go func() { defer wg.Done(); _, callErr := e.Resume(p.RunID, response, false); errs <- callErr }()
+	}
+	wg.Wait()
+	close(errs)
+	for callErr := range errs {
+		if callErr != nil {
+			t.Fatalf("identical concurrent retry failed: %v", callErr)
+		}
+	}
+	log, err := e.Log(p.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	completed := 0
+	for _, event := range log.Events() {
+		if event.Type == runlog.OperationCompleted {
+			var data struct {
+				RequestID string `json:"request_id"`
+			}
+			_ = event.Decode(&data)
+			if data.RequestID == "confirm-scope" {
+				completed++
+			}
+		}
+	}
+	if completed != 1 {
+		t.Fatalf("confirm-scope completion events = %d, want 1", completed)
+	}
+}
+
+func TestConcurrentResumeProcessesCommitOnce(t *testing.T) {
+	e := testEngine(t, "skill-basic")
+	p, err := e.StartRun(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := json.Marshal(protocol.ResponseEnvelope{
+		RunID: p.RunID, Sequence: p.Envelope.Sequence, RequestID: p.Envelope.Request.ID,
+		Status: "completed", Result: json.RawMessage(`{"value":"preserve"}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	responsePath := filepath.Join(t.TempDir(), "response.json")
+	if err := os.WriteFile(responsePath, response, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	commands := make([]*exec.Cmd, 2)
+	outputs := make([]bytes.Buffer, 2)
+	for index := range commands {
+		commands[index] = exec.Command(os.Args[0], "-test.run=^TestResumeProcessHelper$", "--", e.SkillDir, e.RunsDir, p.RunID, responsePath)
+		commands[index].Env = append(os.Environ(), "YIELD_RESUME_HELPER=1")
+		commands[index].Stdout = &outputs[index]
+		commands[index].Stderr = &outputs[index]
+		if err := commands[index].Start(); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for index, command := range commands {
+		if err := command.Wait(); err != nil {
+			t.Fatalf("resume process failed: %v: %s", err, outputs[index].String())
+		}
+	}
+	l, err := e.Log(p.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	completed := 0
+	for _, event := range l.Events() {
+		if event.Type == runlog.OperationCompleted {
+			var data struct {
+				RequestID string `json:"request_id"`
+			}
+			_ = event.Decode(&data)
+			if data.RequestID == "confirm-scope" {
+				completed++
+			}
+		}
+	}
+	if completed != 1 {
+		t.Fatalf("cross-process completion events = %d, want 1", completed)
+	}
+}
+
+func TestResumeProcessHelper(t *testing.T) {
+	if os.Getenv("YIELD_RESUME_HELPER") != "1" {
+		return
+	}
+	separator := -1
+	for index, arg := range os.Args {
+		if arg == "--" {
+			separator = index
+			break
+		}
+	}
+	if separator < 0 || separator+4 >= len(os.Args) {
+		os.Exit(2)
+	}
+	response, err := os.ReadFile(os.Args[separator+4])
+	if err != nil {
+		os.Exit(3)
+	}
+	e := &Engine{SkillDir: os.Args[separator+1], RunsDir: os.Args[separator+2], Stderr: os.Stderr}
+	if _, err := e.Resume(os.Args[separator+3], response, false); err != nil {
+		os.Exit(4)
+	}
+	os.Exit(0)
+}
+
+func TestRespondBuildsEnvelopeFromPendingFrontier(t *testing.T) {
+	e := testEngine(t, "skill-basic")
+	p, err := e.StartRun(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err = e.Respond(p.RunID, json.RawMessage(`{"value":"preserve"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Envelope == nil || p.Envelope.Request.ID != "summarize" {
+		t.Fatalf("direct response did not reach the next frontier: %+v", p)
+	}
+}
+
+func TestContinueAdvancesAfterCommittedResponse(t *testing.T) {
+	e := testEngine(t, "skill-basic")
+	p, err := e.StartRun(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := e.Log(p.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := json.RawMessage(`{"value":"preserve"}`)
+	if err := e.acceptResponse(l, p.Envelope, protocol.ResponseEnvelope{
+		RunID: p.RunID, Sequence: p.Envelope.Sequence, RequestID: p.Envelope.Request.ID,
+		Status: "completed", Result: result,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	p, err = e.Continue(p.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Envelope == nil || p.Envelope.Request.ID != "summarize" {
+		t.Fatalf("continue did not reconstruct the next frontier: %+v", p)
+	}
+}
+
+func TestRespondRecoveryRejectsDifferentCommittedContent(t *testing.T) {
+	e := testEngine(t, "skill-basic")
+	p, err := e.StartRun(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l, err := e.Log(p.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	committed := json.RawMessage(`{"value":"preserve"}`)
+	if err := e.acceptResponse(l, p.Envelope, protocol.ResponseEnvelope{
+		RunID: p.RunID, Sequence: p.Envelope.Sequence, RequestID: p.Envelope.Request.ID,
+		Status: "completed", Result: committed,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.Respond(p.RunID, json.RawMessage(`{"value":"replace"}`)); err == nil || !strings.Contains(err.Error(), "different content") {
+		t.Fatalf("different recovery response = %v", err)
+	}
+	p, err = e.Respond(p.RunID, committed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p.Envelope == nil || p.Envelope.Request.ID != "summarize" {
+		t.Fatalf("exact recovery did not reach the next frontier: %+v", p)
+	}
 }
 
 func respond(t *testing.T, e *Engine, p *Progress, result string, migrate bool) (*Progress, error) {

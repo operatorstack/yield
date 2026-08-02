@@ -330,6 +330,9 @@ func TestGuardRefusals(t *testing.T) {
 			if _, err := respond(t, e, p, `{"wrong":"shape"}`); err == nil || !strings.Contains(err.Error(), "schema-invalid") {
 				t.Fatalf("schema-invalid result must be refused, got %v", err)
 			}
+			if _, err := respond(t, e, p, `{"value":"not-a-declared-option"}`); err == nil || !strings.Contains(err.Error(), "schema-invalid") {
+				t.Fatalf("unknown ask_user option must be refused, got %v", err)
+			}
 			p2, err := respond(t, e, p, `{"value":"yes"}`)
 			if err != nil {
 				t.Fatal(err)

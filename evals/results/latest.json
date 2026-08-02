@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "methodology_version": "1.0",
-  "generated_at": "2026-08-02T00:47:04.974Z",
-  "source_digest": "760c09c309aac72fc15ff1b6b35663717b32a96917bca1be0c61e8536354467a",
+  "methodology_version": "1.1",
+  "generated_at": "2026-08-02T09:47:39.937Z",
+  "source_digest": "5a52fa0145a400283ee3140563124c2e7c758cfbcce8b20f7efcfa2e7c3c8cd4",
   "status": "passed",
   "workflow_conformance": {
     "passed": 40,
@@ -258,35 +258,61 @@
     ]
   },
   "runtime_invariants": {
-    "passed": 5,
-    "total": 5,
+    "passed": 8,
+    "total": 8,
     "cases": [
       {
         "id": "resume-complete",
+        "package": "./internal/engine",
         "test": "TestEndToEndRunResumeComplete",
         "assertion": "a recorded response advances the run to completion",
         "status": "passed"
       },
       {
+        "id": "response-lock",
+        "package": "./internal/engine",
+        "test": "TestConcurrentIdenticalResumeCommitsOnce",
+        "assertion": "concurrent identical responses create one completion event",
+        "status": "passed"
+      },
+      {
+        "id": "response-recovery",
+        "package": "./internal/engine",
+        "test": "TestRespondRecoveryRejectsDifferentCommittedContent",
+        "assertion": "an exact committed response recovers and different content is refused",
+        "status": "passed"
+      },
+      {
+        "id": "ask-user-options",
+        "package": "./internal/conformance",
+        "test": "TestGuardRefusals",
+        "assertion": "every SDK rejects an answer outside the declared options",
+        "status": "passed"
+      },
+      {
         "id": "deterministic-replay",
+        "package": "./internal/engine",
         "test": "TestReplayIsDeterministic",
         "assertion": "the saved log returns to the same next step",
         "status": "passed"
       },
       {
         "id": "replay-divergence",
+        "package": "./internal/engine",
         "test": "TestReplayDivergenceFailsLoudly",
         "assertion": "changed behavior stops replay instead of reusing the wrong result",
         "status": "passed"
       },
       {
         "id": "requirement-block",
+        "package": "./internal/engine",
         "test": "TestFailedRequirementBlocksRun",
         "assertion": "a failed rule ends the run as blocked",
         "status": "passed"
       },
       {
         "id": "source-change",
+        "package": "./internal/engine",
         "test": "TestDigestMismatchRefusedThenMigrates",
         "assertion": "changed source is refused until the user accepts the change",
         "status": "passed"

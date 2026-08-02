@@ -198,6 +198,11 @@ impl Context {
                     .collect(),
             );
         }
+        let mut value_schema = json!({ "type": "string" });
+        if !options.is_empty() {
+            value_schema["enum"] =
+                Value::Array(options.iter().map(|(value, _)| json!(value)).collect());
+        }
         let resp = self.step(Request {
             id: id.to_string(),
             kind: "ask_user".to_string(),
@@ -205,10 +210,14 @@ impl Context {
             output_schema: Some(json!({
                 "type": "object",
                 "required": ["value"],
-                "properties": { "value": { "type": "string" } }
+                "additionalProperties": false,
+                "properties": { "value": value_schema }
             })),
         });
-        resp.result["value"].as_str().unwrap_or_default().to_string()
+        resp.result["value"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string()
     }
 
     /// Delegate reasoning to the model. `schema` (JSON Schema) is enforced
@@ -344,7 +353,9 @@ pub fn define_skill(program: fn(&mut Context) -> SkillResult) -> ! {
     let path = match std::env::var("YIELD_JOURNAL") {
         Ok(p) => p,
         Err(_) => {
-            eprintln!("yield: YIELD_JOURNAL is not set; this program is run by yskill, not directly");
+            eprintln!(
+                "yield: YIELD_JOURNAL is not set; this program is run by yskill, not directly"
+            );
             exit(2);
         }
     };

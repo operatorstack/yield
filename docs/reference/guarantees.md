@@ -5,8 +5,10 @@
 - operation order expressed by the program;
 - typed request and response envelopes;
 - persistent append-only run state;
+- one locked response transition per run, including safe exact retries;
 - per-step digest checks during replay;
 - rejection of stale, duplicate, wrong-run, and schema-invalid responses;
+- rejection of undeclared `AskUser` option values;
 - real command execution by the Yield CLI;
 - requirements that prevent later completion after failure;
 - recorded completed, blocked, and refused outcomes.

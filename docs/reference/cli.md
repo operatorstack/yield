@@ -47,9 +47,10 @@ yskill doctor <skill-directory> [--agent cursor,codex,...|auto]
   [--root repository] [--test]
 ```
 
-Checks the manifest, package launcher, portable metadata, adapter ownership,
-source path, and source digest. `--test` also runs the workflow against
-`fixtures/responses.json`.
+Checks the canonical workflow and package launcher. `--test` also runs the
+workflow against `fixtures/responses.json` without leaving a run journal.
+Adapter checks run only when `--agent` is supplied, and all adapter problems
+are reported together.
 
 ## `version`
 
@@ -79,6 +80,33 @@ Validates one response and prints the next operation or terminal outcome.
 `--accept-new-digest` explicitly rebinds a saved run after intentional skill
 source changes; do not use it to hide accidental drift.
 
+`resume` is the file-based interface for CI and audit tooling. For normal
+agent use, prefer `respond`.
+
+## `respond`
+
+```bash
+yskill respond <run-id> --value <answer> [--skill directory]
+yskill respond <run-id> --result-json '<json>' [--skill directory]
+yskill respond <run-id> --result-json - [--skill directory]
+```
+
+Reads the pending operation, builds the response envelope, validates the
+result, and advances the run as one locked transition. `--value` answers an
+`ask_user` operation. `--result-json` supplies a structured agent result; `-`
+reads JSON from standard input. Completed results are printed in full.
+
+## `register-all`
+
+```bash
+yskill register-all <skills-directory> --agent cursor,codex
+  [--root repository] [--dry-run] [--prune]
+```
+
+Registers every immediate workflow in one directory. It checks all names and
+destinations before writing. `--prune` removes only obsolete adapters generated
+from that workflow directory. Agent-facing names must be unique.
+
 ## `inspect`
 
 ```bash
@@ -100,9 +128,34 @@ to the same frontier. Operation drift fails loudly.
 ## `test`
 
 ```bash
-yskill test <skill-directory>
+yskill test <skill-directory> [--keep-run]
 ```
 
 Uses `fixtures/responses.json` for `ask_user` and `agent_task` operations.
 `run_command` operations still execute for real. The command succeeds only when
-the program reaches `completed`.
+the program reaches `completed`. Test journals are temporary unless
+`--keep-run` is supplied. Optional `fixtures/test.json` setup, per-response,
+and teardown commands use argv arrays and never run through a shell.
+
+```json
+{
+  "version": 1,
+  "setup": [["node", "fixtures/setup.mjs"]],
+  "after_response": {
+    "approve": [["node", "fixtures/apply-approval.mjs"]]
+  },
+  "teardown": [["node", "fixtures/teardown.mjs"]]
+}
+```
+
+Each `after_response` command receives that fixture response as JSON on
+standard input. Hooks run only during `yskill test`.
+
+## `prune`
+
+```bash
+yskill prune <skill-directory> --older-than 720h
+  [--keep-last 10] [--dry-run]
+```
+
+Removes old terminal runs. Active runs are never selected.
