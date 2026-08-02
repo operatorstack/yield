@@ -47,6 +47,7 @@ fn main() {
     let mut command = Command::new(path);
     command.args(args);
     if std::env::var_os("YIELD_LANGUAGE").is_none() { command.env("YIELD_LANGUAGE", "rust"); }
+    if let Ok(launcher) = std::env::current_exe() { command.env("YIELD_LAUNCHER_PATH", launcher); }
     #[cfg(unix)] {
         use std::os::unix::process::CommandExt;
         let error = command.exec();

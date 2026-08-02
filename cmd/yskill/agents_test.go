@@ -363,6 +363,41 @@ func TestRepositoryRuntimeLauncherUsesNativeWindowsPath(t *testing.T) {
 	}
 }
 
+func TestRepositoryRootIsInferredFromLocalRuntimeOutsideGit(t *testing.T) {
+	repo := t.TempDir()
+	skill := filepath.Join(repo, "skills", "review")
+	writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: review\ndescription: Review a change before it is merged.\n---\n")
+	previousExecutable := currentExecutable
+	currentExecutable = func() (string, error) { return localRuntimePath(repo), nil }
+	t.Cleanup(func() { currentExecutable = previousExecutable })
+
+	got, err := findRepoRoot(skill, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != repo {
+		t.Fatalf("repository root = %q, want %q", got, repo)
+	}
+}
+
+func TestRepositoryRootUsesTheRustWrapperPath(t *testing.T) {
+	repo := t.TempDir()
+	skill := filepath.Join(repo, "skills", "review")
+	writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: review\ndescription: Review a change before it is merged.\n---\n")
+	t.Setenv("YIELD_LAUNCHER_PATH", localRuntimePath(repo))
+	previousExecutable := currentExecutable
+	currentExecutable = func() (string, error) { return filepath.Join(t.TempDir(), "runtime-cache", "yskill"), nil }
+	t.Cleanup(func() { currentExecutable = previousExecutable })
+
+	got, err := findRepoRoot(skill, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != repo {
+		t.Fatalf("repository root = %q, want %q", got, repo)
+	}
+}
+
 func TestRepositoryRuntimeRejectsMissingAndWrongVersions(t *testing.T) {
 	repo := t.TempDir()
 	path := localRuntimePath(repo)

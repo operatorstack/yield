@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -259,6 +260,41 @@ func TestGoScaffoldCanResolveItsPinnedModuleOnFirstRun(t *testing.T) {
 	manifest := readTestFile(t, filepath.Join(dir, "skill.json"))
 	if manifest != "{\"version\":1,\"language\":\"go\",\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n" {
 		t.Fatalf("skill.json = %q", manifest)
+	}
+}
+
+func TestLocalGoAndRustScaffoldsKeepTheInvokedRuntime(t *testing.T) {
+	previousVersion := version
+	previousTidyGoModule := tidyGoModule
+	previousExecutable := currentExecutable
+	version = "0.1.23"
+	tidyGoModule = func(string) error { return nil }
+	t.Cleanup(func() {
+		version = previousVersion
+		tidyGoModule = previousTidyGoModule
+		currentExecutable = previousExecutable
+	})
+
+	for _, language := range []string{"go", "rust"} {
+		t.Run(language, func(t *testing.T) {
+			repo := t.TempDir()
+			currentExecutable = func() (string, error) { return localRuntimePath(repo), nil }
+			dir := filepath.Join(repo, "skills", "safe-change")
+			if err := scaffoldSkill(dir, language, "", "Run safety checks before applying a change."); err != nil {
+				t.Fatal(err)
+			}
+			skill := readTestFile(t, filepath.Join(dir, "SKILL.md"))
+			launcher := repositoryRuntimeLauncher(filepath.Join(".yield", "bin", filepath.Base(localRuntimePath(repo))), runtime.GOOS)
+			workflow := shellQuote("skills/safe-change")
+			for _, command := range []string{
+				launcher + " run " + workflow,
+				launcher + " respond <run-id> --value <answer> --skill " + workflow,
+			} {
+				if !strings.Contains(skill, command) {
+					t.Fatalf("SKILL.md does not preserve local runtime command %q:\n%s", command, skill)
+				}
+			}
+		})
 	}
 }
 

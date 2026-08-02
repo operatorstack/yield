@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -35,6 +36,36 @@ func packageVersion() string {
 		return v
 	}
 	return "0.0.0"
+}
+
+func scaffoldCommand(language, dir string) (launcher, workflow string) {
+	launcher = map[string]string{
+		"typescript": "npm exec -- yskill",
+		"python":     "python -m yieldskill",
+		"go":         "yskill",
+		"rust":       "yskill",
+	}[language]
+	workflow = "."
+	if language != "go" && language != "rust" {
+		return launcher, workflow
+	}
+	root, ok := repositoryRootFromLocalRuntime()
+	if !ok {
+		return launcher, workflow
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil || !within(root, absDir) {
+		return launcher, workflow
+	}
+	runtimeRel, err := filepath.Rel(root, localRuntimePath(root))
+	if err != nil {
+		return launcher, workflow
+	}
+	skillRel, err := filepath.Rel(root, absDir)
+	if err != nil {
+		return launcher, workflow
+	}
+	return repositoryRuntimeLauncher(runtimeRel, runtime.GOOS), shellQuote(filepath.ToSlash(skillRel))
 }
 
 func scaffoldSkill(dir, language, sdkPath, description string) error {
@@ -69,14 +100,9 @@ func scaffoldSkill(dir, language, sdkPath, description string) error {
 		return os.WriteFile(path, []byte(content), 0o644)
 	}
 
-	launcher := map[string]string{
-		"typescript": "npm exec -- yskill",
-		"python":     "python -m yieldskill",
-		"go":         "yskill",
-		"rust":       "yskill",
-	}[language]
+	launcher, workflow := scaffoldCommand(language, dir)
 	files := scaffoldFiles(name, language, sdkPath)
-	files["SKILL.md"] = fmt.Sprintf(skillMD, name, yamlString(strings.TrimSpace(description)), launcher, launcher)
+	files["SKILL.md"] = fmt.Sprintf(skillMD, name, yamlString(strings.TrimSpace(description)), launcher, workflow, launcher, workflow)
 	files["fixtures/responses.json"] = "{\n  \"confirm-start\": {\"value\": \"yes\"}\n}\n"
 	files["fixtures/test.json"] = "{\n  \"version\": 1,\n  \"setup\": [],\n  \"after_response\": {},\n  \"teardown\": []\n}\n"
 	keys := make([]string, 0, len(files))
@@ -99,8 +125,8 @@ func scaffoldSkill(dir, language, sdkPath, description string) error {
 	}
 	fmt.Printf("init: %s skill %q scaffolded in %s\n", language, name, dir)
 	fmt.Println("next: replace the starter program and fixtures with the described workflow")
-	fmt.Printf("test: %s doctor %s --test\n", launcher, shellQuote(dir))
-	fmt.Printf("then: %s register %s\n", launcher, shellQuote(dir))
+	fmt.Printf("test: %s doctor %s --test\n", launcher, workflow)
+	fmt.Printf("then: %s register %s\n", launcher, workflow)
 	return nil
 }
 
@@ -151,11 +177,11 @@ description: %s
 
 Run:
 
-    %s run .
+    %s run %s
 
 Follow each returned operation exactly. Answer it directly:
 
-	%s respond <run-id> --value <answer> --skill .
+	%s respond <run-id> --value <answer> --skill %s
 
 Do not skip an operation or invent a response.
 `

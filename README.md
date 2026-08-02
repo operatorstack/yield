@@ -30,21 +30,21 @@ repository. Generated adapters never use a global `yskill` from `PATH`.
 
 ```bash
 # TypeScript
-npm install --save-exact @operatorstack/yield@0.1.23 --registry=https://get.operatorstack.systems/npm/
+npm install --save-exact @operatorstack/yield@0.1.26 --registry=https://get.operatorstack.systems/npm/
 npm exec -- yskill --version
 
 # Python, after creating and activating .venv
-python -m pip install yieldskill==0.1.23 --index-url https://get.operatorstack.systems/pip/simple/
+python -m pip install yieldskill==0.1.26 --index-url https://get.operatorstack.systems/pip/simple/
 python -m yieldskill --version
 
 # Go, from the repository root
 mkdir -p .yield/bin
 GOBIN="$PWD/.yield/bin" GOPROXY=https://get.operatorstack.systems/go,direct \
-  go install github.com/operatorstack/yield/cmd/yskill@v0.1.23
+  go install github.com/operatorstack/yield/cmd/yskill@v0.1.26
 .yield/bin/yskill --version
 
 # Rust, from the repository root
-cargo install yieldskill@0.1.23 --root .yield \
+cargo install yieldskill@0.1.26 --root .yield \
   --index sparse+https://get.operatorstack.systems/cargo/index/ --locked
 .yield/bin/yskill --version
 ```

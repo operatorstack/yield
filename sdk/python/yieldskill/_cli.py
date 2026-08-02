@@ -27,8 +27,11 @@ def run(argv: Sequence[str] | None = None, platform: str | None = None) -> int |
     args = [str(runtime_path(platform)), *(argv if argv is not None else sys.argv[1:])]
     selected = platform or sys.platform
     python = os.environ.get("YIELD_PYTHON", sys.executable)
-    resolved_python = shutil.which(python) or python
-    python_bin = str(Path(resolved_python).resolve().parent)
+    selected_python = shutil.which(python) or python
+    # Keep the path used to enter the virtual environment. Resolving this
+    # symlink would replace .venv/bin with the system interpreter directory,
+    # hiding Python and environment-local console scripts from RunCommand.
+    python_bin = str(Path(selected_python).absolute().parent)
     inherited_path = os.environ.get("PATH", "")
     environment = {
         **os.environ,
