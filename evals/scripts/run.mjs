@@ -10,11 +10,14 @@ const yieldRoot = resolve(evalRoot, "..")
 const libraryRoot = join(yieldRoot, "examples/library")
 const languages = ["typescript", "python", "go", "rust"]
 const runtimeCases = [
-  ["resume-complete", "TestEndToEndRunResumeComplete", "a recorded response advances the run to completion"],
-  ["deterministic-replay", "TestReplayIsDeterministic", "the saved log returns to the same next step"],
-  ["replay-divergence", "TestReplayDivergenceFailsLoudly", "changed behavior stops replay instead of reusing the wrong result"],
-  ["requirement-block", "TestFailedRequirementBlocksRun", "a failed rule ends the run as blocked"],
-  ["source-change", "TestDigestMismatchRefusedThenMigrates", "changed source is refused until the user accepts the change"],
+  ["resume-complete", "./internal/engine", "TestEndToEndRunResumeComplete", "a recorded response advances the run to completion"],
+  ["response-lock", "./internal/engine", "TestConcurrentIdenticalResumeCommitsOnce", "concurrent identical responses create one completion event"],
+  ["response-recovery", "./internal/engine", "TestRespondRecoveryRejectsDifferentCommittedContent", "an exact committed response recovers and different content is refused"],
+  ["ask-user-options", "./internal/conformance", "TestGuardRefusals", "every SDK rejects an answer outside the declared options"],
+  ["deterministic-replay", "./internal/engine", "TestReplayIsDeterministic", "the saved log returns to the same next step"],
+  ["replay-divergence", "./internal/engine", "TestReplayDivergenceFailsLoudly", "changed behavior stops replay instead of reusing the wrong result"],
+  ["requirement-block", "./internal/engine", "TestFailedRequirementBlocksRun", "a failed rule ends the run as blocked"],
+  ["source-change", "./internal/engine", "TestDigestMismatchRefusedThenMigrates", "changed source is refused until the user accepts the change"],
 ]
 const excludedDirectories = new Set([
   ".git", ".yield", "node_modules", "runs", "raw", "artifacts",
@@ -73,9 +76,9 @@ async function workflowCases(yskill) {
 }
 
 function evaluateRuntime() {
-  return runtimeCases.map(([id, test, assertion]) => {
-    execute("go", ["test", "./internal/engine", "-run", `^${test}$`, "-count=1"])
-    return { id, test, assertion, status: "passed" }
+  return runtimeCases.map(([id, packagePath, test, assertion]) => {
+    execute("go", ["test", packagePath, "-run", `^${test}$`, "-count=1"])
+    return { id, package: packagePath, test, assertion, status: "passed" }
   })
 }
 
@@ -88,7 +91,7 @@ async function evaluate() {
     const invariants = evaluateRuntime()
     return {
       schema_version: 2,
-      methodology_version: "1.0",
+      methodology_version: "1.1",
       generated_at: new Date().toISOString(),
       source_digest: await sourceDigest(),
       status: "passed",

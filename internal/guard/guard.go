@@ -41,20 +41,21 @@ func reject(reason RejectReason, format string, args ...any) *Rejection {
 
 // RunState is the guard-relevant projection of a run log.
 type RunState struct {
-	RunID       string
-	BoundDigest string
-	Skill       protocol.SkillRef
-	Pending     *protocol.RequestEnvelope // unanswered operation, if any
-	Completed   map[int]string            // sequence -> result digest
-	Closed      bool                      // a terminal run.* event exists
-	ReqFailed   bool                      // a requirement.failed event exists
-	Diverged    bool
+	RunID            string
+	BoundDigest      string
+	Skill            protocol.SkillRef
+	Pending          *protocol.RequestEnvelope // unanswered operation, if any
+	Completed        map[int]string            // sequence -> result digest
+	CompletedRequest map[int]string            // sequence -> request id
+	Closed           bool                      // a terminal run.* event exists
+	ReqFailed        bool                      // a requirement.failed event exists
+	Diverged         bool
 }
 
 // Reconstruct folds a run log into its guard state. The log is the only
 // source of truth; nothing else is consulted.
 func Reconstruct(l *runlog.Log) (*RunState, error) {
-	s := &RunState{Completed: map[int]string{}}
+	s := &RunState{Completed: map[int]string{}, CompletedRequest: map[int]string{}}
 	for _, e := range l.Events() {
 		switch e.Type {
 		case runlog.RunStarted:
@@ -77,12 +78,14 @@ func Reconstruct(l *runlog.Log) (*RunState, error) {
 		case runlog.OperationCompleted:
 			var d struct {
 				Sequence     int    `json:"sequence"`
+				RequestID    string `json:"request_id"`
 				ResultDigest string `json:"result_digest"`
 			}
 			if err := e.Decode(&d); err != nil {
 				return nil, err
 			}
 			s.Completed[d.Sequence] = d.ResultDigest
+			s.CompletedRequest[d.Sequence] = d.RequestID
 			if s.Pending != nil && s.Pending.Sequence == d.Sequence {
 				s.Pending = nil
 			}

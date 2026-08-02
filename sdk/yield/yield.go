@@ -61,9 +61,22 @@ func (c *Context) Refused(reason string) error { return &RefusedError{Reason: re
 // interface and returns the selected value on resume.
 func (c *Context) AskUser(id, question string, options ...protocol.Option) string {
 	payload := mustJSON(protocol.AskUserPayload{Question: question, Options: options})
+	valueSchema := map[string]any{"type": "string"}
+	if len(options) > 0 {
+		values := make([]string, 0, len(options))
+		for _, option := range options {
+			values = append(values, option.Value)
+		}
+		valueSchema["enum"] = values
+	}
+	schema := mustJSON(map[string]any{
+		"type": "object", "required": []string{"value"},
+		"additionalProperties": false,
+		"properties":           map[string]any{"value": valueSchema},
+	})
 	resp := c.step(protocol.Request{
 		ID: id, Kind: protocol.OpAskUser, Payload: payload,
-		OutputSchema: json.RawMessage(`{"type":"object","required":["value"],"properties":{"value":{"type":"string"}}}`),
+		OutputSchema: schema,
 	})
 	var r protocol.AskUserResult
 	mustDecode(resp.Result, &r)

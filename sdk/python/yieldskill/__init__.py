@@ -99,8 +99,10 @@ class Context:
 
     def ask_user(self, id: str, question: str, options: Optional[list] = None) -> str:
         payload: dict = {"question": question}
+        value_schema: dict = {"type": "string"}
         if options:
             payload["options"] = options
+            value_schema["enum"] = [option["value"] for option in options]
         resp = self._step(
             {
                 "id": id,
@@ -109,7 +111,8 @@ class Context:
                 "output_schema": {
                     "type": "object",
                     "required": ["value"],
-                    "properties": {"value": {"type": "string"}},
+                    "additionalProperties": False,
+                    "properties": {"value": value_schema},
                 },
             }
         )

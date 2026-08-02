@@ -80,7 +80,30 @@ The generated `skills/review/SKILL.md` remains short. It tells the agent when
 to use the workflow and how to follow the yielded operations; the program owns
 the order and finish rule.
 
-## 4. Register it with coding agents
+## 4. Prove the workflow locally
+
+Replace `skills/review/fixtures/responses.json`:
+
+```json
+{
+  "review": {
+    "critical": 0,
+    "summary": "No critical findings in the fixture run."
+  }
+}
+```
+
+Run the workflow check:
+
+```bash
+npm exec -- yskill doctor skills/review --test
+```
+
+`run_command` operations execute for real. The fixture supplies only model and
+user responses. A successful result ends with `reached completed` and a doctor
+summary.
+
+## 5. Register it with coding agents
 
 ```bash
 # Detect installed verified agents
@@ -102,30 +125,12 @@ Yield keeps one workflow and writes only generated adapters:
 Start a new agent session after registration, then invoke `/review` or ask for
 the task described by the skill.
 
-## 5. Prove the workflow locally
-
-Replace `skills/review/fixtures/responses.json`:
-
-```json
-{
-  "review": {
-    "critical": 0,
-    "summary": "No critical findings in the fixture run."
-  }
-}
-```
-
-Run the complete setup check:
+Check the generated adapters:
 
 ```bash
 npm exec -- yskill doctor skills/review \
-  --agent cursor,codex,claude-code \
-  --test
+  --agent cursor,codex,claude-code
 ```
-
-`run_command` operations execute for real. The fixture supplies only model and
-user responses. A successful result ends with `reached completed` and a doctor
-summary.
 
 ## Run an existing workflow
 
@@ -139,8 +144,8 @@ npm exec -- yskill run skills/review
 ```
 
 The agent reads the generated adapter, starts the canonical workflow, performs
-each yielded operation, and resumes the saved run. If the session closes, the
-run remains on disk.
+each yielded operation, and answers with `yskill respond`. If the session
+closes, the run remains on disk.
 
 Next: [set up coding agents](agent-setup.md), [understand each
 primitive](primitives/README.md), or follow the [complete review

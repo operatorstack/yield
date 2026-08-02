@@ -97,8 +97,9 @@ func scaffoldSkill(dir, language, sdkPath, description string) error {
 		return fmt.Errorf("validate SKILL.md: %w", err)
 	}
 	fmt.Printf("init: %s skill %q scaffolded in %s\n", language, name, dir)
-	fmt.Printf("next: %s register %s\n", launcher, shellQuote(dir))
-	fmt.Printf("check: %s doctor %s --test\n", launcher, shellQuote(dir))
+	fmt.Println("next: replace the starter program and fixtures with the described workflow")
+	fmt.Printf("test: %s doctor %s --test\n", launcher, shellQuote(dir))
+	fmt.Printf("then: %s register %s\n", launcher, shellQuote(dir))
 	return nil
 }
 
@@ -117,14 +118,10 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
 			"skill.json": "{\"version\":1,\"language\":\"typescript\",\"run\":[\"node\",\"main.ts\"]}\n",
 		}
 	case "python":
-		python := strings.TrimSpace(os.Getenv("YIELD_PYTHON"))
-		if python == "" {
-			python = "python"
-		}
 		return map[string]string{
 			"main.py":          mainPython,
 			"requirements.txt": fmt.Sprintf("--index-url https://get.operatorstack.systems/pip/simple/\nyieldskill==%s\n", v),
-			"skill.json":       fmt.Sprintf("{\"version\":1,\"language\":\"python\",\"run\":[%q,\"main.py\"]}\n", python),
+			"skill.json":       "{\"version\":1,\"language\":\"python\",\"run\":[\"python\",\"main.py\"]}\n",
 		}
 	case "rust":
 		return map[string]string{
@@ -155,9 +152,9 @@ Run:
 
     %s run .
 
-Follow each returned operation exactly. Resume after each response:
+Follow each returned operation exactly. Answer it directly:
 
-    %s resume <run-id> --response response.json --skill .
+	%s respond <run-id> --value <answer> --skill .
 
 Do not skip an operation or invent a response.
 `
@@ -172,7 +169,7 @@ func main() {
 		if answer != "yes" {
 			return yield.Outcome{}, ctx.Refused("user declined to start")
 		}
-		return ctx.Complete(map[string]string{"status": "ready"})
+		return yield.Outcome{}, ctx.Blocked("replace the starter workflow and fixture before testing")
 	})
 }
 `
@@ -184,7 +181,7 @@ defineSkill((ctx) => {
     { value: "yes" }, { value: "no" }
   ])
   if (answer !== "yes") ctx.refused("user declined to start")
-  return { status: "ready" }
+  ctx.blocked("replace the starter workflow and fixture before testing")
 })
 `
 
@@ -194,7 +191,7 @@ def program(ctx):
     answer = ctx.ask_user("confirm-start", "Ready to start?", options=[{"value": "yes"}, {"value": "no"}])
     if answer != "yes":
         ctx.refused("user declined to start")
-    return {"status": "ready"}
+    ctx.blocked("replace the starter workflow and fixture before testing")
 
 define_skill(program)
 `
@@ -207,7 +204,7 @@ fn program(ctx: &mut Context) -> SkillResult {
     if answer != "yes" {
         return Err(ctx.refused("user declined to start"));
     }
-    Ok(json!({"status": "ready"}))
+    Err(ctx.blocked("replace the starter workflow and fixture before testing"))
 }
 
 fn main() { define_skill(program); }

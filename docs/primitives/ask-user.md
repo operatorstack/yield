@@ -16,6 +16,10 @@ The coding agent asks through its normal interface. Yield records the answer
 and replays it when the program starts again. The run can wait on disk between
 the question and the answer.
 
+When options are present, Yield accepts only one of their declared values. A
+host may show the options using its native question UI. Yield emits the typed
+question but does not render that UI.
+
 Use a closed list of options when only specific values are valid. Use a free
 answer when the person needs to provide a path, identifier, or explanation.
 

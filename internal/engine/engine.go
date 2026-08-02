@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/flock"
 	"github.com/operatorstack/yield/internal/guard"
 	"github.com/operatorstack/yield/internal/protocol"
 	"github.com/operatorstack/yield/internal/runlog"
@@ -39,6 +40,23 @@ func New(skillDir string) (*Engine, error) {
 	}
 	runs, err := runlog.RunsDir(abs)
 	if err != nil {
+		return nil, err
+	}
+	return &Engine{SkillDir: abs, RunsDir: runs, Stderr: os.Stderr}, nil
+}
+
+// NewWithRunsDir creates an engine whose durable run state is stored outside
+// the workflow directory. Tests use this to avoid leaving local state behind.
+func NewWithRunsDir(skillDir, runsDir string) (*Engine, error) {
+	abs, err := filepath.Abs(skillDir)
+	if err != nil {
+		return nil, err
+	}
+	runs, err := filepath.Abs(runsDir)
+	if err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(runs, 0o755); err != nil {
 		return nil, err
 	}
 	return &Engine{SkillDir: abs, RunsDir: runs, Stderr: os.Stderr}, nil
@@ -79,6 +97,13 @@ func (e *Engine) StartRun(input json.RawMessage) (*Progress, error) {
 // digest (the migrate_digest mechanism; divergence detection remains the
 // safety net).
 func (e *Engine) Resume(runID string, respBytes []byte, migrate bool) (*Progress, error) {
+	return e.withRunLock(runID, func() (*Progress, error) {
+		return e.resumeLocked(runID, respBytes, migrate, nil)
+	})
+}
+
+// Pending returns the current unanswered operation without changing the run.
+func (e *Engine) Pending(runID string) (*protocol.RequestEnvelope, error) {
 	l, err := runlog.Open(e.RunsDir, runID)
 	if err != nil {
 		return nil, err
@@ -86,6 +111,97 @@ func (e *Engine) Resume(runID string, respBytes []byte, migrate bool) (*Progress
 	s, err := guard.Reconstruct(l)
 	if err != nil {
 		return nil, err
+	}
+	if s.Closed {
+		return nil, fmt.Errorf("run %s already reached a terminal state", runID)
+	}
+	if s.Pending == nil {
+		return nil, fmt.Errorf("run %s has no pending operation", runID)
+	}
+	copy := *s.Pending
+	return &copy, nil
+}
+
+// Continue recovers a run after a response was committed but the process
+// stopped before the next frontier was recorded.
+func (e *Engine) Continue(runID string) (*Progress, error) {
+	return e.withRunLock(runID, func() (*Progress, error) {
+		l, err := runlog.Open(e.RunsDir, runID)
+		if err != nil {
+			return nil, err
+		}
+		s, err := guard.Reconstruct(l)
+		if err != nil {
+			return nil, err
+		}
+		if s.Closed {
+			return e.replayFromLog(l, runID)
+		}
+		if s.Pending != nil {
+			return &Progress{RunID: runID, Envelope: s.Pending}, nil
+		}
+		return e.advance(l, runID)
+	})
+}
+
+// Respond binds a bare result to the frontier observed when the call began.
+// The frontier is checked again under the run lock before the result is used.
+func (e *Engine) Respond(runID string, result json.RawMessage) (*Progress, error) {
+	pending, err := e.Pending(runID)
+	if err != nil {
+		if !strings.Contains(err.Error(), "has no pending operation") && !strings.Contains(err.Error(), "terminal state") {
+			return nil, err
+		}
+		return e.withRunLock(runID, func() (*Progress, error) {
+			l, openErr := runlog.Open(e.RunsDir, runID)
+			if openErr != nil {
+				return nil, openErr
+			}
+			s, reconstructErr := guard.Reconstruct(l)
+			if reconstructErr != nil {
+				return nil, reconstructErr
+			}
+			latest := 0
+			for sequence := range s.Completed {
+				if sequence > latest {
+					latest = sequence
+				}
+			}
+			if latest == 0 || s.Completed[latest] != protocol.DigestBytes(result) {
+				return nil, fmt.Errorf("run %s has no pending operation; the last response was already committed with different content", runID)
+			}
+			return e.progressAfterCommit(l, runID, s)
+		})
+	}
+	return e.RespondAt(runID, pending, result)
+}
+
+// RespondAt binds a result only if expected is still the current frontier.
+func (e *Engine) RespondAt(runID string, expected *protocol.RequestEnvelope, result json.RawMessage) (*Progress, error) {
+	resp, err := json.Marshal(protocol.ResponseEnvelope{
+		RunID: runID, Sequence: expected.Sequence, RequestID: expected.Request.ID,
+		Status: "completed", Result: result,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return e.withRunLock(runID, func() (*Progress, error) {
+		return e.resumeLocked(runID, resp, false, expected)
+	})
+}
+
+func (e *Engine) resumeLocked(runID string, respBytes []byte, migrate bool, expected *protocol.RequestEnvelope) (*Progress, error) {
+	l, err := runlog.Open(e.RunsDir, runID)
+	if err != nil {
+		return nil, err
+	}
+	s, err := guard.Reconstruct(l)
+	if err != nil {
+		return nil, err
+	}
+	var resp protocol.ResponseEnvelope
+	if err := json.Unmarshal(respBytes, &resp); err != nil {
+		return nil, fmt.Errorf("response does not decode: %w", err)
 	}
 	current, err := protocol.DigestSkillDir(e.SkillDir)
 	if err != nil {
@@ -99,9 +215,16 @@ func (e *Engine) Resume(runID string, respBytes []byte, migrate bool) (*Progress
 			return nil, err
 		}
 	}
-	var resp protocol.ResponseEnvelope
-	if err := json.Unmarshal(respBytes, &resp); err != nil {
-		return nil, fmt.Errorf("response does not decode: %w", err)
+	if expected != nil && (s.Pending == nil || s.Pending.Sequence != expected.Sequence || protocol.RequestDigest(s.Pending.Request) != protocol.RequestDigest(expected.Request)) {
+		if digest, ok := s.Completed[resp.Sequence]; ok && s.CompletedRequest[resp.Sequence] == resp.RequestID && digest == protocol.DigestBytes(resp.Result) {
+			return e.progressAfterCommit(l, runID, s)
+		}
+		return nil, fmt.Errorf("pending operation changed while waiting for run lock; inspect the run and answer the current operation")
+	}
+	if digest, ok := s.Completed[resp.Sequence]; ok && s.CompletedRequest[resp.Sequence] == resp.RequestID {
+		if digest == protocol.DigestBytes(resp.Result) {
+			return e.progressAfterCommit(l, runID, s)
+		}
 	}
 	if err := guard.CheckResponse(s, resp); err != nil {
 		return nil, e.rejected(l, err)
@@ -112,6 +235,26 @@ func (e *Engine) Resume(runID string, respBytes []byte, migrate bool) (*Progress
 	return e.advance(l, runID)
 }
 
+func (e *Engine) progressAfterCommit(l *runlog.Log, runID string, s *guard.RunState) (*Progress, error) {
+	if s.Closed {
+		return e.replayFromLog(l, runID)
+	}
+	if s.Pending != nil {
+		return &Progress{RunID: runID, Envelope: s.Pending}, nil
+	}
+	return e.advance(l, runID)
+}
+
+func (e *Engine) withRunLock(runID string, fn func() (*Progress, error)) (*Progress, error) {
+	path := filepath.Join(e.RunsDir, runID+".lock")
+	lock := flock.New(path)
+	if err := lock.Lock(); err != nil {
+		return nil, fmt.Errorf("lock run %s: %w", runID, err)
+	}
+	defer func() { _ = lock.Unlock(); _ = lock.Close() }()
+	return fn()
+}
+
 // Replay re-executes the program against the full journal and verifies it
 // reproduces the run's recorded frontier — the determinism check.
 func (e *Engine) Replay(runID string) (*Progress, error) {
@@ -119,6 +262,10 @@ func (e *Engine) Replay(runID string) (*Progress, error) {
 	if err != nil {
 		return nil, err
 	}
+	return e.replayFromLog(l, runID)
+}
+
+func (e *Engine) replayFromLog(l *runlog.Log, runID string) (*Progress, error) {
 	s, err := guard.Reconstruct(l)
 	if err != nil {
 		return nil, err
@@ -298,13 +445,19 @@ func runnerCommand(skillDir string) ([]string, error) {
 	manifest := filepath.Join(skillDir, "skill.json")
 	if b, err := os.ReadFile(manifest); err == nil {
 		var m struct {
-			Run []string `json:"run"`
+			Language string   `json:"language"`
+			Run      []string `json:"run"`
 		}
 		if err := json.Unmarshal(b, &m); err != nil {
 			return nil, fmt.Errorf("skill.json does not decode: %w", err)
 		}
 		if len(m.Run) == 0 {
 			return nil, fmt.Errorf("skill.json must declare a non-empty run command")
+		}
+		if m.Language == "python" && m.Run[0] == "python" {
+			if python := strings.TrimSpace(os.Getenv("YIELD_PYTHON")); python != "" {
+				m.Run[0] = python
+			}
 		}
 		return m.Run, nil
 	}

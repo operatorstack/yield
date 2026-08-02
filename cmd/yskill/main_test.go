@@ -1,13 +1,89 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/operatorstack/yield/internal/engine"
+	"github.com/operatorstack/yield/internal/protocol"
+	"github.com/operatorstack/yield/internal/runlog"
 )
+
+func TestPrintProgressKeepsCompleteStructuredResult(t *testing.T) {
+	result := `{"summary":"` + strings.Repeat("x", 300) + `","count":42}`
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous := os.Stdout
+	os.Stdout = write
+	t.Cleanup(func() { os.Stdout = previous })
+	callErr := printProgress(&engine.Progress{RunID: "run_test", Terminal: &protocol.TerminalOutcome{
+		Status: protocol.StatusCompleted, Result: json.RawMessage(result),
+	}})
+	if err := write.Close(); err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = previous
+	output, err := io.ReadAll(read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if callErr != nil {
+		t.Fatal(callErr)
+	}
+	if !strings.Contains(string(output), result) {
+		t.Fatalf("terminal result was truncated: %s", output)
+	}
+}
+
+func TestFixtureCommandReceivesResponseOnStdin(t *testing.T) {
+	dir := t.TempDir()
+	output := filepath.Join(dir, "effect.json")
+	input := []byte(`{"value":"approved"}`)
+	command := []string{os.Args[0], "-test.run=TestFixtureCommandHelper", "--", output}
+	if err := runFixtureCommands(dir, [][]string{command}, input); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != string(input) {
+		t.Fatalf("fixture stdin = %q, want %q", got, input)
+	}
+}
+
+func TestFixtureCommandHelper(t *testing.T) {
+	if os.Getenv("YIELD_FIXTURE") != "1" {
+		return
+	}
+	separator := -1
+	for index, arg := range os.Args {
+		if arg == "--" {
+			separator = index
+			break
+		}
+	}
+	if separator < 0 || separator+1 >= len(os.Args) {
+		os.Exit(2)
+	}
+	input, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		os.Exit(3)
+	}
+	if err := os.WriteFile(os.Args[separator+1], input, 0o600); err != nil {
+		os.Exit(4)
+	}
+	os.Exit(0)
+}
 
 func TestRuntimeVersionUsesGoModuleVersion(t *testing.T) {
 	previousVersion := version
@@ -22,6 +98,44 @@ func TestRuntimeVersionUsesGoModuleVersion(t *testing.T) {
 	})
 	if got := runtimeVersion(); got != "1.2.3" {
 		t.Fatalf("runtimeVersion = %q, want 1.2.3", got)
+	}
+}
+
+func TestPruneRemovesOnlyOldTerminalRuns(t *testing.T) {
+	skill := t.TempDir()
+	runs := filepath.Join(skill, ".yield", "runs")
+	if err := os.MkdirAll(runs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	makeRun := func(id string, closed bool) string {
+		log, err := runlog.Create(runs, id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := log.Append(runlog.RunStarted, map[string]any{"run_id": id}); err != nil {
+			t.Fatal(err)
+		}
+		if closed {
+			if _, err := log.Append(runlog.RunCompleted, map[string]any{"result": "ok"}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		old := time.Now().Add(-48 * time.Hour)
+		if err := os.Chtimes(log.Path, old, old); err != nil {
+			t.Fatal(err)
+		}
+		return log.Path
+	}
+	closed := makeRun("run_closed", true)
+	active := makeRun("run_active", false)
+	if err := cmdPrune([]string{skill, "--older-than", "24h"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(closed); !os.IsNotExist(err) {
+		t.Fatalf("terminal run was not pruned: %v", err)
+	}
+	if _, err := os.Stat(active); err != nil {
+		t.Fatalf("active run was pruned: %v", err)
 	}
 }
 
@@ -98,6 +212,16 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 			if !strings.Contains(skill, tt.command) {
 				t.Fatalf("SKILL.md does not contain %q:\n%s", tt.command, skill)
 			}
+			entrypoint := map[string]string{
+				"typescript": "main.ts",
+				"python":     "main.py",
+				"go":         "main.go",
+				"rust":       "src/main.rs",
+			}[tt.language]
+			program := readTestFile(t, filepath.Join(dir, filepath.FromSlash(entrypoint)))
+			if !strings.Contains(program, "replace the starter workflow and fixture before testing") {
+				t.Fatalf("%s starter can pass without implementation:\n%s", entrypoint, program)
+			}
 			var manifest string
 			switch tt.language {
 			case "typescript":
@@ -138,7 +262,7 @@ func TestGoScaffoldCanResolveItsPinnedModuleOnFirstRun(t *testing.T) {
 	}
 }
 
-func TestPythonScaffoldUsesInvokingInterpreter(t *testing.T) {
+func TestPythonScaffoldUsesRelocatableInterpreter(t *testing.T) {
 	previousVersion := version
 	version = "0.1.9"
 	t.Cleanup(func() { version = previousVersion })
@@ -148,8 +272,8 @@ func TestPythonScaffoldUsesInvokingInterpreter(t *testing.T) {
 		t.Fatal(err)
 	}
 	skill := readTestFile(t, filepath.Join(dir, "skill.json"))
-	if !strings.Contains(skill, `"/opt/yield/.venv/bin/python"`) {
-		t.Fatalf("skill.json does not use the invoking interpreter: %s", skill)
+	if !strings.Contains(skill, `"run":["python","main.py"]`) || strings.Contains(skill, `/opt/yield`) {
+		t.Fatalf("skill.json is not relocatable: %s", skill)
 	}
 }
 
