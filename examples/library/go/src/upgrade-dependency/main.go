@@ -4,7 +4,6 @@ package main
 import (
 	"encoding/json"
 
-	"github.com/operatorstack/yield/internal/protocol"
 	"github.com/operatorstack/yield/sdk/yield"
 )
 
@@ -36,8 +35,8 @@ func main() {
 		approval := ctx.AskUser(
 			"approve-upgrade",
 			"Apply the reviewed dependency upgrade?",
-			protocol.Option{Value: "continue", Label: "Continue"},
-			protocol.Option{Value: "stop", Label: "Stop"},
+			yield.Option{Value: "continue", Label: "Continue"},
+			yield.Option{Value: "stop", Label: "Stop"},
 		)
 		if approval != "continue" {
 			return yield.Outcome{}, ctx.Refused("the operator declined to continue")

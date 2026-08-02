@@ -196,7 +196,7 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 			if err := scaffoldSkill(dir, tt.language, "", "Run the test workflow when checking Yield setup."); err != nil {
 				t.Fatal(err)
 			}
-			for _, rel := range append(tt.files, "SKILL.md", "fixtures/responses.json") {
+			for _, rel := range append(tt.files, "SKILL.md", "fixtures/responses.json", "fixtures/test.json") {
 				if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
 					t.Fatalf("%s: %v", rel, err)
 				}

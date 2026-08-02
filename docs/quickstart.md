@@ -12,7 +12,7 @@ You need Node.js 24 or newer.
 mkdir yield-example
 cd yield-example
 npm init -y
-npm install @operatorstack/yield \
+npm install --save-exact @operatorstack/yield@0.1.23 \
   --registry=https://get.operatorstack.systems/npm/
 npm exec -- yskill --version
 ```

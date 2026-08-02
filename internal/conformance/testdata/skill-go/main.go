@@ -5,14 +5,13 @@ package main
 import (
 	"encoding/json"
 
-	"github.com/operatorstack/yield/internal/protocol"
 	"github.com/operatorstack/yield/sdk/yield"
 )
 
 func main() {
 	yield.Main(func(ctx *yield.Context) (yield.Outcome, error) {
 		proceed := ctx.AskUser("q1-proceed", "Proceed with the conformance run?",
-			protocol.Option{Value: "yes", Label: "Yes"}, protocol.Option{Value: "no", Label: "No"})
+			yield.Option{Value: "yes", Label: "Yes"}, yield.Option{Value: "no", Label: "No"})
 		if proceed == "no" {
 			return yield.Outcome{}, ctx.Refused("operator declined")
 		}

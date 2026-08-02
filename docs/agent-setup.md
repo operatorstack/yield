@@ -30,8 +30,14 @@ Use the launcher installed by the selected language package:
 |---|---|
 | TypeScript | `npm exec -- yskill` |
 | Python | `python -m yieldskill` |
-| Go | `yskill` |
-| Rust | `yskill` |
+| Go | `.yield/bin/yskill` |
+| Rust | `.yield/bin/yskill` |
+
+Go and Rust keep one version-locked runtime in `.yield/bin` at the repository
+root. Registration checks that runtime, the workflow SDK, and the generated
+adapter all use the same Yield version. It refuses a missing or mismatched
+runtime and prints the exact repair command. A global `yskill` is not used.
+Windows adapters use `.\.yield\bin\yskill.exe`.
 
 Run `yskill agents` to see every supported ID and project directory. Cursor,
 Codex, and Claude Code are verified. Other entries use paths from a pinned
@@ -64,7 +70,7 @@ Set up a Yield skill workflow named [skill-name] in skills/[skill-name].
 6. Keep the canonical workflow beside the project's language dependencies.
 7. Run yskill register for the coding agent you are currently using.
 8. Use the launcher from the installed language package for every yskill
-   command: npm exec -- yskill, python -m yieldskill, or yskill.
+   command: npm exec -- yskill, python -m yieldskill, or .yield/bin/yskill.
 9. Run yskill doctor with --agent and --test.
 10. Report the commands, generated adapter path, and every changed file.
 

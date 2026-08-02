@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 
@@ -180,6 +182,7 @@ func cmdRegisterAll(args []string) error {
 	names := map[string]string{}
 	var repoRoot, parentRel string
 	var selected []agentConfig
+	usesLocalRuntime := false
 	for _, skill := range skills {
 		skillDir, resolvedRoot, sourceRel, metadata, manifest, _, selectedAgents, inputErr := registrationInputs(skill, *root, agents)
 		if inputErr != nil {
@@ -193,6 +196,7 @@ func cmdRegisterAll(args []string) error {
 			repoRoot, selected = resolvedRoot, selectedAgents
 			parentRel, _ = filepath.Rel(repoRoot, parent)
 		}
+		usesLocalRuntime = usesLocalRuntime || manifest.Language == "go" || manifest.Language == "rust"
 		digest, digestErr := protocol.DigestSkillDir(skillDir)
 		if digestErr != nil {
 			return digestErr
@@ -237,10 +241,19 @@ func cmdRegisterAll(args []string) error {
 	if len(conflicts) > 0 {
 		return fmt.Errorf("refusing bulk registration; resolve every agent-facing name collision before writing:\n  - %s", strings.Join(conflicts, "\n  - "))
 	}
+	if usesLocalRuntime && !*dryRun {
+		if err := ensureLocalStateIgnored(repoRoot); err != nil {
+			return err
+		}
+	}
 	for _, path := range paths {
 		plan := plansByPath[path]
 		sort.Strings(plan.agentIDs)
-		fmt.Printf("%-9s %-24s %s\n", plan.status+":", strings.Join(plan.agentIDs, ","), filepath.ToSlash(path))
+		status := plan.status
+		if *dryRun {
+			status = map[string]string{"added": "would add", "updated": "would update", "unchanged": "unchanged"}[status]
+		}
+		fmt.Printf("%-13s %-24s %s\n", status+":", strings.Join(plan.agentIDs, ","), filepath.ToSlash(path))
 		if !*dryRun && plan.status != "unchanged" {
 			if _, err := writeGeneratedAdapter(path, plan.sourceRel, plan.content); err != nil {
 				return err
@@ -262,7 +275,11 @@ func cmdRegisterAll(args []string) error {
 				if !strings.HasPrefix(source, prefix) || plansByPath[path] != nil {
 					continue
 				}
-				fmt.Printf("removed:  %-24s %s\n", agent.ID, filepath.ToSlash(path))
+				status := "removed"
+				if *dryRun {
+					status = "would remove"
+				}
+				fmt.Printf("%-13s %-24s %s\n", status+":", agent.ID, filepath.ToSlash(path))
 				if !*dryRun {
 					if err := os.Remove(path); err != nil {
 						return err
@@ -271,6 +288,9 @@ func cmdRegisterAll(args []string) error {
 				}
 			}
 		}
+	}
+	if *dryRun {
+		fmt.Println("dry-run: no files written")
 	}
 	return nil
 }
@@ -319,6 +339,11 @@ func registerSkill(skillArg, rootArg string, requested []string) ([]registration
 	launcher, err := launcherFor(manifest.Language, skillDir, repoRoot)
 	if err != nil {
 		return nil, err
+	}
+	if manifest.Language == "go" || manifest.Language == "rust" {
+		if err := ensureLocalStateIgnored(repoRoot); err != nil {
+			return nil, err
+		}
 	}
 	content := renderAdapter(metadata, sourceRel, digest, launcher)
 	byDestination := map[string][]string{}
@@ -377,6 +402,9 @@ func registrationInputs(skillArg, rootArg string, requested []string) (string, s
 	}
 	manifest, err := readSkillManifest(skillDir)
 	if err != nil {
+		return "", "", "", skillMetadata{}, skillManifest{}, agentRegistry{}, nil, err
+	}
+	if err := verifyWorkflowSDKVersion(manifest, skillDir, repoRoot, runtimeVersion()); err != nil {
 		return "", "", "", skillMetadata{}, skillManifest{}, agentRegistry{}, nil, err
 	}
 	registry, err := loadAgentRegistry()
@@ -539,10 +567,147 @@ func launcherFor(language, skillDir, repoRoot string) (string, error) {
 		}
 		return "python -m yieldskill", nil
 	case "go", "rust":
-		return "yskill", nil
+		path := localRuntimePath(repoRoot)
+		if err := verifyLocalRuntime(path, runtimeVersion(), language); err != nil {
+			return "", err
+		}
+		rel, err := filepath.Rel(repoRoot, path)
+		if err != nil {
+			return "", err
+		}
+		return repositoryRuntimeLauncher(rel, runtime.GOOS), nil
 	default:
 		return "", fmt.Errorf("unsupported workflow language %q", language)
 	}
+}
+
+func repositoryRuntimeLauncher(relative, goos string) string {
+	if goos == "windows" {
+		return `.\` + strings.ReplaceAll(filepath.ToSlash(relative), "/", `\`)
+	}
+	return filepath.ToSlash(relative)
+}
+
+var inspectRuntimeVersion = func(path string) (string, error) {
+	out, err := exec.Command(path, "version").CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("run %s version: %w: %s", path, err, strings.TrimSpace(string(out)))
+	}
+	fields := strings.Fields(string(out))
+	if len(fields) < 2 || fields[0] != "yskill" {
+		return "", fmt.Errorf("%s returned an invalid version line: %q", path, strings.TrimSpace(string(out)))
+	}
+	return strings.TrimPrefix(fields[1], "v"), nil
+}
+
+func localRuntimePath(repoRoot string) string {
+	name := "yskill"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	return filepath.Join(repoRoot, ".yield", "bin", name)
+}
+
+func ensureLocalStateIgnored(repoRoot string) error {
+	dir := filepath.Join(repoRoot, ".yield")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	path := filepath.Join(dir, ".gitignore")
+	if _, err := os.Stat(path); err == nil {
+		return nil
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	return os.WriteFile(path, []byte("*\n"), 0o644)
+}
+
+func verifyLocalRuntime(path, expected, language string) error {
+	repair := localRuntimeInstallCommand(language, expected)
+	info, err := os.Stat(path)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return fmt.Errorf("%s workflow needs Yield %s at %s; repair: %s", language, expected, filepath.ToSlash(path), repair)
+		}
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("repository-local Yield runtime is not a regular file: %s", filepath.ToSlash(path))
+	}
+	got, err := inspectRuntimeVersion(path)
+	if err != nil {
+		return fmt.Errorf("repository-local Yield runtime is unusable: %w", err)
+	}
+	if got != expected {
+		return fmt.Errorf("repository-local Yield runtime version is %s, but this workflow needs %s; repair: %s", got, expected, repair)
+	}
+	return nil
+}
+
+func localRuntimeInstallCommand(language, expected string) string {
+	switch language {
+	case "go":
+		if runtime.GOOS == "windows" {
+			return fmt.Sprintf(`New-Item -ItemType Directory -Force .yield\bin | Out-Null; $env:GOBIN="$PWD\.yield\bin"; $env:GOPROXY="https://get.operatorstack.systems/go,direct"; go install github.com/operatorstack/yield/cmd/yskill@v%s`, expected)
+		}
+		return fmt.Sprintf(`mkdir -p .yield/bin && GOBIN="$PWD/.yield/bin" GOPROXY=https://get.operatorstack.systems/go,direct go install github.com/operatorstack/yield/cmd/yskill@v%s`, expected)
+	case "rust":
+		return fmt.Sprintf(`cargo install yieldskill@%s --root .yield --index sparse+https://get.operatorstack.systems/cargo/index/ --locked`, expected)
+	default:
+		return "install the matching Yield package"
+	}
+}
+
+var pinnedVersionPatterns = map[string]*regexp.Regexp{
+	"python": regexp.MustCompile(`(?m)^yieldskill==([^\s]+)$`),
+	"go":     regexp.MustCompile(`(?m)^\s*github\.com/operatorstack/yield\s+v([^\s]+)`),
+	"rust":   regexp.MustCompile(`(?m)yieldskill\s*=\s*\{[^\n]*version\s*=\s*"=([^"]+)"`),
+}
+
+func verifyWorkflowSDKVersion(manifest skillManifest, skillDir, repoRoot, expected string) error {
+	if expected == "dev" {
+		return nil
+	}
+	var declared string
+	if manifest.Language == "typescript" {
+		root, err := findTypeScriptPackageRoot(skillDir, repoRoot)
+		if err != nil {
+			return err
+		}
+		b, err := os.ReadFile(filepath.Join(root, "package.json"))
+		if err != nil {
+			return err
+		}
+		var packageJSON struct {
+			Dependencies    map[string]string `json:"dependencies"`
+			DevDependencies map[string]string `json:"devDependencies"`
+		}
+		if err := json.Unmarshal(b, &packageJSON); err != nil {
+			return fmt.Errorf("package.json does not decode: %w", err)
+		}
+		declared = packageJSON.Dependencies["@operatorstack/yield"]
+		if declared == "" {
+			declared = packageJSON.DevDependencies["@operatorstack/yield"]
+		}
+	} else {
+		file := map[string]string{"python": "requirements.txt", "go": "go.mod", "rust": "Cargo.toml"}[manifest.Language]
+		b, err := os.ReadFile(filepath.Join(skillDir, file))
+		if err != nil {
+			return fmt.Errorf("read %s SDK version: %w", file, err)
+		}
+		match := pinnedVersionPatterns[manifest.Language].FindStringSubmatch(string(b))
+		if len(match) == 2 {
+			declared = match[1]
+		}
+	}
+	declared = strings.TrimPrefix(strings.TrimSpace(declared), "v")
+	if declared == "" {
+		return fmt.Errorf("%s workflow must pin the Yield SDK to %s", manifest.Language, expected)
+	}
+	if declared != expected {
+		return fmt.Errorf("%s workflow pins Yield SDK %s, but the runtime is %s", manifest.Language, declared, expected)
+	}
+	return nil
 }
 
 func findTypeScriptPackageRoot(skillDir, repoRoot string) (string, error) {
@@ -684,7 +849,8 @@ func cmdDoctor(args []string) error {
 	if err != nil {
 		return err
 	}
-	if _, err := readSkillMetadata(skillDir); err != nil {
+	metadata, err := readSkillMetadata(skillDir)
+	if err != nil {
 		return err
 	}
 	manifest, err := readSkillManifest(skillDir)
@@ -693,6 +859,9 @@ func cmdDoctor(args []string) error {
 	}
 	packageBoundary, boundaryErr := findRepoRoot(skillDir, *root)
 	if boundaryErr != nil {
+		if manifest.Language == "go" || manifest.Language == "rust" {
+			return fmt.Errorf("%s workflow needs a repository root for .yield/bin; pass --root: %w", manifest.Language, boundaryErr)
+		}
 		if len(agents) > 0 || *root != "" {
 			return boundaryErr
 		}
@@ -701,23 +870,43 @@ func cmdDoctor(args []string) error {
 	} else if packageBoundary, err = filepath.EvalSymlinks(packageBoundary); err != nil {
 		return err
 	}
+	var problems []string
+	if err := verifyWorkflowSDKVersion(manifest, skillDir, packageBoundary, runtimeVersion()); err != nil {
+		problems = append(problems, "SDK: "+err.Error())
+	}
 	if _, err := launcherFor(manifest.Language, skillDir, packageBoundary); err != nil {
-		return err
+		problems = append(problems, "runtime: "+err.Error())
 	}
 	if err := languageDiagnostics(manifest.Language, skillDir); err != nil {
-		return err
+		problems = append(problems, "language: "+err.Error())
 	}
-	if *runTest {
+	if *runTest && len(problems) == 0 {
 		if err := cmdTest([]string{skillDir}); err != nil {
 			return err
 		}
 	}
-	fmt.Printf("ok: workflow               %s\n", filepath.ToSlash(skillDir))
+	if len(problems) == 0 {
+		fmt.Printf("ok: workflow               %s\n", filepath.ToSlash(skillDir))
+	}
 	if len(agents) == 0 {
+		if len(problems) > 0 {
+			return fmt.Errorf("doctor found problems:\n  - %s", strings.Join(problems, "\n  - "))
+		}
 		fmt.Printf("doctor: %s workflow is ready\n", filepath.Base(skillDir))
 		return nil
 	}
-	_, repoRoot, sourceRel, metadata, _, _, selected, err := registrationInputs(skillDir, *root, agents)
+	repoRoot := packageBoundary
+	sourceRel, err := filepath.Rel(repoRoot, skillDir)
+	if err != nil || sourceRel == ".." || strings.HasPrefix(sourceRel, ".."+string(filepath.Separator)) {
+		problems = append(problems, "workflow is outside the repository root")
+		sourceRel = ""
+	}
+	sourceRel = filepath.ToSlash(sourceRel)
+	registry, err := loadAgentRegistry()
+	if err != nil {
+		return err
+	}
+	selected, err := selectAgents(registry, agents, repoRoot)
 	if err != nil {
 		return err
 	}
@@ -725,7 +914,6 @@ func cmdDoctor(args []string) error {
 	if err != nil {
 		return err
 	}
-	var problems []string
 	for _, agent := range selected {
 		path := filepath.Join(repoRoot, filepath.FromSlash(agent.ProjectDir), metadata.Name, "SKILL.md")
 		if err := ensureContainedWrite(repoRoot, path); err != nil {
@@ -738,14 +926,14 @@ func cmdDoctor(args []string) error {
 			continue
 		}
 		text := string(b)
-		if !strings.Contains(text, generatedAdapterPrefix+sourceRel+";") || !strings.Contains(text, "digest: "+digest+";") {
+		if !strings.Contains(text, generatedAdapterPrefix+sourceRel+";") || !strings.Contains(text, "digest: "+digest+";") || !strings.Contains(text, "version: "+runtimeVersion()+" -->") {
 			problems = append(problems, fmt.Sprintf("%s: adapter is stale or points elsewhere", agent.ID))
 			continue
 		}
 		fmt.Printf("ok: %-22s %s\n", agent.ID, filepath.ToSlash(path))
 	}
 	if len(problems) > 0 {
-		return fmt.Errorf("adapter problems:\n  - %s\nrun yskill register to update them", strings.Join(problems, "\n  - "))
+		return fmt.Errorf("doctor found problems:\n  - %s\nrun yskill register to update generated adapters after fixing version errors", strings.Join(problems, "\n  - "))
 	}
 	fmt.Printf("doctor: %s is ready for %d agent(s)\n", filepath.Base(skillDir), len(selected))
 	return nil

@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/operatorstack/yield/internal/protocol"
 	"github.com/operatorstack/yield/sdk/yield"
 )
 
@@ -68,10 +67,10 @@ func main() {
 			json.RawMessage(flowSchema))
 
 		lang := ctx.AskUser("pick-language", "Target language for the generated program?",
-			protocol.Option{Value: "go", Label: "Go"},
-			protocol.Option{Value: "typescript", Label: "TypeScript"},
-			protocol.Option{Value: "python", Label: "Python"},
-			protocol.Option{Value: "rust", Label: "Rust"})
+			yield.Option{Value: "go", Label: "Go"},
+			yield.Option{Value: "typescript", Label: "TypeScript"},
+			yield.Option{Value: "python", Label: "Python"},
+			yield.Option{Value: "rust", Label: "Rust"})
 
 		dest := ctx.AskUser("dest-path", "Directory to write the converted skill into?")
 

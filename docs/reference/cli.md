@@ -152,6 +152,11 @@ and teardown commands use argv arrays and never run through a shell.
 Each `after_response` command receives that fixture response as JSON on
 standard input. Hooks run only during `yskill test`.
 
+`setup` runs before the first workflow step. `after_response` runs after the
+named fixture response is accepted. `teardown` always runs after success or
+failure. Every hook receives `YIELD_FIXTURE=1`. This keeps test-only effects
+out of live workflows.
+
 ## `prune`
 
 ```bash

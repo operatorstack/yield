@@ -4,6 +4,27 @@ The Python implementation of the yield.v1 SDK execution contract (see
 `ir/README.md`). The import name is `yieldskill` because `yield` is a
 Python keyword.
 
+Create a virtual environment before installation:
+
+```bash
+# macOS and Linux
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install yieldskill==0.1.23 \
+  --index-url https://get.operatorstack.systems/pip/simple/
+```
+
+```powershell
+# Windows PowerShell
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install yieldskill==0.1.23 `
+  --index-url https://get.operatorstack.systems/pip/simple/
+```
+
+The launcher preserves the selected Python environment for `RunCommand`, even
+when an adapter starts that interpreter without activating the environment.
+
 ```python
 from yieldskill import define_skill
 

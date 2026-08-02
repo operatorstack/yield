@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -227,8 +228,13 @@ func TestRegisterAllPreflightsAndWritesEveryWorkflow(t *testing.T) {
 		writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"language":"typescript","run":["node","main.ts"]}`)
 		writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
 	}
-	if err := cmdRegisterAll([]string{filepath.Join(repo, "skills"), "--root", repo, "--agent", "codex", "--dry-run"}); err != nil {
-		t.Fatal(err)
+	output := captureStdout(t, func() {
+		if err := cmdRegisterAll([]string{filepath.Join(repo, "skills"), "--root", repo, "--agent", "codex", "--dry-run"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if !strings.Contains(output, "would add:") || !strings.Contains(output, "dry-run: no files written") || strings.Contains(output, "updated:") {
+		t.Fatalf("dry-run output is ambiguous:\n%s", output)
 	}
 	if _, err := os.Stat(filepath.Join(repo, ".agents", "skills", "review", "SKILL.md")); !os.IsNotExist(err) {
 		t.Fatal("dry-run wrote an adapter")
@@ -314,6 +320,120 @@ func TestPythonLauncherUsesRepositoryVirtualEnvironment(t *testing.T) {
 	}
 }
 
+func TestGoAndRustLaunchersUseMatchingRepositoryRuntime(t *testing.T) {
+	repo := t.TempDir()
+	path := localRuntimePath(repo)
+	writeTestFile(t, path, "runtime")
+	oldGlobal := filepath.Join(t.TempDir(), "bin")
+	writeTestFile(t, filepath.Join(oldGlobal, "yskill"), "old global runtime")
+	t.Setenv("PATH", oldGlobal)
+	previousVersion := version
+	previousInspect := inspectRuntimeVersion
+	version = "0.1.23"
+	inspectRuntimeVersion = func(got string) (string, error) {
+		if got != path {
+			t.Fatalf("inspected runtime = %q, want %q", got, path)
+		}
+		return "0.1.23", nil
+	}
+	t.Cleanup(func() {
+		version = previousVersion
+		inspectRuntimeVersion = previousInspect
+	})
+	for _, language := range []string{"go", "rust"} {
+		got, err := launcherFor(language, filepath.Join(repo, "skills", "review"), repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		relative := filepath.Join(".yield", "bin", filepath.Base(path))
+		want := repositoryRuntimeLauncher(relative, runtime.GOOS)
+		if got != want {
+			t.Fatalf("%s launcher = %q, want %q", language, got, want)
+		}
+	}
+}
+
+func TestRepositoryRuntimeLauncherUsesNativeWindowsPath(t *testing.T) {
+	relative := filepath.Join(".yield", "bin", "yskill.exe")
+	if got := repositoryRuntimeLauncher(relative, "windows"); got != `.\.yield\bin\yskill.exe` {
+		t.Fatalf("Windows launcher = %q", got)
+	}
+	if got := repositoryRuntimeLauncher(filepath.Join(".yield", "bin", "yskill"), "linux"); got != ".yield/bin/yskill" {
+		t.Fatalf("Unix launcher = %q", got)
+	}
+}
+
+func TestRepositoryRuntimeRejectsMissingAndWrongVersions(t *testing.T) {
+	repo := t.TempDir()
+	path := localRuntimePath(repo)
+	repair := localRuntimeInstallCommand("go", "0.1.23")
+	if err := verifyLocalRuntime(path, "0.1.23", "go"); err == nil || !strings.Contains(err.Error(), repair) {
+		t.Fatalf("missing runtime error = %v", err)
+	}
+	writeTestFile(t, path, "runtime")
+	previousInspect := inspectRuntimeVersion
+	inspectRuntimeVersion = func(string) (string, error) { return "0.1.22", nil }
+	t.Cleanup(func() { inspectRuntimeVersion = previousInspect })
+	if err := verifyLocalRuntime(path, "0.1.23", "go"); err == nil || !strings.Contains(err.Error(), "version is 0.1.22") {
+		t.Fatalf("wrong runtime error = %v", err)
+	}
+}
+
+func TestLocalStateIgnoreFileCoversRuntimeAndRuns(t *testing.T) {
+	repo := t.TempDir()
+	if err := ensureLocalStateIgnored(repo); err != nil {
+		t.Fatal(err)
+	}
+	if got := readTestFile(t, filepath.Join(repo, ".yield", ".gitignore")); got != "*\n" {
+		t.Fatalf(".yield/.gitignore = %q", got)
+	}
+}
+
+func TestWorkflowSDKVersionMustMatchRuntime(t *testing.T) {
+	repo := t.TempDir()
+	skill := createTypeScriptSkill(t, repo, "review")
+	manifest, err := readSkillManifest(skill)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyWorkflowSDKVersion(manifest, skill, repo, "0.1.23"); err == nil || !strings.Contains(err.Error(), "pins Yield SDK 0.1.17") {
+		t.Fatalf("SDK mismatch error = %v", err)
+	}
+	writeTestFile(t, filepath.Join(repo, "package.json"), `{"dependencies":{"@operatorstack/yield":"0.1.23"}}`)
+	if err := verifyWorkflowSDKVersion(manifest, skill, repo, "0.1.23"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDoctorReportsSDKRuntimeAndAdapterVersionProblemsTogether(t *testing.T) {
+	repo := t.TempDir()
+	writeTestFile(t, filepath.Join(repo, ".git", "keep"), "")
+	skill := filepath.Join(repo, "skills", "review")
+	writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: review\ndescription: Review code before it is shipped.\n---\n")
+	writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"language":"go","run":["go","run","."]}`)
+	writeTestFile(t, filepath.Join(skill, "go.mod"), "module review\n\ngo 1.26.5\n\nrequire github.com/operatorstack/yield v0.1.22\n")
+	writeTestFile(t, filepath.Join(skill, "main.go"), "package main\nfunc main() {}\n")
+	writeTestFile(t, localRuntimePath(repo), "runtime")
+	writeTestFile(t, filepath.Join(repo, ".cursor", "skills", "review", "SKILL.md"), "<!-- generated-by: yskill; source: skills/review; digest: old; version: 0.1.22 -->\n")
+	previousVersion := version
+	previousInspect := inspectRuntimeVersion
+	version = "0.1.23"
+	inspectRuntimeVersion = func(string) (string, error) { return "0.1.22", nil }
+	t.Cleanup(func() {
+		version = previousVersion
+		inspectRuntimeVersion = previousInspect
+	})
+	err := cmdDoctor([]string{skill, "--root", repo, "--agent", "cursor"})
+	if err == nil {
+		t.Fatal("doctor accepted three version mismatches")
+	}
+	for _, want := range []string{"SDK:", "runtime:", "cursor: adapter is stale"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("doctor error does not contain %q:\n%v", want, err)
+		}
+	}
+}
+
 func createTypeScriptSkill(t *testing.T, repo, name string) string {
 	t.Helper()
 	writeTestFile(t, filepath.Join(repo, "package.json"), `{"dependencies":{"@operatorstack/yield":"0.1.17"}}`)
@@ -332,4 +452,24 @@ func writeTestFile(t *testing.T, path, content string) {
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	read, write, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	previous := os.Stdout
+	os.Stdout = write
+	fn()
+	if err := write.Close(); err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = previous
+	b, err := io.ReadAll(read)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
 }
