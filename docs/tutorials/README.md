@@ -1,6 +1,6 @@
 # Tutorials
 
-Each tutorial starts with an engineering job, not a protocol concept.
+Each tutorial starts with an engineering job, not an internal runtime concept.
 
 1. [Check and review a branch](code-review.md) — combine deterministic checks
    with model judgment.
@@ -13,5 +13,5 @@ Each tutorial starts with an engineering job, not a protocol concept.
 5. [Run a migration safely](data-migration.md) — dry-run, approve, apply, and
    verify in order.
 
-The repository contains fixture-backed versions of these patterns. Run an
+The repository contains fixture-backed skill workflows for these patterns. Run an
 example with `yskill test examples/<name>` before adapting it.

@@ -1,7 +1,7 @@
 [project]
 name = "yieldskill"
 version = "0.1.0"
-description = "Yield skill-program SDK for Python: turn SKILL.md workflows into resumable programs."
+description = "Build portable, resumable skill workflows in Python."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"

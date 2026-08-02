@@ -1,7 +1,7 @@
 # CLI reference
 
-`yskill` runs workflows. It owns run logs, validates responses, executes
-commands, and starts the skill program. It comes with each language package.
+`yskill` runs and resumes skill workflows. It owns run logs, validates responses, executes
+commands, and starts the skill workflow. It comes with each language package.
 
 ## `init`
 
@@ -10,7 +10,8 @@ yskill init <directory> --description "What it does and when to use it"
   [--language typescript|python|go|rust]
 ```
 
-Scaffolds a new skill or adds a Yield program beside an existing prose skill.
+Scaffolds a new skill workflow or adds a Yield program beside an existing
+prose skill.
 Generated dependencies are pinned to the installed `yskill` version.
 New skills require a real trigger-oriented description. Existing `SKILL.md`
 files are preserved and validated.
@@ -47,7 +48,7 @@ yskill doctor <skill-directory> [--agent cursor,codex,...|auto]
   [--root repository] [--test]
 ```
 
-Checks the canonical workflow and package launcher. `--test` also runs the
+Checks the canonical skill workflow and package launcher. `--test` also runs the
 workflow against `fixtures/responses.json` without leaving a run journal.
 Adapter checks run only when `--agent` is supplied, and all adapter problems
 are reported together.
@@ -103,7 +104,7 @@ yskill register-all <skills-directory> --agent cursor,codex
   [--root repository] [--dry-run] [--prune]
 ```
 
-Registers every immediate workflow in one directory. It checks all names and
+Registers every immediate skill workflow in one directory. It checks all names and
 destinations before writing. `--prune` removes only obsolete adapters generated
 from that workflow directory. Agent-facing names must be unique.
 

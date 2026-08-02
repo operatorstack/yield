@@ -7,8 +7,8 @@ Yield has a deliberately small API. Each primitive has one clear owner.
 | [`RunCommand`](run-command.md) | Runs a command and records its real output | `yskill` |
 | [`AgentTask`](agent-task.md) | Requests model judgment with an optional JSON schema | coding agent |
 | [`AskUser`](ask-user.md) | Pauses for a human answer | coding agent and user |
-| [`Require`](require.md) | Prevents completion unless a claim passes | skill program |
-| [Outcomes](outcomes.md) | Completes, blocks, or refuses with a recorded reason | skill program |
+| [`Require`](require.md) | Prevents completion unless a claim passes | skill workflow |
+| [Outcomes](outcomes.md) | Completes, blocks, or refuses with a recorded reason | skill workflow |
 
 Ordinary language features provide the rest. Use `if` for choices, `for` or
 `while` for bounded retries, functions for reusable flows, and your language's

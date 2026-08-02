@@ -3,7 +3,7 @@
 Yield does not keep a daemon or suspended coroutine alive. It uses deterministic
 re-execution.
 
-1. `yskill` starts the skill program with its journal.
+1. `yskill` starts the skill workflow with its journal.
 2. The program runs from the top.
 3. Recorded operations receive their recorded responses in order.
 4. Before consuming each response, the SDK checks that the operation digest
@@ -26,7 +26,7 @@ reviewing the change.
 
 ## Filesystem effects
 
-Skill programs must remain deterministic between yielded operations. Do not
+Skill workflows must remain deterministic between yielded operations. Do not
 read clocks, randomness, changing environment variables, or mutable files
 directly when they affect control flow. Cross observable system effects through
 `RunCommand`, and pass stable input through the run input or recorded responses.

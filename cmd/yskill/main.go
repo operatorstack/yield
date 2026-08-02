@@ -24,17 +24,17 @@ import (
 	"github.com/operatorstack/yield/internal/runlog"
 )
 
-const usage = `yskill — turn SKILL.md workflows into resumable programs
+const usage = `yskill — run and resume skill workflows
 
 Usage:
-  yskill init <dir>                          scaffold a skill (or wrap an existing prose skill)
+  yskill init <dir>                          scaffold a skill workflow (or wrap an existing prose skill)
          [--language typescript|python|go|rust] [--description text]
-  yskill register <skill-dir>                expose one workflow to coding agents
+  yskill register <skill-dir>                expose one skill workflow to coding agents
          [--agent cursor,codex,...|auto] [--root repo]
-  yskill register-all <skills-dir>           expose every immediate workflow
+  yskill register-all <skills-dir>           expose every immediate skill workflow
          [--agent cursor,codex,...|auto] [--root repo] [--dry-run] [--prune]
   yskill agents                              list supported coding agents and paths
-  yskill doctor <skill-dir>                  check package, workflow, and adapters
+  yskill doctor <skill-dir>                  check package, skill workflow, and adapters
          [--agent cursor,codex,...|auto] [--root repo] [--test]
   yskill run <skill-dir> [--input file]      start a run; prints the first operation envelope
   yskill resume <run-id> --response file     feed a response; prints the next operation

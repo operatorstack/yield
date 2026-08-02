@@ -1,10 +1,10 @@
-# Example library
+# Skill workflow library
 
-Ten common coding-agent workflows, each implemented in TypeScript, Python,
+Ten common skill workflows for coding agents, each implemented in TypeScript, Python,
 Go, and Rust. Choose the language already used by your repository; the
 workflow and fixture are otherwise the same.
 
-| Workflow | What the code keeps in order |
+| Skill workflow | What the code keeps in order |
 |---|---|
 | review-branch | checks -> review -> zero-critical gate |
 | investigate-failure | evidence -> diagnosis -> supported cause |
@@ -39,7 +39,7 @@ Or run one:
     /tmp/yskill test examples/library/rust/review-branch
 
 The shell commands deliberately produce harmless fixture evidence. Replace
-them with the real commands from your repository before adopting a workflow.
+them with the real commands from your repository before adopting a skill workflow.
 The examples are independent implementations of recurring skill categories;
 they do not copy another project's prompts or claim compatibility with them.
 
