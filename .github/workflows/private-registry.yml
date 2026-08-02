@@ -285,31 +285,39 @@ jobs:
           mkdir -p "$workspace/typescript" "$workspace/python" "$workspace/go" "$workspace/rust"
 
           cd "$workspace/typescript"
+          git init -q
           npm init -y >/dev/null
           npm install "@operatorstack/yield@${VERSION}" --registry=https://get.operatorstack.systems/npm/
           npm exec -- yskill --version | grep -F "yskill ${VERSION}"
-          npm exec -- yskill init skill --language typescript
-          npm exec -- yskill test skill
+          npm exec -- yskill init skill --language typescript --description "Run this workflow when checking the installed TypeScript package."
+          npm exec -- yskill register skill --agent cursor,codex,claude-code
+          npm exec -- yskill doctor skill --agent cursor,codex,claude-code --test
 
           cd "$workspace/python"
+          git init -q
           python -m venv .venv
           if [[ "$RUNNER_OS" == "Windows" ]]; then python_bin=.venv/Scripts/python; else python_bin=.venv/bin/python; fi
           "$python_bin" -m pip install "yieldskill==${VERSION}" --index-url https://get.operatorstack.systems/pip/simple/
           "$python_bin" -m yieldskill --version | grep -F "yskill ${VERSION}"
-          "$python_bin" -m yieldskill init skill --language python
-          "$python_bin" -m yieldskill test skill
+          "$python_bin" -m yieldskill init skill --language python --description "Run this workflow when checking the installed Python package."
+          "$python_bin" -m yieldskill register skill --agent cursor,codex,claude-code
+          "$python_bin" -m yieldskill doctor skill --agent cursor,codex,claude-code --test
 
           cd "$workspace/go"
+          git init -q
           go install "github.com/operatorstack/yield/cmd/yskill@v${VERSION}"
           go_cli="$(go env GOPATH)/bin/yskill"
           if [[ "$RUNNER_OS" == "Windows" ]]; then go_cli="${go_cli}.exe"; fi
           "$go_cli" --version | grep -F "yskill ${VERSION}"
-          "$go_cli" init skill --language go
-          "$go_cli" test skill
+          "$go_cli" init skill --language go --description "Run this workflow when checking the installed Go package."
+          "$go_cli" register skill --agent cursor,codex,claude-code
+          "$go_cli" doctor skill --agent cursor,codex,claude-code --test
 
           cd "$workspace/rust"
+          git init -q
           cargo install "yieldskill@${VERSION}" --index sparse+https://get.operatorstack.systems/cargo/index/ --locked --root .cargo-root
           if [[ "$RUNNER_OS" == "Windows" ]]; then rust_cli=.cargo-root/bin/yskill.exe; else rust_cli=.cargo-root/bin/yskill; fi
           "$rust_cli" --version | grep -F "yskill ${VERSION}"
-          "$rust_cli" init skill --language rust
-          "$rust_cli" test skill
+          "$rust_cli" init skill --language rust --description "Run this workflow when checking the installed Rust package."
+          "$rust_cli" register skill --agent cursor,codex,claude-code
+          "$rust_cli" doctor skill --agent cursor,codex,claude-code --test
