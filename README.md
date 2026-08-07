@@ -1,6 +1,11 @@
 # Yield
 
-Yield is an open-source execution runtime for programmable Agent Skill workflows.
+<p>
+  <a href="https://www.npmjs.com/package/@operatorstack/yield"><img alt="npm" src="https://img.shields.io/npm/v/@operatorstack/yield?style=flat-square" /></a>
+  <a href="https://github.com/operatorstack/yield/actions/workflows/verify.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/operatorstack/yield/verify.yml?branch=main&amp;style=flat-square&amp;label=build" /></a>
+</p>
+
+Yield runs portable, resumable workflows for coding agents.
 
 **Write one skill workflow. Run it from your coding agents.**
 
@@ -32,7 +37,7 @@ repository. Generated adapters never use a global `yskill` from `PATH`.
 
 ```bash
 # TypeScript (public npm)
-npm install --save-exact @operatorstack/yield@0.1.29
+npm install --save-exact @operatorstack/yield@0.1.30
 npm exec -- yskill --version
 
 # Python, after creating and activating .venv
@@ -50,6 +55,10 @@ cargo install yieldskill@0.1.29 --root .yield \
   --index sparse+https://get.operatorstack.systems/cargo/index/ --locked
 .yield/bin/yskill --version
 ```
+
+[Public npm releases](https://www.npmjs.com/package/@operatorstack/yield)
+use trusted publishing. The SDK package and all six runtime packages include
+SLSA v1 provenance.
 
 Yield creates `.yield/.gitignore` when it registers a Go or Rust workflow, so
 the local runtime and run state stay out of Git.
