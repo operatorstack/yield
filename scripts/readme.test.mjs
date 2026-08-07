@@ -100,10 +100,11 @@ test("README uses the borderless Yield mark", async () => {
   ]);
   assert.match(
     readme,
-    /<img src="https:\/\/raw\.githubusercontent\.com\/operatorstack\/yield\/main\/assets\/yield-mark\.svg" width="96" height="96" alt="Yield" \/>/,
+    /<img src="https:\/\/raw\.githubusercontent\.com\/operatorstack\/yield\/main\/assets\/yield-mark\.svg" alt="Yield" \/>/,
   );
+  assert.doesNotMatch(readme, /yield-mark\.svg" width=/);
   assert.doesNotMatch(readme, /apple-touch-icon\.png/);
-  assert.match(mark, /viewBox="0 0 60 60"/);
+  assert.match(mark, /width="96" height="96" viewBox="0 0 60 60"/);
   assert.match(mark, /<path d="M18 1h24C53\.4 1 59 6\.6 59 18v24c0 11\.4-5\.6 17-17 17H18C6\.6 59 1 53\.4 1 42V18C1 6\.6 6\.6 1 18 1Z" fill="#fff" stroke="#e5e6e3" stroke-width="\.75"\/>/);
   assert.doesNotMatch(mark, /<rect\b/);
   assert.doesNotMatch(mark, /stroke="#d7d7d1"/);

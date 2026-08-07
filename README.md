@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://yield.operatorstack.systems/">
-    <img src="https://raw.githubusercontent.com/operatorstack/yield/main/assets/yield-mark.svg" width="96" height="96" alt="Yield" />
+    <img src="https://raw.githubusercontent.com/operatorstack/yield/main/assets/yield-mark.svg" alt="Yield" />
   </a>
 </p>
 
