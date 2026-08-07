@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
   "methodology_version": "1.1",
-  "generated_at": "2026-08-07T11:49:51.097Z",
-  "source_digest": "d75c9a27b4782ff37a16c76b472327ecb6c8ab1b014dcf8e01626870340a82ac",
+  "generated_at": "2026-08-07T20:19:15.755Z",
+  "source_digest": "1695983e8279e9580deefe615b29814c8cc2777ce043cc73dd47caf992d7f269",
   "status": "passed",
   "workflow_conformance": {
     "passed": 40,
