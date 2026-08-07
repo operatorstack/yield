@@ -95,8 +95,7 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(raw["release-finalize.yml"].includes("npm-publish.yml"), "finalization must bind the combined publisher receipt");
   expect(raw["release-finalize.yml"].includes("pypi-release.mjs verify"), "finalization must verify the PyPI wheel hashes");
   expect(raw["release-finalize.yml"].includes("crates-release.mjs verify"), "finalization must verify the crates.io package hashes");
-  const bootstrapSecretUses = Object.values(raw).reduce((count, text) => count + (text.match(/secrets\.CRATES_BOOTSTRAP_TOKEN/g) ?? []).length, 0);
-  expect(bootstrapSecretUses === 1, "the one-time crates.io bootstrap token must be scoped only to the protected publisher job");
+  expect(!Object.values(raw).some((text) => text.includes("CRATES_BOOTSTRAP_TOKEN")), "crates.io publishing must not use a bootstrap token");
   for (const [name, text] of Object.entries(raw)) {
     expect(!/NPM_TOKEN|NODE_AUTH_TOKEN|PYPI_TOKEN|secrets\.(npm|pypi)|password:/i.test(text), `${name}: long-lived registry credentials are forbidden`);
   }
