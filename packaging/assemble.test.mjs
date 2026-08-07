@@ -45,6 +45,11 @@ test("assembles one public npm package and six matching runtimes", async (t) => 
   );
   const assembledReadme = await readFile(join(output, "npm/yield/README.md"), "utf8");
   assert.equal(assembledReadme, await readFile(join(import.meta.dirname, "../README.md"), "utf8"));
+  assert.equal(
+    await readFile(join(output, "npm/yield/assets/yield-mark.svg"), "utf8"),
+    await readFile(join(import.meta.dirname, "../assets/yield-mark.svg"), "utf8"),
+  );
+  assert.ok(main.files.includes("assets"));
   assert.match(assembledReadme, /<h1 align="center">Yield<\/h1>/);
   assert.match(await readFile(join(output, "npm/yield/LICENSE"), "utf8"), /MIT License/);
 

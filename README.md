@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://yield.operatorstack.systems/">
-    <img src="https://yield.operatorstack.systems/favicon.svg" width="96" height="96" alt="Yield" />
+    <img src="assets/yield-mark.svg" width="96" height="96" alt="Yield" />
   </a>
 </p>
 
@@ -49,9 +49,14 @@ import { defineSkill } from "@operatorstack/yield";
 type Review = { critical: number; summary: string };
 
 defineSkill((ctx) => {
+  // Yield runs commands itself and records their output and exit status.
   const tests = ctx.runCommand("test", "echo tests-ok", 300);
+
+  // A failed requirement stops the workflow and keeps its evidence.
   ctx.require(tests.exit_code === 0, "the test command succeeds", tests);
 
+  // Review gives TypeScript its compile-time type. The JSON schema checks the
+  // coding agent's response at runtime before this workflow can continue.
   const review = ctx.agentTask<Review>(
     "review-release",
     "Review this release. Report critical findings and a short summary.",
@@ -67,12 +72,16 @@ defineSkill((ctx) => {
   );
   ctx.require(review.critical === 0, "the review has no critical findings", review);
 
+  // Yield emits these fixed choices. A supported host may show native controls;
+  // otherwise the coding agent asks through its normal interface.
   const approval = ctx.askUser("approve-publish", "Publish this package?", [
     { value: "yes", label: "Publish" },
     { value: "no", label: "Stop" },
   ]);
   if (approval !== "yes") ctx.refused("the operator declined publication");
 
+  // Publishing cannot start before approval. Verification is a separate step,
+  // so completion requires evidence that the registry contains the release.
   const publish = ctx.runCommand("publish", "echo publish-ok", 600);
   ctx.require(publish.exit_code === 0, "the publish command succeeds", publish);
 
@@ -89,9 +98,11 @@ Replace them with the test, publish, and registry commands for your project.
 The complete tested source is in
 [`examples/release-checklist`](examples/release-checklist/).
 
-## Install and create a workflow
+## Use Yield in four steps
 
-Install the TypeScript SDK and its repository-local CLI:
+### 1. Install Yield
+
+Install the TypeScript SDK and its repository-local CLI in your project:
 
 ```bash
 npm install --save-exact @operatorstack/yield
@@ -102,22 +113,69 @@ npm exec -- yskill --version
 use trusted publishing. The SDK package and all six runtime packages include
 SLSA v1 provenance.
 
-Create, test, and register a workflow:
+### 2. Create the workflow
 
 ```bash
 npm exec -- yskill init skills/release \
   --language typescript \
   --description "Test, review, approve, publish, and verify a package."
+```
 
-# Replace the starter with your workflow and fixture.
+The command creates one canonical workflow inside your repository:
+
+```text
+skills/
+└── release/
+    ├── SKILL.md
+    ├── fixtures/
+    │   ├── responses.json
+    │   └── test.json
+    ├── main.ts
+    ├── package.json
+    └── skill.json
+```
+
+Replace the starter in `skills/release/main.ts` with your workflow. Update
+`skills/release/fixtures/responses.json` with deterministic answers for agent
+and user operations.
+
+### 3. Test the workflow
+
+```bash
 npm exec -- yskill doctor skills/release --test
+```
 
-# Detect installed agents, or pass --agent cursor,codex,claude-code.
+This runs commands for real and supplies agent and user responses from the
+fixture. A successful test reaches `completed` without leaving a run journal.
+
+### 4. Register and use the skill
+
+Registration is the discovery step. This command detects installed verified
+agents and writes a small adapter for each one:
+
+```bash
 npm exec -- yskill register skills/release
 ```
 
-Yield writes small adapters into each coding agent's project skill directory.
-It does not copy the workflow or install its dependencies again.
+Select verified agents explicitly when you do not want automatic detection:
+
+```bash
+npm exec -- yskill register skills/release \
+  --agent cursor,codex,claude-code
+```
+
+If all three are selected, Yield creates these generated files:
+
+```text
+.cursor/skills/release/SKILL.md   # Cursor
+.agents/skills/release/SKILL.md   # Codex
+.claude/skills/release/SKILL.md   # Claude Code
+```
+
+The adapters point back to `skills/release`. They do not copy the workflow or
+install its dependencies again. Start a new agent session after registration,
+then invoke `/release` where slash skills are supported or ask the agent to use
+the release skill.
 
 ## How Yield runs and resumes
 

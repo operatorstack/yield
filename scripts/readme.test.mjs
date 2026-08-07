@@ -53,8 +53,53 @@ test("README agent claims match the pinned registry", async () => {
   assert.doesNotMatch(readme, /Agent Plugins and Yield/);
 });
 
-test("README uses the compact Yield mark", async () => {
+test("README presents the workflow as four ordered steps", async () => {
   const readme = await text("README.md");
-  assert.match(readme, /https:\/\/yield\.operatorstack\.systems\/favicon\.svg/);
+  const headings = [
+    "### 1. Install Yield",
+    "### 2. Create the workflow",
+    "### 3. Test the workflow",
+    "### 4. Register and use the skill",
+  ];
+
+  let previous = -1;
+  for (const heading of headings) {
+    const current = readme.indexOf(heading);
+    assert.ok(current > previous, `${heading} is missing or out of order`);
+    previous = current;
+  }
+
+  assert.match(readme, /npm exec -- yskill doctor skills\/release --test/);
+  assert.match(readme, /npm exec -- yskill register skills\/release/);
+  assert.match(readme, /Registration is the discovery step\./);
+});
+
+test("README adapter paths match every verified agent", async () => {
+  const [readme, registryText] = await Promise.all([
+    text("README.md"),
+    text("cmd/yskill/registry/agents.json"),
+  ]);
+  const registry = JSON.parse(registryText);
+
+  for (const agent of registry.agents.filter((entry) => entry.tier === "verified")) {
+    const adapter = `${agent.project_dir}/release/SKILL.md`;
+    assert.match(readme, new RegExp(adapter.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+
+  assert.match(readme, /--agent cursor,codex,claude-code/);
+  assert.match(readme, /If all three are selected/);
+});
+
+test("README uses the edge-cropped Yield mark", async () => {
+  const [readme, mark] = await Promise.all([
+    text("README.md"),
+    text("assets/yield-mark.svg"),
+  ]);
+  assert.match(
+    readme,
+    /<img src="assets\/yield-mark\.svg" width="96" height="96" alt="Yield" \/>/,
+  );
   assert.doesNotMatch(readme, /apple-touch-icon\.png/);
+  assert.match(mark, /viewBox="0 0 60 60"/);
+  assert.match(mark, /<rect x="1" y="1" width="58" height="58"/);
 });

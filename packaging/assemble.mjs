@@ -50,9 +50,11 @@ async function assembleNpm({ version, binaries, output }) {
   const npm = join(output, "npm");
   const main = join(npm, "yield");
   await cp(join(root, "sdk/typescript"), main, { recursive: true, filter: (source) => !source.includes("node_modules") && !source.includes("/dist") });
+  await mkdir(join(main, "assets"), { recursive: true });
   await Promise.all([
     cp(join(root, "README.md"), join(main, "README.md")),
     cp(join(root, "LICENSE"), join(main, "LICENSE")),
+    cp(join(root, "assets/yield-mark.svg"), join(main, "assets/yield-mark.svg")),
   ]);
   const packageJson = await json(join(main, "package.json"));
   packageJson.version = version;
@@ -62,6 +64,7 @@ async function assembleNpm({ version, binaries, output }) {
     registry: "https://registry.npmjs.org/",
   };
   packageJson.optionalDependencies = Object.fromEntries(targets.map((target) => [npmPackage(target), version]));
+  packageJson.files = [...new Set([...(packageJson.files ?? []), "assets"])];
   await writeFile(join(main, "package.json"), `${JSON.stringify(packageJson, null, 2)}\n`);
 
   for (const target of targets) {
