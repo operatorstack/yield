@@ -13,6 +13,10 @@ export function isPackageVersion(value) {
   return stableVersion.test(value) || canaryVersion.test(value);
 }
 
+export function npmReadme(readme) {
+  return readme.replace(/\s*<!-- npm-exclude:start -->[\s\S]*?<!-- npm-exclude:end -->/g, "");
+}
+
 function parseArgs(argv) {
   const values = {};
   for (let index = 0; index < argv.length; index += 2) values[argv[index]?.replace(/^--/, "")] = argv[index + 1];
@@ -51,11 +55,12 @@ async function assembleNpm({ version, binaries, output }) {
   const main = join(npm, "yield");
   await cp(join(root, "sdk/typescript"), main, { recursive: true, filter: (source) => !source.includes("node_modules") && !source.includes("/dist") });
   await mkdir(join(main, "assets"), { recursive: true });
-  await Promise.all([
-    cp(join(root, "README.md"), join(main, "README.md")),
+  const [readme] = await Promise.all([
+    readFile(join(root, "README.md"), "utf8"),
     cp(join(root, "LICENSE"), join(main, "LICENSE")),
     cp(join(root, "assets/yield-mark.svg"), join(main, "assets/yield-mark.svg")),
   ]);
+  await writeFile(join(main, "README.md"), npmReadme(readme));
   const packageJson = await json(join(main, "package.json"));
   packageJson.version = version;
   packageJson.publishConfig = {

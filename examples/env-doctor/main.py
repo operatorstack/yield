@@ -9,8 +9,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from yieldskill import define_skill  # noqa: E402
 
 
+# README_EXAMPLE_START
 def program(ctx):
-    probe = ctx.run_command("probe-python", "python3 --version", timeout_seconds=60)
+    probe = ctx.run_command("probe-python", "python3 --version || python --version", timeout_seconds=60)
 
     diagnosis = ctx.agent_task(
         "diagnose",
@@ -35,7 +36,7 @@ def program(ctx):
         )
         if answer != "done":
             ctx.blocked("the environment fix was not applied")
-        recheck = ctx.run_command("recheck-python", "python3 --version", timeout_seconds=60)
+        recheck = ctx.run_command("recheck-python", "python3 --version || python --version", timeout_seconds=60)
         ctx.require(recheck.exit_code == 0, "the environment probe passes after the fix", recheck)
         return {"healthy": True, "fixed": True}
 
@@ -44,3 +45,4 @@ def program(ctx):
 
 
 define_skill(program)
+# README_EXAMPLE_END
