@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { assemble, isPackageVersion } from "./assemble.mjs";
@@ -100,8 +100,5 @@ test("assembles one public npm package and six matching npm and Python runtimes"
   assert.match(rustReadme, /crates\.io\/crates\/yieldskill/);
   assert.doesNotMatch(rustReadme, /npmjs\.com|pypi\.org/);
   assert.match(await readFile(join(rustMain, "LICENSE"), "utf8"), /MIT License/);
-  const rustPatch = await readFile(join(output, "rust/.cargo/config.toml"), "utf8");
-  for (const target of targets) {
-    assert.match(rustPatch, new RegExp(`${rustPackage(target)} = \\{ path = "runtime/${target.id}" \\}`));
-  }
+  await assert.rejects(access(join(output, "rust/.cargo/config.toml")), { code: "ENOENT" });
 });
