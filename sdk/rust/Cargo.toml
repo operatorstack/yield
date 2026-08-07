@@ -5,6 +5,11 @@ edition = "2021"
 description = "Build portable, resumable skill workflows in Rust."
 license = "MIT"
 repository = "https://github.com/operatorstack/yield"
+homepage = "https://yield.operatorstack.systems/"
+documentation = "https://docs.rs/yieldskill"
+readme = "README.md"
+keywords = ["agents", "automation", "cli", "workflow"]
+categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }

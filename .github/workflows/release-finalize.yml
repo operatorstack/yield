@@ -104,5 +104,10 @@ jobs:
             --dist "$RUNNER_TEMP/release-unit/pypi" \
             --attempts 3 \
             --delay-ms 10000
+          node packaging/crates-release.mjs verify \
+            --version "$version" \
+            --archives "$RUNNER_TEMP/release-unit/crates" \
+            --attempts 3 \
+            --delay-ms 10000
           test "$(git rev-list -n 1 "$TAG")" = "$SOURCE_SHA"
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

@@ -190,7 +190,7 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 		{"typescript", []string{"main.ts", "package.json", "skill.json"}, "npm exec -- yskill run .", `"@operatorstack/yield": "0.1.9"`},
 		{"python", []string{"main.py", "requirements.txt", "skill.json"}, "python -m yieldskill run .", "yieldskill==0.1.9"},
 		{"go", []string{"main.go", "go.mod", "skill.json"}, "yskill run .", "github.com/operatorstack/yield v0.1.9"},
-		{"rust", []string{"src/main.rs", "Cargo.toml", ".cargo/config.toml", "skill.json"}, "yskill run .", `version = "=0.1.9"`},
+		{"rust", []string{"src/main.rs", "Cargo.toml", "skill.json"}, "yskill run .", `version = "=0.1.9"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.language, func(t *testing.T) {
@@ -242,6 +242,9 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 			}
 			if tt.language == "python" && strings.Contains(manifest, "--index-url") {
 				t.Fatalf("public Python scaffold contains a private package index:\n%s", manifest)
+			}
+			if tt.language == "rust" && strings.Contains(manifest, "registry =") {
+				t.Fatalf("public Rust scaffold contains a private package registry:\n%s", manifest)
 			}
 		})
 	}

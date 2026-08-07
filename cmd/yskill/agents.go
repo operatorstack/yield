@@ -682,7 +682,7 @@ func localRuntimeInstallCommand(language, expected string) string {
 		}
 		return fmt.Sprintf(`mkdir -p .yield/bin && GOBIN="$PWD/.yield/bin" GOPROXY=https://get.operatorstack.systems/go,direct go install github.com/operatorstack/yield/cmd/yskill@v%s`, expected)
 	case "rust":
-		return fmt.Sprintf(`cargo install yieldskill@%s --root .yield --index sparse+https://get.operatorstack.systems/cargo/index/ --locked`, expected)
+		return fmt.Sprintf(`cargo install yieldskill@%s --root .yield --locked`, expected)
 	default:
 		return "install the matching Yield package"
 	}

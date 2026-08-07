@@ -159,8 +159,7 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
 		}
 	case "rust":
 		return map[string]string{
-			".cargo/config.toml": "[registries.operatorstack]\nindex = \"sparse+https://get.operatorstack.systems/cargo/index/\"\n",
-			"Cargo.toml":         fmt.Sprintf("[package]\nname = %q\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nyieldskill = { version = \"=%s\", registry = \"operatorstack\" }\nserde_json = \"1\"\n", name, v),
+			"Cargo.toml":         fmt.Sprintf("[package]\nname = %q\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nyieldskill = { version = \"=%s\" }\nserde_json = \"1\"\n", name, v),
 			"src/main.rs":        mainRust,
 			"skill.json":         fmt.Sprintf("{\"version\":1,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\",\"--bin\",%q]}\n", name),
 		}

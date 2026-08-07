@@ -2,6 +2,7 @@
 // dry-run, show the diff, human approval, apply, verify. The append-only
 // run log is the audit trail; every irreversible action has a recorded,
 // approved request before it.
+// README_EXAMPLE_START
 use serde_json::json;
 use yieldskill::{define_skill, Context, SkillResult};
 
@@ -56,3 +57,4 @@ fn program(ctx: &mut Context) -> SkillResult {
 fn main() {
     define_skill(program);
 }
+// README_EXAMPLE_END

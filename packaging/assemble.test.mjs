@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { assemble, isPackageVersion } from "./assemble.mjs";
-import { binaryName, npmPackage, targets } from "./targets.mjs";
+import { binaryName, npmPackage, rustPackage, targets } from "./targets.mjs";
 
 const homepage = "https://yield.operatorstack.systems/";
 
@@ -75,5 +75,31 @@ test("assembles one public npm package and six matching npm and Python runtimes"
       await readFile(join(pythonRoot, "yieldskill/_runtime", pythonRuntime), "utf8"),
       `runtime:${target.id}`,
     );
+
+    const rustRoot = join(output, `rust/runtime/${target.id}`);
+    const rustManifest = await readFile(join(rustRoot, "Cargo.toml"), "utf8");
+    assert.match(rustManifest, new RegExp(`name = "${rustPackage(target)}"`));
+    assert.match(rustManifest, /version = "1\.2\.3"/);
+    assert.match(rustManifest, /readme = "README\.md"/);
+    assert.doesNotMatch(rustManifest, /registry\s*=/);
+    assert.match(await readFile(join(rustRoot, "README.md"), "utf8"), /installed automatically by `yieldskill`/);
+    assert.match(await readFile(join(rustRoot, "LICENSE"), "utf8"), /MIT License/);
+  }
+
+  const rustMain = join(output, "rust/yieldskill");
+  const rustMainManifest = await readFile(join(rustMain, "Cargo.toml"), "utf8");
+  assert.match(rustMainManifest, /name = "yieldskill"/);
+  assert.match(rustMainManifest, /version = "1\.2\.3"/);
+  assert.doesNotMatch(rustMainManifest, /registry\s*=/);
+  for (const target of targets) {
+    assert.match(rustMainManifest, new RegExp(`${rustPackage(target)} = \\{ version = "=1\\.2\\.3" \\}`));
+  }
+  const rustReadme = await readFile(join(rustMain, "README.md"), "utf8");
+  assert.match(rustReadme, /crates\.io\/crates\/yieldskill/);
+  assert.doesNotMatch(rustReadme, /npmjs\.com|pypi\.org/);
+  assert.match(await readFile(join(rustMain, "LICENSE"), "utf8"), /MIT License/);
+  const rustPatch = await readFile(join(output, "rust/.cargo/config.toml"), "utf8");
+  for (const target of targets) {
+    assert.match(rustPatch, new RegExp(`${rustPackage(target)} = \\{ path = "runtime/${target.id}" \\}`));
   }
 });
