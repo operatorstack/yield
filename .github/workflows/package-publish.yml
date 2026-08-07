@@ -120,6 +120,7 @@ jobs:
           done
           node packaging/assemble.mjs --version "$VERSION" --binaries dist/bin --output dist/packages
       - name: Build Python wheels
+        if: needs.resolve.outputs.channel == 'stable'
         env:
           VERSION: ${{ needs.resolve.outputs.version }}
         shell: bash
@@ -139,11 +140,13 @@ jobs:
             (cd "$directory" && npm pack --dry-run)
           done
       - name: Assemble immutable release unit
+        env:
+          CHANNEL: ${{ needs.resolve.outputs.channel }}
         run: |
           mkdir -p dist/release-unit
           cp dist/packages/SHA256SUMS.json dist/release-unit/
           cp -R dist/packages/npm dist/release-unit/npm
-          cp -R dist/pypi dist/release-unit/pypi
+          if [[ "$CHANNEL" == stable ]]; then cp -R dist/pypi dist/release-unit/pypi; fi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: packages-${{ needs.resolve.outputs.version }}-${{ needs.resolve.outputs.source_sha }}
