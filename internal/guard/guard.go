@@ -1,7 +1,5 @@
-// Package guard owns every refusal in the protocol. Each rejection reason
-// corresponds to a supervisory obligation from the Locus derivation
-// (docs/locus): the controllability theorem rests on these events being
-// genuinely refusable, so each has a named check and a refusing test.
+// Package guard owns every protocol refusal. Each rejection reason has a
+// named check and a test that proves the request is refused.
 package guard
 
 import (

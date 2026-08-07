@@ -2,10 +2,8 @@
 // program, written in Go, TypeScript, Python, and Rust, driven through the
 // real supervisor, must exhibit identical observable protocol behavior.
 //
-// The scenario matrix is the discharge of the Locus derivation's
-// obligations (docs/locus-conformance.md maps each obligation to the test
-// that observes it). Languages whose toolchain is absent are skipped with
-// a notice — CI provides all four.
+// The scenario matrix verifies the shared contract. Languages whose toolchain
+// is absent are skipped with a notice. CI provides all four.
 package conformance
 
 import (

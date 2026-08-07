@@ -26,6 +26,5 @@
   orchestrator.
 
 Use `RunCommand` for facts the machine can observe, `AskUser` for human
-authority, and explicit tests for the paths that matter. The formal scope is
-documented in [`locus-yield.md`](../locus-yield.md) and
-[`locus-conformance.md`](../locus-conformance.md).
+authority, and explicit tests for the paths that matter. Runtime and
+conformance tests define the verified scope.

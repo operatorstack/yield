@@ -16,21 +16,17 @@ surface and nothing else.
 | `yield.v1/journal.schema.json` | the replay input: run identity + answered operations in order |
 | `yield.v1/program-output.schema.json` | the single output of one skill-program execution: `request` \| `terminal` \| `diverged` |
 
-## The SDK execution contract (Locus-certified)
+## The SDK execution contract
 
-Every SDK must exhibit the contract certified in
-`docs/locus/sdk-contract.json` (trace-refinement: refines the supervisor's
-expectation; nonblocking):
+Every SDK must implement this tested contract:
 
 1. Read the journal from the file named by `YIELD_JOURNAL`.
 2. Re-execute the program from the top. For every operation the program
    produces while journal entries remain: recompute the request digest and
    compare with the recorded entry **before consuming its response**. On
    mismatch, emit `diverged` and exit. This per-step check is not
-   optional — the rival design (supervisor-only frontier checking) is
-   rejected with a violating trace in `docs/locus/drv-ad50b13e….json`:
-   a drifted operation would silently consume a recorded response meant
-   for a different question.
+   optional. Without it, a changed operation could consume a recorded
+   response meant for a different question.
 3. At the first operation past the journal, emit a `request` output and
    exit. When the program returns, emit a `terminal` output
    (`completed` | `blocked` | `refused`; a failed requirement emits

@@ -1,9 +1,8 @@
 // convert-skill: the converter is itself a Yield skill. It turns an
 // existing prose SKILL.md into a Yield program in the operator's chosen
 // language, and it completes ONLY when the generated skill passes its own
-// fixture run under yskill test — the Locus-decided design
-// (docs/locus/convert-verified.json vs convert-transcribed.json: shipping
-// on the model's transcription is rejected with a violating trace).
+// fixture run under yskill test. A transcription alone cannot complete the
+// conversion.
 //
 // Division of labor: the program owns the pipeline order, the language
 // menu, the retry bound, and the evidence gate. The model owns reading

@@ -156,9 +156,7 @@ the documentation for your job:
 - [convert an existing skill](docs/convert-existing-skill.md) — move
   control flow into code without claiming that fixture execution proves
   every reading of the original prose;
-- [CLI and runtime reference](docs/reference/cli.md);
-- [supervised release control](docs/release-control.md) — Changesets, protected
-  publishing, recovery, repository policy, and the bounded Locus claim.
+- [CLI and runtime reference](docs/reference/cli.md).
 
 ## Try it
 
@@ -194,8 +192,7 @@ Not guaranteed: that the agent performed *only* the requested operation,
 or that a schema-valid `agent_task` result is true — schema validity is
 not truth. `RunCommand` is the exception by construction: commands are
 executed by the Yield CLI, so exit codes and output enter the log as
-observed fact. The formal analysis behind this line is in
-`docs/locus-yield.md`.
+observed fact. Runtime and conformance tests enforce these guarantees.
 
 ## What it is not
 

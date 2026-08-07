@@ -2,7 +2,7 @@
 
 Yield is now multi-language. The canonical `ir/yield.v1` schemas define
 everything that crosses a process boundary, and four SDKs implement the
-same Locus-certified execution contract: Go (`sdk/yield`), TypeScript
+same tested execution contract: Go (`sdk/yield`), TypeScript
 (`sdk/typescript`, Node ≥ 23.6), Python (`sdk/python`, import
 `yieldskill`), and Rust (`sdk/rust`, crate `yieldskill`). Non-Go skills
 declare their runner in `skill.json`.

@@ -8,9 +8,7 @@ import (
 	"github.com/operatorstack/yield/internal/protocol"
 )
 
-// These tests are the discharge of the supervisory obligations from the
-// Locus derivation (docs/locus): each controllable event the theorem
-// rests on has a genuine refusing mechanism, exhibited here.
+// These tests verify that every declared rejection has a working refusal path.
 
 func pendingState() *RunState {
 	return &RunState{

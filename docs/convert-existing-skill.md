@@ -61,6 +61,4 @@ Review the conversion as a policy change:
 - replay a completed run to check determinism;
 - keep performance or token-reduction claims separate from runtime correctness.
 
-The implemented safety comparison is documented in
-[`locus-converter.md`](locus-converter.md). Its narrow conclusion is that the
-converter cannot report success before the generated fixture run passes.
+The converter cannot report success before the generated fixture run passes.
