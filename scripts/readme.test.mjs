@@ -93,7 +93,7 @@ test("README adapter paths match every verified agent", async () => {
   assert.match(readme, /If all three are selected/);
 });
 
-test("README uses the edge-cropped Yield mark", async () => {
+test("README uses the borderless Yield mark", async () => {
   const [readme, mark] = await Promise.all([
     text("README.md"),
     text("assets/yield-mark.svg"),
@@ -104,7 +104,10 @@ test("README uses the edge-cropped Yield mark", async () => {
   );
   assert.doesNotMatch(readme, /apple-touch-icon\.png/);
   assert.match(mark, /viewBox="0 0 60 60"/);
-  assert.match(mark, /<rect x="1" y="1" width="58" height="58"/);
+  assert.match(mark, /<path d="M18 1h24C53\.4 1 59 6\.6 59 18v24c0 11\.4-5\.6 17-17 17H18C6\.6 59 1 53\.4 1 42V18C1 6\.6 6\.6 1 18 1Z" fill="#fff" stroke="#e5e6e3" stroke-width="\.75"\/>/);
+  assert.doesNotMatch(mark, /<rect\b/);
+  assert.doesNotMatch(mark, /stroke="#d7d7d1"/);
+  assert.match(mark, /<path d="M22 12h17l2 7v22H24l-2-7Z"/);
 });
 
 test("README and quickstart use the public documentation and npm registry", async () => {
