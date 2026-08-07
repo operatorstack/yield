@@ -6,6 +6,7 @@
       <stop offset="1" stop-color="#277168"/>
     </linearGradient>
   </defs>
+  <path d="M18 1h24C53.4 1 59 6.6 59 18v24c0 11.4-5.6 17-17 17H18C6.6 59 1 53.4 1 42V18C1 6.6 6.6 1 18 1Z" fill="#fff" stroke="#e5e6e3" stroke-width=".75"/>
   <path d="M7 20h17M36 40h17" fill="none" stroke="#0a0a0a" stroke-width="5"/>
   <path d="M22 12h17l2 7v22H24l-2-7Z" fill="url(#band)"/>
   <path d="m34 20-6 14" fill="none" stroke="#fbfbfb" stroke-width="4"/>
