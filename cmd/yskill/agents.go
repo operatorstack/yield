@@ -980,9 +980,6 @@ func languageDiagnostics(language, skillDir string) error {
 		if !commandExists("cargo") {
 			return fmt.Errorf("Rust workflow needs the cargo command")
 		}
-		if _, err := os.Stat(filepath.Join(skillDir, ".cargo", "config.toml")); err != nil {
-			return fmt.Errorf("Rust workflow needs .cargo/config.toml in the workflow directory: %w", err)
-		}
 		var missing []string
 		if !commandExists("rustfmt") {
 			missing = append(missing, "rustfmt")

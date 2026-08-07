@@ -398,6 +398,54 @@ func TestLocalGoAndRustScaffoldsKeepTheInvokedRuntime(t *testing.T) {
 	}
 }
 
+func TestRustScaffoldPinsTheInvokedRuntimeWithoutPrivateRegistryConfig(t *testing.T) {
+	previousVersion := version
+	previousExecutable := currentExecutable
+	previousInspect := inspectRuntimeVersion
+	version = "0.1.37"
+	t.Cleanup(func() {
+		version = previousVersion
+		currentExecutable = previousExecutable
+		inspectRuntimeVersion = previousInspect
+	})
+
+	repo := t.TempDir()
+	writeTestFile(t, filepath.Join(repo, ".git"), "gitdir: fixture\n")
+	t.Chdir(repo)
+	sourceRoot := t.TempDir()
+	source := filepath.Join(sourceRoot, "yskill")
+	writeTestFile(t, source, "packaged runtime")
+	currentExecutable = func() (string, error) { return source, nil }
+	inspectRuntimeVersion = func(path string) (string, error) {
+		if path != source && path != localRuntimePath(repo) {
+			t.Fatalf("inspected unexpected runtime %s", path)
+		}
+		return "0.1.37", nil
+	}
+
+	dir := filepath.Join("skills", "safe-change")
+	if err := scaffoldSkill(dir, "rust", "", "Check a safe change before applying it."); err != nil {
+		t.Fatal(err)
+	}
+	if got := readTestFile(t, localRuntimePath(repo)); got != "packaged runtime" {
+		t.Fatalf("pinned runtime = %q", got)
+	}
+	if got := readTestFile(t, filepath.Join(repo, ".yield", ".gitignore")); got != "*\n" {
+		t.Fatalf("local state ignore = %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(repo, dir, ".cargo", "config.toml")); !os.IsNotExist(err) {
+		t.Fatalf("Rust scaffold created private registry config: %v", err)
+	}
+	if err := languageDiagnostics("rust", dir); err != nil {
+		t.Fatalf("Rust diagnostics required private registry config: %v", err)
+	}
+	skill := readTestFile(t, filepath.Join(repo, dir, "SKILL.md"))
+	launcher := repositoryRuntimeLauncher(filepath.Join(".yield", "bin", filepath.Base(localRuntimePath(repo))), runtime.GOOS)
+	if !strings.Contains(skill, launcher+" run") {
+		t.Fatalf("SKILL.md does not use pinned runtime %q:\n%s", launcher, skill)
+	}
+}
+
 func TestPythonScaffoldUsesRelocatableInterpreter(t *testing.T) {
 	previousVersion := version
 	version = "0.1.9"
