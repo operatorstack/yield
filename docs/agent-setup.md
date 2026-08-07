@@ -51,6 +51,24 @@ workflow. Yield refuses to overwrite a user-owned skill with the
 same name. Names must also be unique across languages because coding agents use
 one project-level skill namespace.
 
+## Run the registered skill
+
+Start a new coding-agent session after registration. Where slash skills are
+supported, run the generated skill by name:
+
+```text
+/review
+```
+
+Otherwise, ask the agent to use it:
+
+```text
+Use the review skill to check the current branch.
+```
+
+The host owns how the request is presented. The generated adapter starts the
+canonical workflow under `skills/review`; it does not contain a second copy.
+
 ## Copy this to your agent
 
 Replace the bracketed values, then paste this into the coding agent already

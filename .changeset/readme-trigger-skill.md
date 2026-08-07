@@ -2,5 +2,5 @@
 "@operatorstack/yield": patch
 ---
 
-Explain how to run a registered skill from a new coding-agent session and fix
-the README logo on npm.
+Explain how to register and run a skill, fix the README logo on npm, and point
+readers to current public documentation.

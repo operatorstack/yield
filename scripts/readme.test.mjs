@@ -106,3 +106,20 @@ test("README uses the edge-cropped Yield mark", async () => {
   assert.match(mark, /viewBox="0 0 60 60"/);
   assert.match(mark, /<rect x="1" y="1" width="58" height="58"/);
 });
+
+test("README and quickstart use the public documentation and npm registry", async () => {
+  const [readme, docsIndex, quickstart, agentSetup] = await Promise.all([
+    text("README.md"),
+    text("docs/README.md"),
+    text("docs/quickstart.md"),
+    text("docs/agent-setup.md"),
+  ]);
+
+  assert.match(readme, /href="https:\/\/yield\.operatorstack\.systems\/docs\/">Documentation<\/a>/);
+  assert.match(docsIndex, /\[public documentation\]\(https:\/\/yield\.operatorstack\.systems\/docs\/\)/);
+  assert.match(quickstart, /npm install --save-exact @operatorstack\/yield/);
+  assert.doesNotMatch(quickstart, /get\.operatorstack\.systems\/npm|@operatorstack\/yield@0\./);
+  assert.match(quickstart, /^## 6\. Run the skill$/m);
+  assert.match(quickstart, /^\/review$/m);
+  assert.match(agentSetup, /^## Run the registered skill$/m);
+});
