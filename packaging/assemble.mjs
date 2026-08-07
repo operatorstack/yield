@@ -6,11 +6,17 @@ import process from "node:process";
 import { binaryName, npmPackage, rustPackage, targets } from "./targets.mjs";
 
 const root = resolve(import.meta.dirname, "..");
+const stableVersion = /^\d+\.\d+\.\d+$/;
+const canaryVersion = /^0\.0\.0-canary\.\d{14}\.[0-9a-f]{12}$/;
+
+export function isPackageVersion(value) {
+  return stableVersion.test(value) || canaryVersion.test(value);
+}
 
 function parseArgs(argv) {
   const values = {};
   for (let index = 0; index < argv.length; index += 2) values[argv[index]?.replace(/^--/, "")] = argv[index + 1];
-  if (!/^\d+\.\d+\.\d+$/.test(values.version ?? "")) throw new Error("--version must be semver without a leading v");
+  if (!isPackageVersion(values.version ?? "")) throw new Error("--version must be stable semver or a Yield canary version");
   if (!values.binaries || !values.output) throw new Error("--binaries and --output are required");
   return { version: values.version, binaries: resolve(values.binaries), output: resolve(values.output) };
 }

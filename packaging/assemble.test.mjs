@@ -3,8 +3,16 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { assemble } from "./assemble.mjs";
+import { assemble, isPackageVersion } from "./assemble.mjs";
 import { binaryName, npmPackage, targets } from "./targets.mjs";
+
+test("accepts stable and exact Yield canary versions", () => {
+  assert.equal(isPackageVersion("1.2.3"), true);
+  assert.equal(isPackageVersion("0.0.0-canary.20260807104031.b081bae38282"), true);
+  assert.equal(isPackageVersion("1.2.3-beta.1"), false);
+  assert.equal(isPackageVersion("0.0.0-canary.latest.b081bae38282"), false);
+  assert.equal(isPackageVersion("v1.2.3"), false);
+});
 
 test("assembles one public npm package and six matching runtimes", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "yield-assemble-"));
