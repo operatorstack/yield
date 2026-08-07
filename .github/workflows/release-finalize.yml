@@ -85,7 +85,7 @@ jobs:
         run: |
           set -euo pipefail
           version="${TAG#v}"
-          run="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/package-publish.yml/runs?head_sha=${SOURCE_SHA}&status=completed&per_page=30" \
+          run="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/npm-publish.yml/runs?head_sha=${SOURCE_SHA}&status=completed&per_page=30" \
             --jq '[.workflow_runs[] | select(.event == "workflow_run" or .event == "workflow_dispatch")][0] // {}')"
           test "$(jq -r '.conclusion // "missing"' <<< "$run")" = success
           run_id="$(jq -r '.id // empty' <<< "$run")"
