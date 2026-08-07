@@ -1,0 +1,13 @@
+{
+  "name": "@operatorstack/yield-repository",
+  "private": true,
+  "scripts": {
+    "changeset": "changeset",
+    "release:plan": "node scripts/release-plan.mjs",
+    "test:release": "node --test scripts/*.test.mjs packaging/*.test.mjs"
+  },
+  "devDependencies": {
+    "@changesets/cli": "2.31.1",
+    "yaml": "2.9.0"
+  }
+}

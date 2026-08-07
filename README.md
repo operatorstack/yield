@@ -31,8 +31,8 @@ runtime. Go and Rust install the matching runtime under `.yield/bin` in the
 repository. Generated adapters never use a global `yskill` from `PATH`.
 
 ```bash
-# TypeScript
-npm install --save-exact @operatorstack/yield@0.1.29 --registry=https://get.operatorstack.systems/npm/
+# TypeScript (public npm)
+npm install --save-exact @operatorstack/yield@0.1.29
 npm exec -- yskill --version
 
 # Python, after creating and activating .venv
@@ -156,7 +156,9 @@ the documentation for your job:
 - [convert an existing skill](docs/convert-existing-skill.md) — move
   control flow into code without claiming that fixture execution proves
   every reading of the original prose;
-- [CLI and runtime reference](docs/reference/cli.md).
+- [CLI and runtime reference](docs/reference/cli.md);
+- [supervised release control](docs/release-control.md) — Changesets, protected
+  publishing, recovery, repository policy, and the bounded Locus claim.
 
 ## Try it
 
@@ -203,6 +205,5 @@ security sandbox.
 
 ---
 
-This repository is a one-directional projection of
-`operatorstack/intelligence-flow` (`labs/22-yield`). Changes land via the
-automated sync PR; do not edit files here directly. MIT licensed.
+This is Yield's canonical source repository. Changes, verification, release
+intent, and publishing control all live here. MIT licensed.
