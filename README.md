@@ -16,6 +16,7 @@
   <a href="https://www.npmjs.com/package/@operatorstack/yield"><img alt="npm version" src="https://img.shields.io/npm/v/@operatorstack/yield?style=flat-square" /></a>
   <!-- npm-exclude:start -->
   <a href="https://pypi.org/project/yieldskill/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/yieldskill?style=flat-square" /></a>
+  <a href="https://crates.io/crates/yieldskill"><img alt="crates.io version" src="https://img.shields.io/crates/v/yieldskill?style=flat-square" /></a>
   <!-- npm-exclude:end -->
   <a href="https://github.com/operatorstack/yield/actions/workflows/verify.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/operatorstack/yield/verify.yml?branch=main&amp;style=flat-square&amp;label=build" /></a>
   <a href="https://github.com/operatorstack/yield/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/npm/l/@operatorstack/yield?style=flat-square" /></a>
@@ -27,6 +28,7 @@
   <a href="https://www.npmjs.com/package/@operatorstack/yield">npm</a> ·
   <!-- npm-exclude:start -->
   <a href="https://pypi.org/project/yieldskill/">PyPI</a> ·
+  <a href="https://crates.io/crates/yieldskill">crates.io</a> ·
   <!-- npm-exclude:end -->
   <a href="https://github.com/operatorstack/yield">GitHub</a>
 </p>

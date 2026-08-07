@@ -53,6 +53,59 @@ test("Python README example matches the tested environment doctor", async () => 
   assert.equal(readmeProgram, sourceMatch[1].trim());
 });
 
+test("Rust README example matches the tested data migration", async () => {
+  const [readme, source, fixture] = await Promise.all([
+    text("sdk/rust/README.md"),
+    text("examples/data-migration/src/main.rs"),
+    text("examples/data-migration/fixtures/responses.json"),
+  ]);
+
+  const readmeMatch = readme.match(
+    /<!-- rust-example:start -->\s*```rust\n([\s\S]*?)\n```\s*<!-- rust-example:end -->/,
+  );
+  assert.ok(readmeMatch, "Rust README example markers are missing");
+
+  const sourceMatch = source.match(
+    /\/\/ README_EXAMPLE_START\n([\s\S]*?)\n\/\/ README_EXAMPLE_END/,
+  );
+  assert.ok(sourceMatch, "Rust source example markers are missing");
+  assert.equal(readmeMatch[1].trim(), sourceMatch[1].trim());
+
+  const fixtureMatch = readme.match(
+    /<!-- rust-fixture:start -->\s*```json\n([\s\S]*?)\n```\s*<!-- rust-fixture:end -->/,
+  );
+  assert.ok(fixtureMatch, "Rust README fixture markers are missing");
+  assert.deepEqual(JSON.parse(fixtureMatch[1]), JSON.parse(fixture));
+});
+
+test("Rust README presents a public five-step workflow", async () => {
+  const readme = await text("sdk/rust/README.md");
+  const headings = [
+    "### 1. Install Yield",
+    "### 2. Create the workflow",
+    "### 3. Test the workflow",
+    "### 4. Register the skill",
+    "### 5. Run the skill",
+  ];
+
+  let previous = -1;
+  for (const heading of headings) {
+    const current = readme.indexOf(heading);
+    assert.ok(current > previous, `${heading} is missing or out of order`);
+    previous = current;
+  }
+
+  assert.match(readme, /cargo install yieldskill --locked/);
+  assert.match(readme, /yskill init skills\/data-migration/);
+  assert.match(readme, /yskill doctor skills\/data-migration --test/);
+  assert.match(readme, /yskill register skills\/data-migration/);
+  assert.match(readme, /^\/data-migration$/m);
+  assert.match(readme, /https:\/\/crates\.io\/crates\/yieldskill/);
+  assert.match(readme, /https:\/\/docs\.rs\/yieldskill/);
+  assert.doesNotMatch(readme, /get\.operatorstack\.systems\/cargo|npmjs\.com|pypi\.org/);
+  assert.doesNotMatch(readme, /(?:href|src)="(?!https:\/\/)/);
+});
+
 test("Python README presents a public five-step workflow", async () => {
   const readme = await text("sdk/python/README.md");
   const headings = [
@@ -162,9 +215,10 @@ test("README uses the borderless Yield mark", async () => {
 });
 
 test("README and quickstart use the public documentation and package registries", async () => {
-  const [readme, pythonReadme, docsIndex, quickstart, agentSetup] = await Promise.all([
+  const [readme, pythonReadme, rustReadme, docsIndex, quickstart, agentSetup] = await Promise.all([
     text("README.md"),
     text("sdk/python/README.md"),
+    text("sdk/rust/README.md"),
     text("docs/README.md"),
     text("docs/quickstart.md"),
     text("docs/agent-setup.md"),
@@ -172,9 +226,12 @@ test("README and quickstart use the public documentation and package registries"
 
   assert.match(readme, /href="https:\/\/yield\.operatorstack\.systems\/docs\/">Documentation<\/a>/);
   assert.match(readme, /href="https:\/\/pypi\.org\/project\/yieldskill\/">PyPI<\/a>/);
+  assert.match(readme, /href="https:\/\/crates\.io\/crates\/yieldskill">crates\.io<\/a>/);
   assert.match(pythonReadme, /python -m pip install yieldskill/);
   assert.match(pythonReadme, /https:\/\/pypi\.org\/project\/yieldskill\//);
   assert.doesNotMatch(pythonReadme, /get\.operatorstack\.systems\/pip/);
+  assert.match(rustReadme, /cargo install yieldskill --locked/);
+  assert.doesNotMatch(rustReadme, /get\.operatorstack\.systems\/cargo/);
   assert.match(docsIndex, /\[public documentation\]\(https:\/\/yield\.operatorstack\.systems\/docs\/\)/);
   assert.match(quickstart, /npm install --save-exact @operatorstack\/yield/);
   assert.doesNotMatch(quickstart, /get\.operatorstack\.systems\/npm|@operatorstack\/yield@0\./);

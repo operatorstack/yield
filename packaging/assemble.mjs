@@ -103,7 +103,7 @@ async function assemblePython({ version, binaries, output }) {
 }
 
 function rustDependency(target, version) {
-  return `[target.'cfg(all(target_os = "${target.rustOs}", target_arch = "${target.rustArch}"))'.dependencies]\n${rustPackage(target)} = { version = "=${version}", registry = "operatorstack" }\n`;
+  return `[target.'cfg(all(target_os = "${target.rustOs}", target_arch = "${target.rustArch}"))'.dependencies]\n${rustPackage(target)} = { version = "=${version}" }\n`;
 }
 
 async function assembleRust({ version, binaries, output }, records) {
@@ -115,17 +115,22 @@ async function assembleRust({ version, binaries, output }, records) {
     const runtime = target.goos === "windows" ? "yskill.exe" : "yskill";
     await mkdir(join(directory, "src"), { recursive: true });
     await copyBinary(join(binaries, binaryName(target)), join(directory, "runtime", runtime), false);
-    await writeFile(join(directory, "Cargo.toml"), `[package]\nname = "${name}"\nversion = "${version}"\nedition = "2021"\nlicense = "MIT"\ndescription = "Internal Yield runtime for ${target.id}"\nrepository = "https://github.com/operatorstack/yield"\ninclude = ["src/lib.rs", "runtime/${runtime}"]\n\n[lib]\npath = "src/lib.rs"\n`);
+    await cp(join(root, "LICENSE"), join(directory, "LICENSE"));
+    await writeFile(join(directory, "README.md"), `# ${name}\n\nPlatform runtime support for [Yield](https://crates.io/crates/yieldskill) on ${target.id}.\n\nThis crate is installed automatically by \`yieldskill\`. Do not add it directly.\n`);
+    await writeFile(join(directory, "Cargo.toml"), `[package]\nname = "${name}"\nversion = "${version}"\nedition = "2021"\nlicense = "MIT"\ndescription = "Yield runtime support for ${target.id}."\nrepository = "https://github.com/operatorstack/yield"\nhomepage = "https://yield.operatorstack.systems/"\nreadme = "README.md"\ninclude = ["src/lib.rs", "runtime/${runtime}", "README.md", "LICENSE"]\n\n[lib]\npath = "src/lib.rs"\n`);
     await writeFile(join(directory, "src/lib.rs"), `pub const BYTES: &[u8] = include_bytes!("../runtime/${runtime}");\npub const SHA256: &str = "${runtimeByTarget.get(target.id).sha256}";\n`);
   }
 
   const main = join(rust, "yieldskill");
   await cp(join(root, "sdk/rust"), main, { recursive: true, filter: (source) => !source.includes("/target") });
+  await cp(join(root, "LICENSE"), join(main, "LICENSE"));
   let cargo = (await readFile(join(main, "Cargo.toml"), "utf8")).replace(/^version = ".*"/m, `version = "${version}"`);
   cargo += `\n[[bin]]\nname = "yskill"\npath = "src/bin/yskill.rs"\n\n${targets.map((target) => rustDependency(target, version)).join("\n")}`;
   await writeFile(join(main, "Cargo.toml"), cargo);
   await mkdir(join(main, "src/bin"), { recursive: true });
   await cp(join(root, "packaging/rust-launcher.rs"), join(main, "src/bin/yskill.rs"));
+  await mkdir(join(rust, ".cargo"), { recursive: true });
+  await writeFile(join(rust, ".cargo/config.toml"), `[patch.crates-io]\n${targets.map((target) => `${rustPackage(target)} = { path = "runtime/${target.id}" }`).join("\n")}\n`);
 }
 
 export async function assemble(options) {
