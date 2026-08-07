@@ -80,6 +80,7 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(raw["npm-publish.yml"].indexOf("Publish platform runtimes") < raw["npm-publish.yml"].indexOf("Publish SDK and CLI"), "runtime packages must publish before the SDK package");
   expect(raw["npm-publish.yml"].includes("pypa/gh-action-pypi-publish@"), "PyPI publishing must use the trusted-publishing action");
   expect(raw["npm-publish.yml"].includes("rust-lang/crates-io-auth-action@"), "crates.io publishing must use the trusted-publishing action");
+  expect(raw["npm-publish.yml"].includes("chmod 0644 dist/packages/rust/runtime/*/runtime/*"), "Rust archives must normalize embedded runtime modes before artifact transport");
   expect(raw["npm-publish.yml"].indexOf("rust/runtime/*") < raw["npm-publish.yml"].indexOf("rust/yieldskill"), "Rust runtime crates must publish before the SDK crate");
   expect(!raw["npm-publish.yml"].includes("skip-existing"), "PyPI retries must verify hashes instead of blindly skipping existing files");
 

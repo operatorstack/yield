@@ -139,6 +139,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          chmod 0644 dist/packages/rust/runtime/*/runtime/*
           node packaging/crates-release.mjs inspect --version "$VERSION" --rust dist/packages/rust
           mkdir -p dist/crates
           for directory in dist/packages/rust/runtime/*; do
