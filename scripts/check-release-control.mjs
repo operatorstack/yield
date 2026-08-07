@@ -49,6 +49,8 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(release.permissions?.contents === "read", "release planning must be read-only");
   expect(release.jobs?.release?.permissions?.contents === "write", "tag creation alone needs contents:write");
   expect(release.jobs?.release?.environment === "release-control", "release authorization must use the protected release-control environment");
+  expect(raw["release.yml"].includes('repos/$GITHUB_REPOSITORY/git/refs'), "release controller must create tags with its scoped GitHub token");
+  expect(!raw["release.yml"].includes('git push origin "refs/tags/$TAG"'), "release controller must not push tags without explicit authentication");
   expect(raw["release.yml"].includes("--draft"), "release controller must create a draft release");
   expect(!raw["release.yml"].includes("--draft=false"), "release controller must not finalize its own release");
 
