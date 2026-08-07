@@ -52,3 +52,9 @@ test("README agent claims match the pinned registry", async () => {
   );
   assert.doesNotMatch(readme, /Agent Plugins and Yield/);
 });
+
+test("README uses the compact Yield mark", async () => {
+  const readme = await text("README.md");
+  assert.match(readme, /https:\/\/yield\.operatorstack\.systems\/favicon\.svg/);
+  assert.doesNotMatch(readme, /apple-touch-icon\.png/);
+});

@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://yield.operatorstack.systems/">
-    <img src="https://yield.operatorstack.systems/apple-touch-icon.png" width="96" height="96" alt="Yield" />
+    <img src="https://yield.operatorstack.systems/favicon.svg" width="96" height="96" alt="Yield" />
   </a>
 </p>
 

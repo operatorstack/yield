@@ -30,8 +30,63 @@ jobs:
       - run: go test ./...
       - run: go build ./...
 
-  validate:
-    name: Release authority and full validation
+  release:
+    name: Release and package controls
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:release
+      - run: node scripts/check-release-control.mjs
+
+  typescript:
+    name: TypeScript SDK and npm package
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk/typescript
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+      - run: npm test
+      - run: npm run build
+      - name: Pack, install, and import the SDK
+        run: |
+          tarball="$RUNNER_TEMP/$(npm pack --silent --pack-destination "$RUNNER_TEMP")"
+          smoke_dir="$(mktemp -d)"
+          cd "$smoke_dir"
+          npm init -y >/dev/null
+          npm install "$tarball" >/dev/null
+          node --input-type=module -e 'import { defineSkill } from "@operatorstack/yield"; if (typeof defineSkill !== "function") process.exit(1)'
+
+  python:
+    name: Python SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s sdk/python -p 'test_*.py'
+
+  rust:
+    name: Rust SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: sdk/rust
+      - run: cargo test --manifest-path sdk/rust/Cargo.toml
+
+  conformance:
+    name: Four-language conformance
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -42,7 +97,29 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
-          cache: npm
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          workspaces: |
+            sdk/rust
+            internal/conformance/testdata/skill-rs
+      - run: go vet ./...
+      - run: go test ./...
+
+  examples:
+    name: Example workflows and evaluations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
@@ -52,34 +129,12 @@ jobs:
             sdk/rust
             examples/data-migration
             examples/library/rust
-            internal/conformance/testdata/skill-rs
-      - run: npm ci --ignore-scripts
-      - name: Verify release authority and package assembly
-        run: |
-          npm run test:release
-          node scripts/check-release-control.mjs
-          python -m unittest discover -s sdk/python -p 'test_*.py'
       - name: Rerun first-party evaluations
         working-directory: evals
         run: |
           npm ci
           npm test
-      - name: Build and smoke-test the packed TypeScript SDK
-        working-directory: sdk/typescript
-        run: |
-          npm test
-          npm run build
-          tarball="$RUNNER_TEMP/$(npm pack --silent --pack-destination "$RUNNER_TEMP")"
-          smoke_dir="$(mktemp -d)"
-          cd "$smoke_dir"
-          npm init -y >/dev/null
-          npm install "$tarball" >/dev/null
-          node --input-type=module -e 'import { defineSkill } from "@operatorstack/yield"; if (typeof defineSkill !== "function") process.exit(1)'
-      - name: Vet and test four-language conformance
-        run: |
-          go vet ./...
-          go test ./...
-      - name: Run example workflow fixtures
+      - name: Run every example fixture
         run: |
           go build -o "$RUNNER_TEMP/yskill" ./cmd/yskill
           "$RUNNER_TEMP/yskill" test examples/investigate
@@ -88,3 +143,22 @@ jobs:
           "$RUNNER_TEMP/yskill" test examples/data-migration
           YSKILL="$RUNNER_TEMP/yskill" "$RUNNER_TEMP/yskill" test examples/convert-skill
           YSKILL="$RUNNER_TEMP/yskill" bash ./examples/library/test-all.sh
+
+  validate:
+    name: Release authority and full validation
+    if: ${{ always() }}
+    needs: [go, release, typescript, python, rust, conformance, examples]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every validation job
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          node -e '
+            const results = JSON.parse(process.env.RESULTS);
+            const failed = Object.entries(results).filter(([, value]) => value.result !== "success");
+            if (failed.length) {
+              console.error(failed.map(([name, value]) => `${name}: ${value.result}`).join("\n"));
+              process.exit(1);
+            }
+          '

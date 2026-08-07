@@ -43,6 +43,17 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(!(await exists(resolve(root, "UPSTREAM.json"))), "UPSTREAM.json must be removed after graduation");
   expect(!names.includes("sync-upstream.yml"), "projection sync workflow must be removed after graduation");
 
+  const verify = workflows["verify.yml"];
+  const validationJobs = ["go", "release", "typescript", "python", "rust", "conformance", "examples"];
+  expect(verify, "verify.yml is required");
+  expect(verify.on?.pull_request !== undefined, "verification must run on every pull request");
+  expect(validationJobs.every((name) => verify.jobs?.[name]), "verification must expose every SDK and package boundary");
+  expect(
+    JSON.stringify([...(verify.jobs?.validate?.needs ?? [])].sort()) === JSON.stringify([...validationJobs].sort()),
+    "the final validation gate must depend on every visible validation job",
+  );
+  expect(verify.jobs?.validate?.name === "Release authority and full validation", "the protected validation context must remain stable");
+
   const release = workflows["release.yml"];
   expect(release, "release.yml is required");
   expect(JSON.stringify(Object.keys(release.on ?? {}).sort()) === JSON.stringify(["workflow_dispatch"]), "stable release must be dispatch-only");
