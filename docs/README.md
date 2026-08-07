@@ -42,16 +42,17 @@ and start it.
 | approval points | writing explanations |
 | evidence required to finish | interpreting evidence |
 
-This is not a new agent runtime. A thin `SKILL.md` starts the program, the
-program emits one typed operation, and the coding agent performs that operation
-through its normal interface. Yield records the response and resumes from the
-next unanswered operation.
+This is not a new agent loop or a hosted agent runtime. A thin `SKILL.md` starts
+the program, the program emits one typed operation, and the coding agent
+performs that operation through its normal interface. Yield records the
+response and resumes from the next unanswered operation.
 
 ## Reference
 
 - [Skill workflow concepts](skill-workflows.md)
 - [CLI commands](reference/cli.md)
 - [Coding-agent registration](agent-setup.md)
+- [Agent Plugins and Yield](agent-plugins.md)
 - [Run, pause, resume, and replay](reference/execution-model.md)
 - [The four SDKs](reference/sdk-parity.md)
 - [Guarantees and limits](reference/guarantees.md)
