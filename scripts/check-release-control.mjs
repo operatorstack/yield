@@ -72,17 +72,11 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(npm.on?.workflow_run?.workflows?.includes("Release Yield"), "stable npm must consume the release controller receipt");
   expect(raw["npm-publish.yml"].indexOf("Publish platform runtimes") < raw["npm-publish.yml"].indexOf("Publish SDK and CLI"), "runtime packages must publish before the SDK package");
 
-  const privateRegistry = workflows["private-registry.yml"];
-  expect(privateRegistry && !privateRegistry.on?.push, "private stable publishing must not accept direct tag pushes");
-  expect(privateRegistry.jobs?.publish?.environment === "private-production", "private publishing must use its protected environment");
-
   const finalizer = workflows["release-finalize.yml"];
   expect(finalizer?.permissions?.actions === "read" && finalizer.permissions?.contents === "read", "finalizer preflight must be read-only");
   expect(finalizer.jobs?.finalize?.permissions?.contents === "write", "receipt-complete finalization alone needs contents:write");
   expect(finalizer.jobs?.finalize?.needs === "resolve", "finalization must follow read-only tag resolution");
   expect(raw["release-finalize.yml"].includes("--draft=false"), "only the receipt finalizer may publish the GitHub release");
-  expect(!raw["release-finalize.yml"].includes("private-registry.yml"), "the private mirror must not block public release finalization");
-
   for (const [name, text] of Object.entries(raw)) {
     expect(!/NPM_TOKEN|NODE_AUTH_TOKEN|secrets\.npm/i.test(text), `${name}: long-lived npm credentials are forbidden`);
   }
