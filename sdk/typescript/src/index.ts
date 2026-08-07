@@ -1,6 +1,6 @@
 // Yield skill-program SDK for TypeScript (yield.v1).
 //
-// Implements the Locus-certified SDK execution contract (see ir/README.md):
+// Implements the tested SDK execution contract (see ir/README.md):
 // load the journal, replay recorded operations with a digest comparison at
 // EVERY replayed step before consuming its response, emit exactly one
 // program output (request | terminal | diverged) on stdout, then exit.

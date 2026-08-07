@@ -1,0 +1,177 @@
+name: Publish Yield to npm
+
+on:
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: ["Release Yield"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing stable tag version without the leading v
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-${{ github.event_name == 'push' && 'canary' || 'stable' }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    if: >-
+      github.repository == 'operatorstack/yield' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.release.outputs.publish }}
+      channel: ${{ steps.release.outputs.channel }}
+      version: ${{ steps.release.outputs.version }}
+      dist_tag: ${{ steps.release.outputs.dist_tag }}
+      source_sha: ${{ steps.release.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.sha }}
+      - id: release
+        name: Resolve immutable source, version, and channel
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+            committed_at="$(git show -s --format=%cd --date=format:%Y%m%d%H%M%S HEAD)"
+            version="0.0.0-canary.${committed_at}.$(git rev-parse --short=12 HEAD)"
+            channel=canary
+            dist_tag=canary
+          else
+            if [[ "$GITHUB_EVENT_NAME" == workflow_run ]]; then
+              tag="$(git tag --points-at HEAD --list 'v[0-9]*' --sort=-v:refname | head -n 1)"
+              if [[ -z "$tag" ]]; then
+                echo "publish=false" >> "$GITHUB_OUTPUT"
+                echo "Release run created no tag; this was a dry run."
+                exit 0
+              fi
+              version="${tag#v}"
+            else
+              version="$REQUESTED_VERSION"
+              tag="v${version}"
+            fi
+            [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            test "$(git rev-list -n 1 "v${version}")" = "$source_sha"
+            channel=stable
+            dist_tag=latest
+          fi
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dist_tag=$dist_tag" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: resolve
+    if: needs.resolve.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.channel == 'stable' && 'npm-production' || 'npm-canary' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.resolve.outputs.source_sha }}
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Pin npm trusted-publishing client
+        run: npm install --global npm@12.0.2
+      - name: Verify source
+        run: |
+          go test ./...
+          node --test packaging/*.test.mjs sdk/typescript/bin/*.test.mjs
+      - name: Build immutable runtimes
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/bin
+          for spec in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64 windows/amd64 windows/arm64; do
+            goos="${spec%/*}"
+            goarch="${spec#*/}"
+            suffix=""
+            if [[ "$goos" == windows ]]; then suffix=.exe; fi
+            CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \
+              go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" \
+              -o "dist/bin/yskill-${goos}-${goarch}${suffix}" ./cmd/yskill
+          done
+          node packaging/assemble.mjs --version "$VERSION" --binaries dist/bin --output dist/packages
+      - name: Inspect npm tarballs
+        shell: bash
+        run: |
+          set -euo pipefail
+          for directory in dist/packages/npm/*; do
+            (cd "$directory" && npm pack --dry-run)
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-${{ needs.resolve.outputs.version }}-release-unit
+          path: |
+            dist/packages/SHA256SUMS.json
+            dist/packages/npm/
+          if-no-files-found: error
+      - name: Publish platform runtimes
+        env:
+          DIST_TAG: ${{ needs.resolve.outputs.dist_tag }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for directory in dist/packages/npm/darwin-* dist/packages/npm/linux-* dist/packages/npm/windows-*; do
+            package="$(node -p "require('./${directory}/package.json').name")"
+            if npm view "${package}@${VERSION}" version >/dev/null 2>&1; then
+              echo "${package}@${VERSION} already exists"
+            else
+              (cd "$directory" && npm publish --tag "$DIST_TAG")
+            fi
+          done
+      - name: Publish SDK and CLI
+        env:
+          DIST_TAG: ${{ needs.resolve.outputs.dist_tag }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if npm view "@operatorstack/yield@${VERSION}" version >/dev/null 2>&1; then
+            echo "@operatorstack/yield@${VERSION} already exists"
+          else
+            (cd dist/packages/npm/yield && npm publish --tag "$DIST_TAG")
+          fi
+      - name: Verify complete public release unit
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for directory in dist/packages/npm/*; do
+            package="$(node -p "require('./${directory}/package.json').name")"
+            for attempt in {1..12}; do
+              if [[ "$(npm view "${package}@${VERSION}" version 2>/dev/null || true)" == "$VERSION" ]]; then break; fi
+              test "$attempt" -lt 12
+              sleep 10
+            done
+          done

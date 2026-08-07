@@ -1,7 +1,7 @@
 {
   "name": "@operatorstack/yield",
   "version": "0.1.0",
-  "description": "Build portable, resumable skill workflows in TypeScript.",
+  "description": "Yield skill-program SDK for TypeScript: turn SKILL.md workflows into resumable programs.",
   "license": "MIT",
   "type": "module",
   "files": [
@@ -29,7 +29,23 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/operatorstack/yield.git",
+    "url": "git+https://github.com/operatorstack/yield.git",
     "directory": "sdk/typescript"
+  },
+  "homepage": "https://github.com/operatorstack/yield#readme",
+  "bugs": {
+    "url": "https://github.com/operatorstack/yield/issues"
+  },
+  "keywords": [
+    "agent",
+    "skills",
+    "workflow",
+    "resumable",
+    "cli"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
   }
 }

@@ -31,8 +31,8 @@ runtime. Go and Rust install the matching runtime under `.yield/bin` in the
 repository. Generated adapters never use a global `yskill` from `PATH`.
 
 ```bash
-# TypeScript
-npm install --save-exact @operatorstack/yield@0.1.29 --registry=https://get.operatorstack.systems/npm/
+# TypeScript (public npm)
+npm install --save-exact @operatorstack/yield@0.1.29
 npm exec -- yskill --version
 
 # Python, after creating and activating .venv
@@ -192,8 +192,7 @@ Not guaranteed: that the agent performed *only* the requested operation,
 or that a schema-valid `agent_task` result is true — schema validity is
 not truth. `RunCommand` is the exception by construction: commands are
 executed by the Yield CLI, so exit codes and output enter the log as
-observed fact. The formal analysis behind this line is in
-`docs/locus-yield.md`.
+observed fact. Runtime and conformance tests enforce these guarantees.
 
 ## What it is not
 
@@ -203,6 +202,5 @@ security sandbox.
 
 ---
 
-This repository is a one-directional projection of
-`operatorstack/intelligence-flow` (`labs/22-yield`). Changes land via the
-automated sync PR; do not edit files here directly. MIT licensed.
+This is Yield's canonical source repository. Changes, verification, release
+intent, and publishing control all live here. MIT licensed.

@@ -1,6 +1,6 @@
 """Yield skill-program SDK for Python (yield.v1).
 
-Implements the Locus-certified SDK execution contract (see ir/README.md):
+Implements the tested SDK execution contract (see ir/README.md):
 load the journal, replay recorded operations with a digest comparison at
 EVERY replayed step before consuming its response, emit exactly one
 program output (request | terminal | diverged) on stdout, then exit.
@@ -182,9 +182,8 @@ class Context:
             want = _request_digest(entry["request"])
             got = _request_digest(req)
             if want != got:
-                # Mandatory per-step check: consuming a recorded response
-                # for a drifted operation is the forbidden state the rival
-                # design fails (docs/locus/drv-ad50b13e…).
+                # Mandatory per-step check: a changed operation must not
+                # consume a recorded response meant for another operation.
                 raise _EmitSignal(
                     {
                         "type": "diverged",

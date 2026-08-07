@@ -1,0 +1,99 @@
+name: Finalize Yield release
+
+on:
+  workflow_run:
+    workflows: ["Publish Yield to npm"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing stable version without the leading v
+        type: string
+        required: true
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: finalize-yield-release
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    if: >-
+      github.repository == 'operatorstack/yield' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    outputs:
+      finalize: ${{ steps.release.outputs.finalize }}
+      tag: ${{ steps.release.outputs.tag }}
+      source_sha: ${{ steps.release.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: release
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            [[ "$REQUESTED_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            tag="v${REQUESTED_VERSION}"
+            sha="$(git rev-list -n 1 "$tag")"
+          else
+            sha="$WORKFLOW_HEAD_SHA"
+            tag="$(git tag --points-at "$sha" --list 'v[0-9]*' --sort=-v:refname | head -n 1)"
+            if [[ -z "$tag" ]]; then
+              echo "finalize=false" >> "$GITHUB_OUTPUT"
+              echo "Publisher run has no stable tag; nothing to finalize."
+              exit 0
+            fi
+          fi
+          echo "finalize=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$sha" >> "$GITHUB_OUTPUT"
+
+  finalize:
+    needs: resolve
+    if: needs.resolve.outputs.finalize == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.resolve.outputs.source_sha }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Require matching successful publisher receipts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+          SOURCE_SHA: ${{ needs.resolve.outputs.source_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/npm-publish.yml/runs?head_sha=${SOURCE_SHA}&status=completed&per_page=30" \
+            --jq '[.workflow_runs[] | select(.event == "workflow_run" or .event == "workflow_dispatch")][0].conclusion // "missing"')"
+          test "$conclusion" = success
+          for package in \
+            @operatorstack/yield \
+            @operatorstack/yield-darwin-amd64 @operatorstack/yield-darwin-arm64 \
+            @operatorstack/yield-linux-amd64 @operatorstack/yield-linux-arm64 \
+            @operatorstack/yield-windows-amd64 @operatorstack/yield-windows-arm64; do
+            test "$(npm view "${package}@${version}" version)" = "$version"
+          done
+          test "$(git rev-list -n 1 "$TAG")" = "$SOURCE_SHA"
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

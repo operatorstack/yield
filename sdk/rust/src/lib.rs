@@ -1,6 +1,6 @@
 //! Yield skill-program SDK for Rust (yield.v1).
 //!
-//! Implements the Locus-certified SDK execution contract (see ir/README.md):
+//! Implements the tested SDK execution contract (see ir/README.md):
 //! load the journal, replay recorded operations with a digest comparison at
 //! EVERY replayed step before consuming its response, emit exactly one
 //! program output (request | terminal | diverged) on stdout, then exit.
@@ -300,9 +300,8 @@ impl Context {
     }
 
     /// The certified contract's step: replay with a mandatory per-step
-    /// digest check, or emit-and-exit at the frontier. Consuming a recorded
-    /// response for a drifted operation is the forbidden state the rival
-    /// design fails (docs/locus/drv-ad50b13e…).
+    /// digest check, or emit-and-exit at the frontier. A changed operation
+    /// must not consume a response recorded for another operation.
     fn step(&mut self, req: Request) -> ResponseEnvelope {
         let seq = (self.idx + 1) as u64;
         if self.idx < self.journal.entries.len() {
