@@ -2,7 +2,7 @@ name: Finalize Yield release
 
 on:
   workflow_run:
-    workflows: ["Publish Yield to npm"]
+    workflows: ["Publish Yield packages"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -85,9 +85,13 @@ jobs:
         run: |
           set -euo pipefail
           version="${TAG#v}"
-          conclusion="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/npm-publish.yml/runs?head_sha=${SOURCE_SHA}&status=completed&per_page=30" \
-            --jq '[.workflow_runs[] | select(.event == "workflow_run" or .event == "workflow_dispatch")][0].conclusion // "missing"')"
-          test "$conclusion" = success
+          run="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/package-publish.yml/runs?head_sha=${SOURCE_SHA}&status=completed&per_page=30" \
+            --jq '[.workflow_runs[] | select(.event == "workflow_run" or .event == "workflow_dispatch")][0] // {}')"
+          test "$(jq -r '.conclusion // "missing"' <<< "$run")" = success
+          run_id="$(jq -r '.id // empty' <<< "$run")"
+          test -n "$run_id"
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
+            --name "packages-${version}-${SOURCE_SHA}" --dir "$RUNNER_TEMP/release-unit"
           for package in \
             @operatorstack/yield \
             @operatorstack/yield-darwin-amd64 @operatorstack/yield-darwin-arm64 \
@@ -95,5 +99,10 @@ jobs:
             @operatorstack/yield-windows-amd64 @operatorstack/yield-windows-arm64; do
             test "$(npm view "${package}@${version}" version)" = "$version"
           done
+          node packaging/pypi-release.mjs verify \
+            --version "$version" \
+            --dist "$RUNNER_TEMP/release-unit/pypi" \
+            --attempts 3 \
+            --delay-ms 10000
           test "$(git rev-list -n 1 "$TAG")" = "$SOURCE_SHA"
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
