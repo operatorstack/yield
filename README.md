@@ -1,5 +1,7 @@
 # Yield
 
+Yield is an open-source execution runtime for programmable Agent Skill workflows.
+
 **Write one skill workflow. Run it from your coding agents.**
 
 Skill workflows are portable, executable processes that combine agent skills
@@ -30,21 +32,21 @@ repository. Generated adapters never use a global `yskill` from `PATH`.
 
 ```bash
 # TypeScript
-npm install --save-exact @operatorstack/yield@0.1.26 --registry=https://get.operatorstack.systems/npm/
+npm install --save-exact @operatorstack/yield@0.1.29 --registry=https://get.operatorstack.systems/npm/
 npm exec -- yskill --version
 
 # Python, after creating and activating .venv
-python -m pip install yieldskill==0.1.26 --index-url https://get.operatorstack.systems/pip/simple/
+python -m pip install yieldskill==0.1.29 --index-url https://get.operatorstack.systems/pip/simple/
 python -m yieldskill --version
 
 # Go, from the repository root
 mkdir -p .yield/bin
 GOBIN="$PWD/.yield/bin" GOPROXY=https://get.operatorstack.systems/go,direct \
-  go install github.com/operatorstack/yield/cmd/yskill@v0.1.26
+  go install github.com/operatorstack/yield/cmd/yskill@v0.1.29
 .yield/bin/yskill --version
 
 # Rust, from the repository root
-cargo install yieldskill@0.1.26 --root .yield \
+cargo install yieldskill@0.1.29 --root .yield \
   --index sparse+https://get.operatorstack.systems/cargo/index/ --locked
 .yield/bin/yskill --version
 ```
@@ -145,6 +147,8 @@ the documentation for your job:
 - [examples](docs/examples.md) — working programs in all four languages;
 - [coding-agent setup](docs/agent-setup.md) — register one skill workflow with the
   agents used by the project;
+- [Agent Plugins and Yield](docs/agent-plugins.md) — where portable packaging ends
+  and workflow execution begins;
 - [test workflow effects](docs/testing-fixtures.md) — deterministic fixture
   setup, response effects, standard-input JSON, and cleanup;
 - [evaluations](evals/README.md) — first-party workflow conformance and runtime
