@@ -31,6 +31,56 @@ test("README release example matches the tested TypeScript source", async () => 
   assert.equal(readmeProgram, sourceMatch[1].trim());
 });
 
+test("Python README example matches the tested environment doctor", async () => {
+  const [readme, source] = await Promise.all([
+    text("sdk/python/README.md"),
+    text("examples/env-doctor/main.py"),
+  ]);
+
+  const readmeMatch = readme.match(
+    /<!-- python-example:start -->\s*```python\n([\s\S]*?)\n```\s*<!-- python-example:end -->/,
+  );
+  assert.ok(readmeMatch, "Python README example markers are missing");
+
+  const sourceMatch = source.match(
+    /# README_EXAMPLE_START\n([\s\S]*?)\n# README_EXAMPLE_END/,
+  );
+  assert.ok(sourceMatch, "Python source example markers are missing");
+
+  const readmeProgram = readmeMatch[1]
+    .replace(/^from yieldskill import define_skill\n+/, "")
+    .trim();
+  assert.equal(readmeProgram, sourceMatch[1].trim());
+});
+
+test("Python README presents a public five-step workflow", async () => {
+  const readme = await text("sdk/python/README.md");
+  const headings = [
+    "### 1. Install Yield",
+    "### 2. Create the workflow",
+    "### 3. Test the workflow",
+    "### 4. Register the skill",
+    "### 5. Run the skill",
+  ];
+
+  let previous = -1;
+  for (const heading of headings) {
+    const current = readme.indexOf(heading);
+    assert.ok(current > previous, `${heading} is missing or out of order`);
+    previous = current;
+  }
+
+  assert.match(readme, /python -m pip install yieldskill/);
+  assert.match(readme, /python -m yieldskill init skills\/env-doctor/);
+  assert.match(readme, /python -m yieldskill doctor skills\/env-doctor --test/);
+  assert.match(readme, /python -m yieldskill register skills\/env-doctor/);
+  assert.match(readme, /^\/env-doctor$/m);
+  assert.match(readme, /https:\/\/github\.com\/operatorstack\/yield\/blob\/main\/docs\/reference\/cli\.md/);
+  assert.doesNotMatch(readme, /get\.operatorstack\.systems\/pip/);
+  assert.doesNotMatch(readme, /npmjs\.com|npm version/);
+  assert.doesNotMatch(readme, /(?:href|src)="(?!https:\/\/)/);
+});
+
 test("README agent claims match the pinned registry", async () => {
   const [readme, registryText] = await Promise.all([
     text("README.md"),
@@ -131,4 +181,13 @@ test("README and quickstart use the public documentation and package registries"
   assert.match(quickstart, /^## 6\. Run the skill$/m);
   assert.match(quickstart, /^\/review$/m);
   assert.match(agentSetup, /^## Run the registered skill$/m);
+});
+
+test("root README links survive npm package rendering", async () => {
+  const readme = await text("README.md");
+  assert.match(readme, /https:\/\/github\.com\/operatorstack\/yield\/blob\/main\/docs\/skill-workflows\.md/);
+  assert.match(readme, /https:\/\/github\.com\/operatorstack\/yield\/blob\/main\/evals\/README\.md/);
+  assert.match(readme, /https:\/\/github\.com\/operatorstack\/yield\/tree\/main\/examples\/library\//);
+  assert.doesNotMatch(readme, /\]\((?!https?:\/\/|#|mailto:)[^)]+\)/);
+  assert.doesNotMatch(readme, /href="(?!https?:\/\/|#|mailto:)[^"]+"/);
 });

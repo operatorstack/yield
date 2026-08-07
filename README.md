@@ -14,16 +14,20 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@operatorstack/yield"><img alt="npm version" src="https://img.shields.io/npm/v/@operatorstack/yield?style=flat-square" /></a>
+  <!-- npm-exclude:start -->
   <a href="https://pypi.org/project/yieldskill/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/yieldskill?style=flat-square" /></a>
+  <!-- npm-exclude:end -->
   <a href="https://github.com/operatorstack/yield/actions/workflows/verify.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/operatorstack/yield/verify.yml?branch=main&amp;style=flat-square&amp;label=build" /></a>
-  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/npm/l/@operatorstack/yield?style=flat-square" /></a>
+  <a href="https://github.com/operatorstack/yield/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/npm/l/@operatorstack/yield?style=flat-square" /></a>
 </p>
 
 <p align="center">
   <a href="https://yield.operatorstack.systems/">Website</a> ·
   <a href="https://yield.operatorstack.systems/docs/">Documentation</a> ·
   <a href="https://www.npmjs.com/package/@operatorstack/yield">npm</a> ·
+  <!-- npm-exclude:start -->
   <a href="https://pypi.org/project/yieldskill/">PyPI</a> ·
+  <!-- npm-exclude:end -->
   <a href="https://github.com/operatorstack/yield">GitHub</a>
 </p>
 
@@ -98,7 +102,7 @@ defineSkill((ctx) => {
 The example uses harmless commands so its fixture can run in any checkout.
 Replace them with the test, publish, and registry commands for your project.
 The complete tested source is in
-[`examples/release-checklist`](examples/release-checklist/).
+[`examples/release-checklist`](https://github.com/operatorstack/yield/tree/main/examples/release-checklist/).
 
 ## Use Yield in five steps
 
@@ -213,8 +217,8 @@ forking. Every side effect crosses one of these primitives:
 | `require` | Bind a required claim to recorded evidence. |
 | `blocked` / `refused` | Stop honestly when work cannot or must not continue. |
 
-See the [primitive guides](docs/primitives/README.md) and
-[runtime reference](docs/reference/cli.md) for the full contract.
+See the [primitive guides](https://github.com/operatorstack/yield/blob/main/docs/primitives/README.md) and
+[runtime reference](https://github.com/operatorstack/yield/blob/main/docs/reference/cli.md) for the full contract.
 
 ## Languages and coding agents
 
@@ -223,10 +227,10 @@ the same program in every language and compares observable behavior.
 
 | Language | SDK | Example |
 |---|---|---|
-| TypeScript | [`@operatorstack/yield`](sdk/typescript/) | [`release-checklist`](examples/release-checklist/) |
-| Python | [`yieldskill`](sdk/python/) | [`env-doctor`](examples/env-doctor/) |
-| Go | [`sdk/yield`](sdk/yield/) | [`investigate`](examples/investigate/) |
-| Rust | [`yieldskill`](sdk/rust/) | [`data-migration`](examples/data-migration/) |
+| TypeScript | [`@operatorstack/yield`](https://github.com/operatorstack/yield/tree/main/sdk/typescript/) | [`release-checklist`](https://github.com/operatorstack/yield/tree/main/examples/release-checklist/) |
+| Python | [`yieldskill`](https://github.com/operatorstack/yield/tree/main/sdk/python/) | [`env-doctor`](https://github.com/operatorstack/yield/tree/main/examples/env-doctor/) |
+| Go | [`sdk/yield`](https://github.com/operatorstack/yield/tree/main/sdk/yield/) | [`investigate`](https://github.com/operatorstack/yield/tree/main/examples/investigate/) |
+| Rust | [`yieldskill`](https://github.com/operatorstack/yield/tree/main/sdk/rust/) | [`data-migration`](https://github.com/operatorstack/yield/tree/main/examples/data-migration/) |
 
 Cursor, Codex, and Claude Code are verified integrations. Yield also includes
 registry-backed project paths for 73 more coding agents. Those paths support
@@ -250,12 +254,12 @@ loop, multi-agent orchestrator, or security sandbox.
 ## Documentation and development
 
 - [Read the public documentation](https://yield.operatorstack.systems/docs/)
-- [What a skill workflow is](docs/skill-workflows.md)
-- [Ten-minute TypeScript quickstart](docs/quickstart.md)
-- [Working examples in all four languages](docs/examples.md)
-- [Coding-agent setup](docs/agent-setup.md)
-- [Testing workflow effects](docs/testing-fixtures.md)
-- [Guarantees and evaluation results](evals/README.md)
+- [What a skill workflow is](https://github.com/operatorstack/yield/blob/main/docs/skill-workflows.md)
+- [Ten-minute TypeScript quickstart](https://github.com/operatorstack/yield/blob/main/docs/quickstart.md)
+- [Working examples in all four languages](https://github.com/operatorstack/yield/blob/main/docs/examples.md)
+- [Coding-agent setup](https://github.com/operatorstack/yield/blob/main/docs/agent-setup.md)
+- [Testing workflow effects](https://github.com/operatorstack/yield/blob/main/docs/testing-fixtures.md)
+- [Guarantees and evaluation results](https://github.com/operatorstack/yield/blob/main/evals/README.md)
 
 Run the main checks from the repository root:
 
@@ -264,7 +268,7 @@ go test ./...
 npm run test:release
 ```
 
-The [example library](examples/library/) contains ten common workflows in all
+The [example library](https://github.com/operatorstack/yield/tree/main/examples/library/) contains ten common workflows in all
 four SDKs, including code review, failure investigation, CI repair, dependency
 updates, database migration, security audit, and package release.
 

@@ -154,7 +154,7 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
 	case "python":
 		return map[string]string{
 			"main.py":          mainPython,
-			"requirements.txt": fmt.Sprintf("--index-url https://get.operatorstack.systems/pip/simple/\nyieldskill==%s\n", v),
+			"requirements.txt": fmt.Sprintf("yieldskill==%s\n", v),
 			"skill.json":       "{\"version\":1,\"language\":\"python\",\"run\":[\"python\",\"main.py\"]}\n",
 		}
 	case "rust":

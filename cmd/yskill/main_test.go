@@ -240,6 +240,9 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 			if !strings.Contains(manifest, tt.pin) {
 				t.Fatalf("manifest does not contain %q:\n%s", tt.pin, manifest)
 			}
+			if tt.language == "python" && strings.Contains(manifest, "--index-url") {
+				t.Fatalf("public Python scaffold contains a private package index:\n%s", manifest)
+			}
 		})
 	}
 	if tidyCalls != 1 {

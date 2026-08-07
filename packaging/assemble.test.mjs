@@ -44,7 +44,10 @@ test("assembles one public npm package and six matching npm and Python runtimes"
     Object.fromEntries(targets.map((target) => [npmPackage(target), "1.2.3"])),
   );
   const assembledReadme = await readFile(join(output, "npm/yield/README.md"), "utf8");
-  assert.equal(assembledReadme, await readFile(join(import.meta.dirname, "../README.md"), "utf8"));
+  const repositoryReadme = await readFile(join(import.meta.dirname, "../README.md"), "utf8");
+  assert.match(repositoryReadme, /pypi\.org\/project\/yieldskill/);
+  assert.match(assembledReadme, /npmjs\.com\/package\/@operatorstack\/yield/);
+  assert.doesNotMatch(assembledReadme, /pypi\.org|PyPI version|npm-exclude/);
   assert.equal(
     await readFile(join(output, "npm/yield/assets/yield-mark.svg"), "utf8"),
     await readFile(join(import.meta.dirname, "../assets/yield-mark.svg"), "utf8"),
