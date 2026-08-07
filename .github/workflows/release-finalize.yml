@@ -92,6 +92,8 @@ jobs:
           test -n "$run_id"
           gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
             --name "packages-${version}-${SOURCE_SHA}" --dir "$RUNNER_TEMP/release-unit"
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
+            --name "crates-${version}-${SOURCE_SHA}" --dir "$RUNNER_TEMP/crates-receipt"
           for package in \
             @operatorstack/yield \
             @operatorstack/yield-darwin-amd64 @operatorstack/yield-darwin-arm64 \
@@ -106,7 +108,7 @@ jobs:
             --delay-ms 10000
           node packaging/crates-release.mjs verify \
             --version "$version" \
-            --archives "$RUNNER_TEMP/release-unit/crates" \
+            --archives "$RUNNER_TEMP/crates-receipt" \
             --attempts 3 \
             --delay-ms 10000
           test "$(git rev-list -n 1 "$TAG")" = "$SOURCE_SHA"

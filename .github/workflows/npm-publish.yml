@@ -33,6 +33,7 @@ jobs:
       version: ${{ steps.release.outputs.version }}
       dist_tag: ${{ steps.release.outputs.dist_tag }}
       source_sha: ${{ steps.release.outputs.source_sha }}
+      source_epoch: ${{ steps.release.outputs.source_epoch }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -75,6 +76,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "dist_tag=$dist_tag" >> "$GITHUB_OUTPUT"
           echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "source_epoch=$(git show -s --format=%ct HEAD)" >> "$GITHUB_OUTPUT"
 
   build:
     needs: resolve
@@ -122,6 +124,7 @@ jobs:
       - name: Build Python wheels
         if: needs.resolve.outputs.channel == 'stable'
         env:
+          SOURCE_DATE_EPOCH: ${{ needs.resolve.outputs.source_epoch }}
           VERSION: ${{ needs.resolve.outputs.version }}
         shell: bash
         run: |
@@ -147,9 +150,7 @@ jobs:
             name="$(sed -n 's/^name = "\([^"]*\)"/\1/p' "$directory/Cargo.toml" | head -n 1)"
             cp "$directory/target/package/${name}-${VERSION}.crate" dist/crates/
           done
-          (cd dist/packages/rust && cargo package --manifest-path yieldskill/Cargo.toml)
-          cp "dist/packages/rust/yieldskill/target/package/yieldskill-${VERSION}.crate" dist/crates/
-          test "$(find dist/crates -maxdepth 1 -name '*.crate' | wc -l | tr -d ' ')" = 7
+          test "$(find dist/crates -maxdepth 1 -name '*.crate' | wc -l | tr -d ' ')" = 6
       - name: Inspect npm tarballs
         shell: bash
         run: |
@@ -344,9 +345,27 @@ jobs:
             sleep 10
           done
 
-          publish_if_missing dist/release-unit/rust/yieldskill
+          mkdir -p dist/crates-receipt
+          cp dist/release-unit/crates/*.crate dist/crates-receipt/
+          cargo package --manifest-path dist/release-unit/rust/yieldskill/Cargo.toml
+          cp "dist/release-unit/rust/yieldskill/target/package/yieldskill-${VERSION}.crate" dist/crates-receipt/
+          main_state="$(node packaging/crates-release.mjs status \
+            --version "$VERSION" \
+            --name yieldskill \
+            --archive "dist/crates-receipt/yieldskill-${VERSION}.crate")"
+          if [[ "$main_state" == matched ]]; then
+            echo "yieldskill@${VERSION} already exists with the publisher receipt checksum"
+          else
+            test "$main_state" = missing
+            cargo publish --manifest-path dist/release-unit/rust/yieldskill/Cargo.toml
+          fi
           node packaging/crates-release.mjs verify \
             --version "$VERSION" \
-            --archives dist/release-unit/crates \
+            --archives dist/crates-receipt \
             --attempts 18 \
             --delay-ms 10000
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: crates-${{ needs.resolve.outputs.version }}-${{ needs.resolve.outputs.source_sha }}
+          path: dist/crates-receipt/
+          if-no-files-found: error

@@ -81,6 +81,8 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(raw["npm-publish.yml"].includes("pypa/gh-action-pypi-publish@"), "PyPI publishing must use the trusted-publishing action");
   expect(raw["npm-publish.yml"].includes("rust-lang/crates-io-auth-action@"), "crates.io publishing must use the trusted-publishing action");
   expect(raw["npm-publish.yml"].includes("chmod 0644 dist/packages/rust/runtime/*/runtime/*"), "Rust archives must normalize embedded runtime modes before artifact transport");
+  expect(raw["npm-publish.yml"].includes("SOURCE_DATE_EPOCH"), "Python wheels must bind timestamps to the immutable source revision");
+  expect(raw["npm-publish.yml"].includes("name: crates-${{ needs.resolve.outputs.version }}-${{ needs.resolve.outputs.source_sha }}"), "the crates publisher must upload an exact post-dependency receipt");
   expect(raw["npm-publish.yml"].indexOf("rust/runtime/*") < raw["npm-publish.yml"].indexOf("rust/yieldskill"), "Rust runtime crates must publish before the SDK crate");
   expect(!raw["npm-publish.yml"].includes("skip-existing"), "PyPI retries must verify hashes instead of blindly skipping existing files");
 
@@ -95,6 +97,7 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(raw["release-finalize.yml"].includes("npm-publish.yml"), "finalization must bind the combined publisher receipt");
   expect(raw["release-finalize.yml"].includes("pypi-release.mjs verify"), "finalization must verify the PyPI wheel hashes");
   expect(raw["release-finalize.yml"].includes("crates-release.mjs verify"), "finalization must verify the crates.io package hashes");
+  expect(raw["release-finalize.yml"].includes("--name \"crates-${version}-${SOURCE_SHA}\""), "finalization must consume the publisher-produced crates receipt");
   expect(!Object.values(raw).some((text) => text.includes("CRATES_BOOTSTRAP_TOKEN")), "crates.io publishing must not use a bootstrap token");
   for (const [name, text] of Object.entries(raw)) {
     expect(!/NPM_TOKEN|NODE_AUTH_TOKEN|PYPI_TOKEN|secrets\.(npm|pypi)|password:/i.test(text), `${name}: long-lived registry credentials are forbidden`);

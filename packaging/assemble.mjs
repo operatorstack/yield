@@ -130,8 +130,6 @@ async function assembleRust({ version, binaries, output }, records) {
   await writeFile(join(main, "Cargo.toml"), cargo);
   await mkdir(join(main, "src/bin"), { recursive: true });
   await cp(join(root, "packaging/rust-launcher.rs"), join(main, "src/bin/yskill.rs"));
-  await mkdir(join(rust, ".cargo"), { recursive: true });
-  await writeFile(join(rust, ".cargo/config.toml"), `[patch.crates-io]\n${targets.map((target) => `${rustPackage(target)} = { path = "runtime/${target.id}" }`).join("\n")}\n`);
 }
 
 export async function assemble(options) {
