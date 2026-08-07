@@ -23,7 +23,9 @@ jobs:
   resolve:
     if: >-
       github.repository == 'operatorstack/yield' &&
-      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'workflow_dispatch'))
     runs-on: ubuntu-latest
     outputs:
       finalize: ${{ steps.release.outputs.finalize }}
@@ -86,7 +88,7 @@ jobs:
           set -euo pipefail
           version="${TAG#v}"
           run="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/npm-publish.yml/runs?head_sha=${SOURCE_SHA}&status=completed&per_page=30" \
-            --jq '[.workflow_runs[] | select(.event == "workflow_run" or .event == "workflow_dispatch")][0] // {}')"
+            --jq '[.workflow_runs[] | select(.event == "workflow_dispatch")][0] // {}')"
           test "$(jq -r '.conclusion // "missing"' <<< "$run")" = success
           run_id="$(jq -r '.id // empty' <<< "$run")"
           test -n "$run_id"

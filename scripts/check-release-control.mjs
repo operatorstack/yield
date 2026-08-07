@@ -93,6 +93,8 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
     "receipt-complete finalization needs artifact read access and contents:write",
   );
   expect(finalizer.jobs?.finalize?.needs === "resolve", "finalization must follow read-only tag resolution");
+  expect(raw["release-finalize.yml"].includes("github.event.workflow_run.event == 'workflow_dispatch'"), "automatic finalization must ignore canary publisher runs");
+  expect(raw["release-finalize.yml"].includes('select(.event == "workflow_dispatch")'), "finalization must select only stable publisher receipts");
   expect(raw["release-finalize.yml"].includes("--draft=false"), "only the receipt finalizer may publish the GitHub release");
   expect(raw["release-finalize.yml"].includes("npm-publish.yml"), "finalization must bind the combined publisher receipt");
   expect(raw["release-finalize.yml"].includes("pypi-release.mjs verify"), "finalization must verify the PyPI wheel hashes");
