@@ -12,8 +12,7 @@ You need Node.js 24 or newer.
 mkdir yield-example
 cd yield-example
 npm init -y
-npm install --save-exact @operatorstack/yield@0.1.29 \
-  --registry=https://get.operatorstack.systems/npm/
+npm install --save-exact @operatorstack/yield
 npm exec -- yskill --version
 ```
 
@@ -125,15 +124,30 @@ Yield keeps one canonical skill workflow and writes only generated adapters:
 .claude/skills/review/SKILL.md   # Claude Code
 ```
 
-Start a new agent session after registration, then invoke `/review` or ask for
-the task described by the skill.
-
 Check the generated adapters:
 
 ```bash
 npm exec -- yskill doctor skills/review \
   --agent cursor,codex,claude-code
 ```
+
+## 6. Run the skill
+
+Start a new coding-agent session so it discovers the generated adapter. Where
+slash skills are supported, run:
+
+```text
+/review
+```
+
+Otherwise, ask the agent in plain language:
+
+```text
+Use the review skill to check the current branch.
+```
+
+The agent starts the canonical workflow in `skills/review` and follows each
+operation until the run completes, blocks, or is refused.
 
 ## Run an existing workflow
 

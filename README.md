@@ -20,7 +20,7 @@
 
 <p align="center">
   <a href="https://yield.operatorstack.systems/">Website</a> ·
-  <a href="docs/README.md">Documentation</a> ·
+  <a href="https://yield.operatorstack.systems/docs/">Documentation</a> ·
   <a href="https://www.npmjs.com/package/@operatorstack/yield">npm</a> ·
   <a href="https://github.com/operatorstack/yield">GitHub</a>
 </p>
@@ -247,6 +247,7 @@ loop, multi-agent orchestrator, or security sandbox.
 
 ## Documentation and development
 
+- [Read the public documentation](https://yield.operatorstack.systems/docs/)
 - [What a skill workflow is](docs/skill-workflows.md)
 - [Ten-minute TypeScript quickstart](docs/quickstart.md)
 - [Working examples in all four languages](docs/examples.md)
@@ -267,4 +268,5 @@ updates, database migration, security audit, and package release.
 
 ---
 
-Yield is MIT licensed. This repository is its canonical source.
+Yield is MIT licensed. This repository contains its canonical source and
+versioned technical documentation.
