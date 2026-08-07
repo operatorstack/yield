@@ -37,6 +37,7 @@ async function copyBinary(source, destination, executable = true) {
   await mkdir(resolve(destination, ".."), { recursive: true });
   await cp(source, destination);
   if (executable && !destination.endsWith(".exe")) await chmod(destination, 0o755);
+  if (!executable) await chmod(destination, 0o644);
 }
 
 async function validateBinaries(directory) {
