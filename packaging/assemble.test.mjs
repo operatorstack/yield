@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { assemble, isPackageVersion } from "./assemble.mjs";
@@ -84,6 +84,8 @@ test("assembles one public npm package and six matching npm and Python runtimes"
     assert.doesNotMatch(rustManifest, /registry\s*=/);
     assert.match(await readFile(join(rustRoot, "README.md"), "utf8"), /installed automatically by `yieldskill`/);
     assert.match(await readFile(join(rustRoot, "LICENSE"), "utf8"), /MIT License/);
+    const rustRuntime = target.goos === "windows" ? "yskill.exe" : "yskill";
+    assert.equal((await stat(join(rustRoot, "runtime", rustRuntime))).mode & 0o111, 0);
   }
 
   const rustMain = join(output, "rust/yieldskill");
