@@ -81,6 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: release-control
     permissions:
+      actions: write
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -131,3 +132,8 @@ jobs:
             --notes-file "$RUNNER_TEMP/release-notes.md" \
             --draft \
             --verify-tag
+      - name: Dispatch the protected package publisher
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.confirm.outputs.version }}
+        run: gh workflow run npm-publish.yml --repo "$GITHUB_REPOSITORY" --ref main -f version="$VERSION"
