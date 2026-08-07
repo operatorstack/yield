@@ -74,6 +74,8 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(publisher.jobs?.npm?.permissions?.contents === "read" && publisher.jobs?.npm?.permissions?.["id-token"] === "write", "npm publisher must use read-only source plus OIDC");
   expect(publisher.jobs?.pypi?.permissions?.contents === "read" && publisher.jobs?.pypi?.permissions?.["id-token"] === "write", "PyPI publisher must use read-only source plus OIDC");
   expect(publisher.jobs?.pypi?.environment === "pypi-production", "stable PyPI publishing must use the protected pypi-production environment");
+  const pythonWheelStep = publisher.jobs?.build?.steps?.find((step) => step.name === "Build Python wheels");
+  expect(pythonWheelStep?.if === "needs.resolve.outputs.channel == 'stable'", "PyPI wheels must be built only for stable PEP 440 versions");
   expect(raw["package-publish.yml"].indexOf("Publish platform runtimes") < raw["package-publish.yml"].indexOf("Publish SDK and CLI"), "runtime packages must publish before the SDK package");
   expect(raw["package-publish.yml"].includes("pypa/gh-action-pypi-publish@"), "PyPI publishing must use the trusted-publishing action");
   expect(!raw["package-publish.yml"].includes("skip-existing"), "PyPI retries must verify hashes instead of blindly skipping existing files");
