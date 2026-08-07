@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://yield.operatorstack.systems/">
-    <img src="assets/yield-mark.svg" width="96" height="96" alt="Yield" />
+    <img src="https://raw.githubusercontent.com/operatorstack/yield/main/assets/yield-mark.svg" width="96" height="96" alt="Yield" />
   </a>
 </p>
 
@@ -98,7 +98,7 @@ Replace them with the test, publish, and registry commands for your project.
 The complete tested source is in
 [`examples/release-checklist`](examples/release-checklist/).
 
-## Use Yield in four steps
+## Use Yield in five steps
 
 ### 1. Install Yield
 
@@ -148,7 +148,7 @@ npm exec -- yskill doctor skills/release --test
 This runs commands for real and supplies agent and user responses from the
 fixture. A successful test reaches `completed` without leaving a run journal.
 
-### 4. Register and use the skill
+### 4. Register the skill
 
 Registration is the discovery step. This command detects installed verified
 agents and writes a small adapter for each one:
@@ -173,9 +173,25 @@ If all three are selected, Yield creates these generated files:
 ```
 
 The adapters point back to `skills/release`. They do not copy the workflow or
-install its dependencies again. Start a new agent session after registration,
-then invoke `/release` where slash skills are supported or ask the agent to use
-the release skill.
+install its dependencies again.
+
+### 5. Run the skill
+
+Start a new coding-agent session so it discovers the registered skill. Where
+slash skills are supported, run:
+
+```text
+/release
+```
+
+Otherwise, ask the agent in plain language:
+
+```text
+Use the release skill to publish this package.
+```
+
+The agent follows the generated adapter, runs the canonical workflow in
+`skills/release`, and asks for each required agent or user response.
 
 ## How Yield runs and resumes
 

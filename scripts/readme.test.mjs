@@ -53,13 +53,14 @@ test("README agent claims match the pinned registry", async () => {
   assert.doesNotMatch(readme, /Agent Plugins and Yield/);
 });
 
-test("README presents the workflow as four ordered steps", async () => {
+test("README presents the workflow as five ordered steps", async () => {
   const readme = await text("README.md");
   const headings = [
     "### 1. Install Yield",
     "### 2. Create the workflow",
     "### 3. Test the workflow",
-    "### 4. Register and use the skill",
+    "### 4. Register the skill",
+    "### 5. Run the skill",
   ];
 
   let previous = -1;
@@ -72,6 +73,8 @@ test("README presents the workflow as four ordered steps", async () => {
   assert.match(readme, /npm exec -- yskill doctor skills\/release --test/);
   assert.match(readme, /npm exec -- yskill register skills\/release/);
   assert.match(readme, /Registration is the discovery step\./);
+  assert.match(readme, /^\/release$/m);
+  assert.match(readme, /Use the release skill to publish this package\./);
 });
 
 test("README adapter paths match every verified agent", async () => {
@@ -97,7 +100,7 @@ test("README uses the edge-cropped Yield mark", async () => {
   ]);
   assert.match(
     readme,
-    /<img src="assets\/yield-mark\.svg" width="96" height="96" alt="Yield" \/>/,
+    /<img src="https:\/\/raw\.githubusercontent\.com\/operatorstack\/yield\/main\/assets\/yield-mark\.svg" width="96" height="96" alt="Yield" \/>/,
   );
   assert.doesNotMatch(readme, /apple-touch-icon\.png/);
   assert.match(mark, /viewBox="0 0 60 60"/);
