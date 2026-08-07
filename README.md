@@ -1,215 +1,196 @@
-# Yield
-
-<p>
-  <a href="https://www.npmjs.com/package/@operatorstack/yield"><img alt="npm" src="https://img.shields.io/npm/v/@operatorstack/yield?style=flat-square" /></a>
-  <a href="https://github.com/operatorstack/yield/actions/workflows/verify.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/operatorstack/yield/verify.yml?branch=main&amp;style=flat-square&amp;label=build" /></a>
+<p align="center">
+  <a href="https://yield.operatorstack.systems/">
+    <img src="https://yield.operatorstack.systems/apple-touch-icon.png" width="96" height="96" alt="Yield" />
+  </a>
 </p>
 
-Yield runs portable, resumable workflows for coding agents.
+<h1 align="center">Yield</h1>
 
-**Write one skill workflow. Run it from your coding agents.**
+<p align="center"><strong>Move repeatable coding-agent instructions from words into code.</strong></p>
 
-Skill workflows are portable, executable processes that combine agent skills
-with deterministic code, state, and verification.
+<p align="center">
+  In-repository workflows for TypeScript, Python, Go, and Rust.
+</p>
 
-Write the workflow in TypeScript, Python, Go, or Rust. Combine agent judgment,
-real commands, human input, checks, and saved state. Yield generates the small
-adapter each coding agent expects.
+<p align="center">
+  <a href="https://www.npmjs.com/package/@operatorstack/yield"><img alt="npm version" src="https://img.shields.io/npm/v/@operatorstack/yield?style=flat-square" /></a>
+  <a href="https://github.com/operatorstack/yield/actions/workflows/verify.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/operatorstack/yield/verify.yml?branch=main&amp;style=flat-square&amp;label=build" /></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/npm/l/@operatorstack/yield?style=flat-square" /></a>
+</p>
 
-The split is small:
+<p align="center">
+  <a href="https://yield.operatorstack.systems/">Website</a> ·
+  <a href="docs/README.md">Documentation</a> ·
+  <a href="https://www.npmjs.com/package/@operatorstack/yield">npm</a> ·
+  <a href="https://github.com/operatorstack/yield">GitHub</a>
+</p>
 
-| term | meaning |
-|---|---|
-| **skill** | one reusable capability |
-| **workflow** | order, branches, checks, and saved state |
-| **skill workflow** | an executable composition of skills, code, commands, and human input |
-| **adapter** | a generated `SKILL.md` that lets one coding agent discover the workflow |
+Yield turns repeated instructions for coding agents into typed, resumable
+programs. The canonical workflow stays inside your repository beside the code
+and dependencies it uses. Generated `SKILL.md` files only help coding agents
+discover it.
 
-The canonical skill workflow stays beside your code. Generated adapters are
-disposable. The model keeps reasoning, exploration, editing, and judgment;
-normal code owns the repeatable control flow.
+Verified with Cursor, Codex, and Claude Code. Registry-backed project paths are
+available for 73 more coding agents.
 
-## Install
+## Move repeated instructions into code
 
-Choose one language package. TypeScript and Python include a package-local
-runtime. Go and Rust install the matching runtime under `.yield/bin` in the
-repository. Generated adapters never use a global `yskill` from `PATH`.
+A release skill often starts as prose:
+
+> Run the tests. Review the release. Stop if the review finds a critical issue.
+> Ask me before publishing. Publish the package, then verify the registry.
+
+Yield makes the order and stopping rules executable:
+
+<!-- release-example:start -->
+```typescript
+import { defineSkill } from "@operatorstack/yield";
+
+type Review = { critical: number; summary: string };
+
+defineSkill((ctx) => {
+  const tests = ctx.runCommand("test", "echo tests-ok", 300);
+  ctx.require(tests.exit_code === 0, "the test command succeeds", tests);
+
+  const review = ctx.agentTask<Review>(
+    "review-release",
+    "Review this release. Report critical findings and a short summary.",
+    { stdout: tests.stdout, stderr: tests.stderr },
+    {
+      type: "object",
+      required: ["critical", "summary"],
+      properties: {
+        critical: { type: "integer", minimum: 0 },
+        summary: { type: "string", minLength: 1 },
+      },
+    },
+  );
+  ctx.require(review.critical === 0, "the review has no critical findings", review);
+
+  const approval = ctx.askUser("approve-publish", "Publish this package?", [
+    { value: "yes", label: "Publish" },
+    { value: "no", label: "Stop" },
+  ]);
+  if (approval !== "yes") ctx.refused("the operator declined publication");
+
+  const publish = ctx.runCommand("publish", "echo publish-ok", 600);
+  ctx.require(publish.exit_code === 0, "the publish command succeeds", publish);
+
+  const registry = ctx.runCommand("verify-registry", "echo registry-ok", 300);
+  ctx.require(registry.exit_code === 0, "the registry contains the release", registry);
+
+  return { published: true, summary: review.summary };
+});
+```
+<!-- release-example:end -->
+
+The example uses harmless commands so its fixture can run in any checkout.
+Replace them with the test, publish, and registry commands for your project.
+The complete tested source is in
+[`examples/release-checklist`](examples/release-checklist/).
+
+## Install and create a workflow
+
+Install the TypeScript SDK and its repository-local CLI:
 
 ```bash
-# TypeScript (public npm)
-npm install --save-exact @operatorstack/yield@0.1.30
+npm install --save-exact @operatorstack/yield
 npm exec -- yskill --version
-
-# Python, after creating and activating .venv
-python -m pip install yieldskill==0.1.29 --index-url https://get.operatorstack.systems/pip/simple/
-python -m yieldskill --version
-
-# Go, from the repository root
-mkdir -p .yield/bin
-GOBIN="$PWD/.yield/bin" GOPROXY=https://get.operatorstack.systems/go,direct \
-  go install github.com/operatorstack/yield/cmd/yskill@v0.1.29
-.yield/bin/yskill --version
-
-# Rust, from the repository root
-cargo install yieldskill@0.1.29 --root .yield \
-  --index sparse+https://get.operatorstack.systems/cargo/index/ --locked
-.yield/bin/yskill --version
 ```
 
 [Public npm releases](https://www.npmjs.com/package/@operatorstack/yield)
 use trusted publishing. The SDK package and all six runtime packages include
 SLSA v1 provenance.
 
-Yield creates `.yield/.gitignore` when it registers a Go or Rust workflow, so
-the local runtime and run state stay out of Git.
-On Windows, run the local binary as `.\.yield\bin\yskill.exe`.
-
-## Create and register a skill workflow
-
-Keep the canonical workflow beside the language dependencies it uses. Yield writes
-small adapters into each coding agent's project skill directory; it does not
-copy the workflow or install its dependencies again.
+Create, test, and register a workflow:
 
 ```bash
-# TypeScript example
-npm exec -- yskill init skills/review \
+npm exec -- yskill init skills/release \
   --language typescript \
-  --description "Review changed code when the user wants a branch checked before shipping."
+  --description "Test, review, approve, publish, and verify a package."
 
-# Replace the intentionally incomplete starter and fixture, then check it.
-npm exec -- yskill doctor skills/review --test
+# Replace the starter with your workflow and fixture.
+npm exec -- yskill doctor skills/release --test
 
 # Detect installed agents, or pass --agent cursor,codex,claude-code.
-npm exec -- yskill register skills/review
+npm exec -- yskill register skills/release
 ```
 
-`yskill agents` lists the available agent IDs and project paths. Cursor,
-Codex, and Claude Code are verified. Remaining entries support explicit path
-registration from the pinned open registry; they are not presented as
-end-to-end verified.
+Yield writes small adapters into each coding agent's project skill directory.
+It does not copy the workflow or install its dependencies again.
 
-## How a skill workflow runs
+## How Yield runs and resumes
 
-Deterministic re-execution: on every run/resume, `yskill` re-executes the
-skill workflow from the top, feeding recorded responses back in order. At
-the first unanswered operation the SDK emits a `yield.v1` request envelope
-and the process exits — no daemon. A replayed step that produces a
-different operation than the journal recorded is a divergence and fails
-the run loudly; it never silently forks.
+1. Your workflow emits one typed operation.
+2. Yield records the request and exits. It does not run a daemon.
+3. The coding agent, user, or CLI supplies the result.
+4. Yield resumes from the journal and replays the program to the next operation.
 
-- **`yskill`** owns the append-only run log
-  (`.yield/runs/<id>.jsonl`), sequence and digest binding, response
-  validation, and every refusal (stale, duplicate, wrong-run,
-  schema-invalid, digest-mismatch, completion-unproven).
-- **The skill workflow** is an ordinary program using one Yield SDK; every
-  side effect crosses a yielded primitive.
+If replay produces a different operation, the run fails instead of silently
+forking. Every side effect crosses one of these primitives:
 
-Five primitives, two exits:
-
-| primitive | who acts |
+| Primitive | Purpose |
 |---|---|
-| `AskUser` | the agent asks through its normal interface |
-| `AgentTask` | the model reasons; the result must be schema-valid JSON |
-| `RunCommand` | **yskill executes it itself** — results are observed fact, not transcription |
-| `Require` | a claim bound to evidence; failure makes completion structurally unreachable |
-| `Complete` / `Blocked` / `Refused` | honest terminals, always recorded |
+| `runCommand` | Execute a command and record its exit code and output. |
+| `agentTask` | Ask the coding agent for schema-valid JSON. |
+| `askUser` | Request an explicit human decision. |
+| `require` | Bind a required claim to recorded evidence. |
+| `blocked` / `refused` | Stop honestly when work cannot or must not continue. |
 
-## Four languages, one execution contract
+See the [primitive guides](docs/primitives/README.md) and
+[runtime reference](docs/reference/cli.md) for the full contract.
 
-Write the skill workflow in Go, TypeScript, Python, or Rust. Every SDK
-implements the same certified execution contract, and the conformance suite
-(`internal/conformance`) runs the same program in all four languages and
-asserts identical observable behavior. The language-neutral schemas are
-documented in the [runtime reference](docs/reference/sdk-parity.md).
+## Languages and coding agents
 
-| language | SDK | example |
+All four SDKs implement the same execution contract. The conformance suite runs
+the same program in every language and compares observable behavior.
+
+| Language | SDK | Example |
 |---|---|---|
-| Go | `sdk/yield` | `examples/investigate` — bounded hypothesis loop |
-| TypeScript | `sdk/typescript` (`@operatorstack/yield`) | `examples/release-checklist` — human-gated deploy |
-| Python | `sdk/python` (`yieldskill`) | `examples/env-doctor` — probe, branch, resume after the human |
-| Rust | `sdk/rust` (`yieldskill`) | `examples/data-migration` — dry-run → approve → apply → verify |
+| TypeScript | [`@operatorstack/yield`](sdk/typescript/) | [`release-checklist`](examples/release-checklist/) |
+| Python | [`yieldskill`](sdk/python/) | [`env-doctor`](examples/env-doctor/) |
+| Go | [`sdk/yield`](sdk/yield/) | [`investigate`](examples/investigate/) |
+| Rust | [`yieldskill`](sdk/rust/) | [`data-migration`](examples/data-migration/) |
 
-Skills declare their language and runner in `skill.json`:
-`{"version": 1, "language": "typescript", "run": ["node", "main.ts"]}`.
+Cursor, Codex, and Claude Code are verified integrations. Yield also includes
+registry-backed project paths for 73 more coding agents. Those paths support
+explicit registration; they are not presented as end-to-end verified.
 
-## Ten skill workflows, every language
+Run `yskill agents` to inspect the pinned registry and available project paths.
 
-The [example library](examples/library/) implements ten common skill workflows
-independently in all four SDKs: branch review, failure
-investigation, web QA, package release, issue triage, CI repair, dependency
-upgrade, database migration, security audit, and iOS publishing.
+## Guarantees and limits
 
-Each language has the same skill workflow, a thin adapter, and a scripted
-fixture. Start from the work you already do instead of starting from a
-framework tutorial.
+Yield provides deterministic control flow, typed requests and responses,
+persistent run state, replay with divergence detection, stale and duplicate
+response rejection, and evidence-bound completion.
 
-## Documentation
+Schema validity is not truth. Yield cannot prove that an agent performed only
+the requested work. `runCommand` is different: the Yield CLI executes the
+command, so the recorded exit code and output are observed facts.
 
-Start with [what a skill workflow is](docs/skill-workflows.md), then build one
-with the [ten-minute TypeScript quickstart](docs/quickstart.md). Continue with
-the documentation for your job:
+Yield is not a daemon, hosted runtime, workflow DSL, marketplace, new agent
+loop, multi-agent orchestrator, or security sandbox.
 
-- [primitive guides](docs/primitives/README.md) — commands, model work,
-  human input, evidence gates, and outcomes;
-- [tutorials](docs/tutorials/README.md) — review, approval, environment
-  repair, bounded debugging, and migration;
-- [examples](docs/examples.md) — working programs in all four languages;
-- [coding-agent setup](docs/agent-setup.md) — register one skill workflow with the
-  agents used by the project;
-- [Agent Plugins and Yield](docs/agent-plugins.md) — where portable packaging ends
-  and workflow execution begins;
-- [test workflow effects](docs/testing-fixtures.md) — deterministic fixture
-  setup, response effects, standard-input JSON, and cleanup;
-- [evaluations](evals/README.md) — first-party workflow conformance and runtime
-  invariant results, including the exact claim boundary;
-- [convert an existing skill](docs/convert-existing-skill.md) — move
-  control flow into code without claiming that fixture execution proves
-  every reading of the original prose;
-- [CLI and runtime reference](docs/reference/cli.md).
+## Documentation and development
 
-## Try it
+- [What a skill workflow is](docs/skill-workflows.md)
+- [Ten-minute TypeScript quickstart](docs/quickstart.md)
+- [Working examples in all four languages](docs/examples.md)
+- [Coding-agent setup](docs/agent-setup.md)
+- [Testing workflow effects](docs/testing-fixtures.md)
+- [Guarantees and evaluation results](evals/README.md)
 
-```
-go build -o yskill ./cmd/yskill
-./yskill test examples/library/typescript/review-branch
-./yskill test examples/library/python/review-branch
-./yskill test examples/library/go/review-branch
-./yskill test examples/library/rust/review-branch
-YSKILL="$PWD/yskill" bash ./examples/library/test-all.sh
-./yskill test examples/investigate        # Go: scripted fixture run to completion
-./yskill test examples/release-checklist  # TypeScript (Node >= 23.6)
-./yskill test examples/env-doctor         # Python 3.10+
-./yskill test examples/data-migration     # Rust (cargo)
-./yskill run  examples/investigate        # prints the first operation envelope
-./yskill init my-skill --description "Run this skill workflow when ..."
-./yskill register my-skill --agent codex # write a thin project adapter
-./yskill doctor my-skill --agent codex   # verify package + adapter wiring
+Run the main checks from the repository root:
+
+```bash
+go test ./...
+npm run test:release
 ```
 
-The reference skill, `examples/investigate`, encodes an investigation
-discipline in code: at least three hypotheses, cheapest-to-disprove
-first, at most three failed attempts, completion requires a causal chain
-— or an honest `Blocked` at the frontier.
-
-## What it guarantees — and what it doesn't
-
-Guaranteed: deterministic control flow, typed requests/responses,
-persistent state, replay (divergence fails loudly), stale/duplicate
-rejection, evidence-bound completion.
-
-Not guaranteed: that the agent performed *only* the requested operation,
-or that a schema-valid `agent_task` result is true — schema validity is
-not truth. `RunCommand` is the exception by construction: commands are
-executed by the Yield CLI, so exit codes and output enter the log as
-observed fact. Runtime and conformance tests enforce these guarantees.
-
-## What it is not
-
-Not a daemon, not a hosted runtime, not a workflow DSL, not a
-marketplace, not a new agent loop, not a multi-agent orchestrator, not a
-security sandbox.
+The [example library](examples/library/) contains ten common workflows in all
+four SDKs, including code review, failure investigation, CI repair, dependency
+updates, database migration, security audit, and package release.
 
 ---
 
-This is Yield's canonical source repository. Changes, verification, release
-intent, and publishing control all live here. MIT licensed.
+Yield is MIT licensed. This repository is its canonical source.

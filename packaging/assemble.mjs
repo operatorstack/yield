@@ -74,7 +74,7 @@ async function assembleNpm({ version, binaries, output }) {
       name: npmPackage(target), version, description: `Yield runtime for ${target.id}`,
       license: "MIT", os: [target.nodeOs], cpu: [target.nodeCpu], main: `./${runtime}`,
       files: [runtime, "LICENSE"], repository: { type: "git", url: "git+https://github.com/operatorstack/yield.git" },
-      homepage: "https://github.com/operatorstack/yield#readme",
+      homepage: "https://yield.operatorstack.systems/",
       bugs: { url: "https://github.com/operatorstack/yield/issues" },
       publishConfig: { access: "public", provenance: true, registry: "https://registry.npmjs.org/" },
     }, null, 2)}\n`);
