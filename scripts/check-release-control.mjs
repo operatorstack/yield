@@ -58,7 +58,7 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(release, "release.yml is required");
   expect(JSON.stringify(Object.keys(release.on ?? {}).sort()) === JSON.stringify(["workflow_dispatch"]), "stable release must be dispatch-only");
   expect(release.permissions?.contents === "read", "release planning must be read-only");
-  expect(release.jobs?.release?.permissions?.contents === "write", "tag creation alone needs contents:write");
+  expect(release.jobs?.release?.permissions?.contents === "write" && release.jobs?.release?.permissions?.actions === "write", "the controller needs tag and publisher-dispatch authority");
   expect(release.jobs?.release?.environment === "release-control", "release authorization must use the protected release-control environment");
   expect(raw["release.yml"].includes('repos/$GITHUB_REPOSITORY/git/refs'), "release controller must create tags with its scoped GitHub token");
   expect(!raw["release.yml"].includes('git push origin "refs/tags/$TAG"'), "release controller must not push tags without explicit authentication");
@@ -69,7 +69,7 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(publisher, "npm-publish.yml is required because both registry trust policies bind to this workflow identity");
   expect(publisher.permissions?.contents === "read", "package publisher must default to read-only source access");
   expect(publisher.on?.push?.branches?.includes("main"), "npm canary must follow public main");
-  expect(publisher.on?.workflow_run?.workflows?.includes("Release Yield"), "stable packages must consume the release controller receipt");
+  expect(publisher.on?.workflow_dispatch?.inputs?.version?.required === true, "stable packages must require an exact version dispatch");
   expect(publisher.jobs?.npm?.permissions?.contents === "read" && publisher.jobs?.npm?.permissions?.["id-token"] === "write", "npm publisher must use read-only source plus OIDC");
   expect(publisher.jobs?.pypi?.permissions?.contents === "read" && publisher.jobs?.pypi?.permissions?.["id-token"] === "write", "PyPI publisher must use read-only source plus OIDC");
   expect(publisher.jobs?.crates?.permissions?.contents === "read" && publisher.jobs?.crates?.permissions?.["id-token"] === "write", "crates.io publisher must use read-only source plus OIDC");
@@ -98,6 +98,7 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(raw["release-finalize.yml"].includes("pypi-release.mjs verify"), "finalization must verify the PyPI wheel hashes");
   expect(raw["release-finalize.yml"].includes("crates-release.mjs verify"), "finalization must verify the crates.io package hashes");
   expect(raw["release-finalize.yml"].includes("--name \"crates-${version}-${SOURCE_SHA}\""), "finalization must consume the publisher-produced crates receipt");
+  expect(raw["release.yml"].includes("gh workflow run npm-publish.yml"), "the release controller must dispatch the trusted-publishing event after tagging");
   expect(!Object.values(raw).some((text) => text.includes("CRATES_BOOTSTRAP_TOKEN")), "crates.io publishing must not use a bootstrap token");
   for (const [name, text] of Object.entries(raw)) {
     expect(!/NPM_TOKEN|NODE_AUTH_TOKEN|PYPI_TOKEN|secrets\.(npm|pypi)|password:/i.test(text), `${name}: long-lived registry credentials are forbidden`);

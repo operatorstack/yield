@@ -3,9 +3,6 @@ name: Publish Yield packages
 on:
   push:
     branches: [main]
-  workflow_run:
-    workflows: ["Release Yield"]
-    types: [completed]
   workflow_dispatch:
     inputs:
       version:
@@ -22,10 +19,7 @@ concurrency:
 
 jobs:
   resolve:
-    if: >-
-      github.repository == 'operatorstack/yield' &&
-      (github.event_name != 'workflow_run' ||
-       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
+    if: github.repository == 'operatorstack/yield'
     runs-on: ubuntu-latest
     outputs:
       publish: ${{ steps.release.outputs.publish }}
@@ -39,7 +33,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.sha }}
       - id: release
         name: Resolve immutable source, version, and channel
         env:
@@ -54,18 +48,8 @@ jobs:
             channel=canary
             dist_tag=canary
           else
-            if [[ "$GITHUB_EVENT_NAME" == workflow_run ]]; then
-              tag="$(git tag --points-at HEAD --list 'v[0-9]*' --sort=-v:refname | head -n 1)"
-              if [[ -z "$tag" ]]; then
-                echo "publish=false" >> "$GITHUB_OUTPUT"
-                echo "Release run created no tag; this was a dry run."
-                exit 0
-              fi
-              version="${tag#v}"
-            else
-              version="$REQUESTED_VERSION"
-              tag="v${version}"
-            fi
+            version="$REQUESTED_VERSION"
+            tag="v${version}"
             [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
             test "$(git rev-list -n 1 "v${version}")" = "$source_sha"
             channel=stable
