@@ -10,17 +10,18 @@ Create a virtual environment before installation:
 # macOS and Linux
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install yieldskill==0.1.29 \
-  --index-url https://get.operatorstack.systems/pip/simple/
+python -m pip install yieldskill
 ```
 
 ```powershell
 # Windows PowerShell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install yieldskill==0.1.29 `
-  --index-url https://get.operatorstack.systems/pip/simple/
+python -m pip install yieldskill
 ```
+
+[Public PyPI releases](https://pypi.org/project/yieldskill/) use trusted
+publishing. Every wheel contains the matching Yield runtime for its platform.
 
 The launcher preserves the selected Python environment for `RunCommand`, even
 when an adapter starts that interpreter without activating the environment.

@@ -1,4 +1,4 @@
-name: Publish Yield to npm
+name: Publish Yield packages
 
 on:
   push:
@@ -15,10 +15,9 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
-  group: npm-${{ github.event_name == 'push' && 'canary' || 'stable' }}
+  group: packages-${{ github.event_name == 'push' && 'canary' || 'stable' }}
   cancel-in-progress: false
 
 jobs:
@@ -77,11 +76,10 @@ jobs:
           echo "dist_tag=$dist_tag" >> "$GITHUB_OUTPUT"
           echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
 
-  publish:
+  build:
     needs: resolve
     if: needs.resolve.outputs.publish == 'true'
     runs-on: ubuntu-latest
-    environment: ${{ needs.resolve.outputs.channel == 'stable' && 'npm-production' || 'npm-canary' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -95,14 +93,15 @@ jobs:
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "24"
-          registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - name: Pin npm trusted-publishing client
-        run: npm install --global npm@12.0.2
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
       - name: Verify source
         run: |
           go test ./...
           node --test packaging/*.test.mjs sdk/typescript/bin/*.test.mjs
+          python -m unittest discover -s sdk/python -p 'test_*.py'
       - name: Build immutable runtimes
         env:
           VERSION: ${{ needs.resolve.outputs.version }}
@@ -120,6 +119,18 @@ jobs:
               -o "dist/bin/yskill-${goos}-${goarch}${suffix}" ./cmd/yskill
           done
           node packaging/assemble.mjs --version "$VERSION" --binaries dist/bin --output dist/packages
+      - name: Build Python wheels
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check build==1.3.0 setuptools==80.9.0 wheel==0.45.1
+          mkdir -p dist/pypi
+          for directory in dist/packages/python/*; do
+            python -m build --wheel --no-isolation --outdir "$GITHUB_WORKSPACE/dist/pypi" "$directory"
+          done
+          node packaging/pypi-release.mjs inspect --version "$VERSION" --dist dist/pypi
       - name: Inspect npm tarballs
         shell: bash
         run: |
@@ -127,13 +138,37 @@ jobs:
           for directory in dist/packages/npm/*; do
             (cd "$directory" && npm pack --dry-run)
           done
+      - name: Assemble immutable release unit
+        run: |
+          mkdir -p dist/release-unit
+          cp dist/packages/SHA256SUMS.json dist/release-unit/
+          cp -R dist/packages/npm dist/release-unit/npm
+          cp -R dist/pypi dist/release-unit/pypi
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: npm-${{ needs.resolve.outputs.version }}-release-unit
-          path: |
-            dist/packages/SHA256SUMS.json
-            dist/packages/npm/
+          name: packages-${{ needs.resolve.outputs.version }}-${{ needs.resolve.outputs.source_sha }}
+          path: dist/release-unit/
           if-no-files-found: error
+
+  npm:
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.resolve.outputs.channel == 'stable' && 'npm-production' || 'npm-canary' }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: packages-${{ needs.resolve.outputs.version }}-${{ needs.resolve.outputs.source_sha }}
+          path: dist/release-unit
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Pin npm trusted-publishing client
+        run: npm install --global npm@12.0.2
       - name: Publish platform runtimes
         env:
           DIST_TAG: ${{ needs.resolve.outputs.dist_tag }}
@@ -141,7 +176,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for directory in dist/packages/npm/darwin-* dist/packages/npm/linux-* dist/packages/npm/windows-*; do
+          for directory in dist/release-unit/npm/darwin-* dist/release-unit/npm/linux-* dist/release-unit/npm/windows-*; do
             package="$(node -p "require('./${directory}/package.json').name")"
             if npm view "${package}@${VERSION}" version >/dev/null 2>&1; then
               echo "${package}@${VERSION} already exists"
@@ -159,15 +194,15 @@ jobs:
           if npm view "@operatorstack/yield@${VERSION}" version >/dev/null 2>&1; then
             echo "@operatorstack/yield@${VERSION} already exists"
           else
-            (cd dist/packages/npm/yield && npm publish --tag "$DIST_TAG")
+            (cd dist/release-unit/npm/yield && npm publish --tag "$DIST_TAG")
           fi
-      - name: Verify complete public release unit
+      - name: Verify complete npm release unit
         env:
           VERSION: ${{ needs.resolve.outputs.version }}
         shell: bash
         run: |
           set -euo pipefail
-          for directory in dist/packages/npm/*; do
+          for directory in dist/release-unit/npm/*; do
             package="$(node -p "require('./${directory}/package.json').name")"
             for attempt in {1..12}; do
               if [[ "$(npm view "${package}@${VERSION}" version 2>/dev/null || true)" == "$VERSION" ]]; then break; fi
@@ -175,3 +210,51 @@ jobs:
               sleep 10
             done
           done
+
+  pypi:
+    needs: [resolve, build]
+    if: needs.resolve.outputs.channel == 'stable'
+    runs-on: ubuntu-latest
+    environment: pypi-production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ needs.resolve.outputs.source_sha }}
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: packages-${{ needs.resolve.outputs.version }}-${{ needs.resolve.outputs.source_sha }}
+          path: dist/release-unit
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - id: prepare
+        name: Refuse PyPI drift and select missing wheels
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+        run: >-
+          node packaging/pypi-release.mjs prepare
+          --version "$VERSION"
+          --dist dist/release-unit/pypi
+          --upload dist/pypi-upload
+          --output "$GITHUB_OUTPUT"
+      - name: Publish Python wheels with trusted publishing
+        if: steps.prepare.outputs.publish == 'true'
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          packages-dir: dist/pypi-upload
+          attestations: true
+          verbose: true
+      - name: Verify complete PyPI release unit
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+        run: >-
+          node packaging/pypi-release.mjs verify
+          --version "$VERSION"
+          --dist dist/release-unit/pypi
+          --attempts 12
+          --delay-ms 10000

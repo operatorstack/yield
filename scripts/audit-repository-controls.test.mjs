@@ -18,6 +18,15 @@ function controls(overrides = {}) {
       allow_deletions: { enabled: false },
     },
     rulesets: [{ id: 1, name: "Immutable Yield release tags", target: "tag", enforcement: "active" }],
+    pypiEnvironment: {
+      name: "pypi-production",
+      deployment_branch_policy: { protected_branches: true, custom_branch_policies: false },
+      protection_rules: [{
+        type: "required_reviewers",
+        prevent_self_review: false,
+        reviewers: [{ reviewer: { login: "bigboateng" }, type: "User" }],
+      }],
+    },
     ...overrides,
   };
 }
@@ -29,4 +38,10 @@ test("accepts the complete repository control surface", () => {
 test("refuses a bypassable administrator or mutable action reference policy", () => {
   assert.throws(() => auditRepositoryControls(controls({ protection: { ...controls().protection, enforce_admins: { enabled: false } } })), /administrators/);
   assert.throws(() => auditRepositoryControls(controls({ actions: { enabled: true, sha_pinning_required: false } })), /immutable SHA/);
+});
+
+test("refuses an unreviewed PyPI production environment", () => {
+  assert.throws(() => auditRepositoryControls(controls({
+    pypiEnvironment: { name: "pypi-production", deployment_branch_policy: { protected_branches: true }, protection_rules: [] },
+  })), /require bigboateng review/);
 });

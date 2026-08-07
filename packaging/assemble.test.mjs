@@ -16,7 +16,7 @@ test("accepts stable and exact Yield canary versions", () => {
   assert.equal(isPackageVersion("v1.2.3"), false);
 });
 
-test("assembles one public npm package and six matching runtimes", async (t) => {
+test("assembles one public npm package and six matching npm and Python runtimes", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "yield-assemble-"));
   t.after(() => rm(root, { recursive: true, force: true }));
 
@@ -62,5 +62,15 @@ test("assembles one public npm package and six matching runtimes", async (t) => 
     assert.deepEqual(runtime.cpu, [target.nodeCpu]);
     assert.equal(runtime.publishConfig.provenance, true);
     assert.match(await readFile(join(output, `npm/${target.id}/LICENSE`), "utf8"), /MIT License/);
+
+    const pythonRoot = join(output, `python/${target.id}`);
+    assert.match(await readFile(join(pythonRoot, "pyproject.toml"), "utf8"), /version = "1\.2\.3"/);
+    assert.match(await readFile(join(pythonRoot, "setup.py"), "utf8"), new RegExp(target.pythonTag));
+    assert.match(await readFile(join(pythonRoot, "LICENSE"), "utf8"), /MIT License/);
+    const pythonRuntime = target.goos === "windows" ? "yskill.exe" : "yskill";
+    assert.equal(
+      await readFile(join(pythonRoot, "yieldskill/_runtime", pythonRuntime), "utf8"),
+      `runtime:${target.id}`,
+    );
   }
 });

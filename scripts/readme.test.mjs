@@ -111,15 +111,20 @@ test("README uses the borderless Yield mark", async () => {
   assert.match(mark, /<path d="M22 12h17l2 7v22H24l-2-7Z"/);
 });
 
-test("README and quickstart use the public documentation and npm registry", async () => {
-  const [readme, docsIndex, quickstart, agentSetup] = await Promise.all([
+test("README and quickstart use the public documentation and package registries", async () => {
+  const [readme, pythonReadme, docsIndex, quickstart, agentSetup] = await Promise.all([
     text("README.md"),
+    text("sdk/python/README.md"),
     text("docs/README.md"),
     text("docs/quickstart.md"),
     text("docs/agent-setup.md"),
   ]);
 
   assert.match(readme, /href="https:\/\/yield\.operatorstack\.systems\/docs\/">Documentation<\/a>/);
+  assert.match(readme, /href="https:\/\/pypi\.org\/project\/yieldskill\/">PyPI<\/a>/);
+  assert.match(pythonReadme, /python -m pip install yieldskill/);
+  assert.match(pythonReadme, /https:\/\/pypi\.org\/project\/yieldskill\//);
+  assert.doesNotMatch(pythonReadme, /get\.operatorstack\.systems\/pip/);
   assert.match(docsIndex, /\[public documentation\]\(https:\/\/yield\.operatorstack\.systems\/docs\/\)/);
   assert.match(quickstart, /npm install --save-exact @operatorstack\/yield/);
   assert.doesNotMatch(quickstart, /get\.operatorstack\.systems\/npm|@operatorstack\/yield@0\./);
