@@ -65,9 +65,8 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(raw["release.yml"].includes("--draft"), "release controller must create a draft release");
   expect(!raw["release.yml"].includes("--draft=false"), "release controller must not finalize its own release");
 
-  const publisher = workflows["package-publish.yml"];
-  expect(publisher, "package-publish.yml is required");
-  expect(!names.includes("npm-publish.yml"), "the obsolete single-registry publisher must be removed");
+  const publisher = workflows["npm-publish.yml"];
+  expect(publisher, "npm-publish.yml is required because both registry trust policies bind to this workflow identity");
   expect(publisher.permissions?.contents === "read", "package publisher must default to read-only source access");
   expect(publisher.on?.push?.branches?.includes("main"), "npm canary must follow public main");
   expect(publisher.on?.workflow_run?.workflows?.includes("Release Yield"), "stable packages must consume the release controller receipt");
@@ -76,9 +75,9 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(publisher.jobs?.pypi?.environment === "pypi-production", "stable PyPI publishing must use the protected pypi-production environment");
   const pythonWheelStep = publisher.jobs?.build?.steps?.find((step) => step.name === "Build Python wheels");
   expect(pythonWheelStep?.if === "needs.resolve.outputs.channel == 'stable'", "PyPI wheels must be built only for stable PEP 440 versions");
-  expect(raw["package-publish.yml"].indexOf("Publish platform runtimes") < raw["package-publish.yml"].indexOf("Publish SDK and CLI"), "runtime packages must publish before the SDK package");
-  expect(raw["package-publish.yml"].includes("pypa/gh-action-pypi-publish@"), "PyPI publishing must use the trusted-publishing action");
-  expect(!raw["package-publish.yml"].includes("skip-existing"), "PyPI retries must verify hashes instead of blindly skipping existing files");
+  expect(raw["npm-publish.yml"].indexOf("Publish platform runtimes") < raw["npm-publish.yml"].indexOf("Publish SDK and CLI"), "runtime packages must publish before the SDK package");
+  expect(raw["npm-publish.yml"].includes("pypa/gh-action-pypi-publish@"), "PyPI publishing must use the trusted-publishing action");
+  expect(!raw["npm-publish.yml"].includes("skip-existing"), "PyPI retries must verify hashes instead of blindly skipping existing files");
 
   const finalizer = workflows["release-finalize.yml"];
   expect(finalizer?.permissions?.actions === "read" && finalizer.permissions?.contents === "read", "finalizer preflight must be read-only");
@@ -88,7 +87,7 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   );
   expect(finalizer.jobs?.finalize?.needs === "resolve", "finalization must follow read-only tag resolution");
   expect(raw["release-finalize.yml"].includes("--draft=false"), "only the receipt finalizer may publish the GitHub release");
-  expect(raw["release-finalize.yml"].includes("package-publish.yml"), "finalization must bind the combined publisher receipt");
+  expect(raw["release-finalize.yml"].includes("npm-publish.yml"), "finalization must bind the combined publisher receipt");
   expect(raw["release-finalize.yml"].includes("pypi-release.mjs verify"), "finalization must verify the PyPI wheel hashes");
   for (const [name, text] of Object.entries(raw)) {
     expect(!/NPM_TOKEN|NODE_AUTH_TOKEN|PYPI_TOKEN|secrets\.(npm|pypi)|password:/i.test(text), `${name}: long-lived registry credentials are forbidden`);
