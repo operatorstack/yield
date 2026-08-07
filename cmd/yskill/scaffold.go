@@ -51,7 +51,18 @@ func scaffoldCommand(language, dir string) (launcher, workflow string) {
 	}
 	root, ok := repositoryRootFromLocalRuntime()
 	if !ok {
-		return launcher, workflow
+		var err error
+		root, err = findRepoRoot(dir, "")
+		if err != nil {
+			return launcher, workflow
+		}
+		root, err = filepath.Abs(root)
+		if err != nil {
+			return launcher, workflow
+		}
+		if verifyLocalRuntime(localRuntimePath(root), runtimeVersion(), language) != nil {
+			return launcher, workflow
+		}
 	}
 	absDir, err := filepath.Abs(dir)
 	if err != nil || !within(root, absDir) {
@@ -92,6 +103,11 @@ func scaffoldSkill(dir, language, sdkPath, description string) error {
 		return fmt.Errorf("--description is required for a new skill; describe what it does and when an agent should use it")
 	} else if err != nil && !os.IsNotExist(err) {
 		return err
+	}
+	if language == "go" || language == "rust" {
+		if err := pinCurrentRuntime(dir); err != nil {
+			return err
+		}
 	}
 	writeIfAbsent := func(rel, content string) error {
 		path := filepath.Join(dir, filepath.FromSlash(rel))
@@ -137,6 +153,76 @@ func scaffoldSkill(dir, language, sdkPath, description string) error {
 	return nil
 }
 
+func pinCurrentRuntime(dir string) error {
+	root, err := findRepoRoot(dir, "")
+	if err != nil {
+		return nil
+	}
+	source := strings.TrimSpace(os.Getenv("YIELD_LAUNCHER_PATH"))
+	if source == "" {
+		source, err = currentExecutable()
+		if err != nil {
+			return fmt.Errorf("locate current Yield runtime: %w", err)
+		}
+	}
+	source, err = filepath.Abs(source)
+	if err != nil {
+		return fmt.Errorf("resolve current Yield runtime: %w", err)
+	}
+	name := strings.ToLower(filepath.Base(source))
+	if name != "yskill" && name != "yskill.exe" {
+		return nil
+	}
+	destination := localRuntimePath(root)
+	if filepath.Clean(source) == filepath.Clean(destination) {
+		return ensureLocalStateIgnored(root)
+	}
+	got, err := inspectRuntimeVersion(source)
+	if err != nil {
+		return fmt.Errorf("verify current Yield runtime: %w", err)
+	}
+	if expected := runtimeVersion(); got != expected {
+		return fmt.Errorf("current Yield launcher version is %s, but the runtime is %s", got, expected)
+	}
+	contents, err := os.ReadFile(source)
+	if err != nil {
+		return fmt.Errorf("read current Yield runtime: %w", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(destination), 0o755); err != nil {
+		return err
+	}
+	temporary, err := os.CreateTemp(filepath.Dir(destination), ".yskill-pin-*")
+	if err != nil {
+		return err
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+	if _, err := temporary.Write(contents); err != nil {
+		temporary.Close()
+		return err
+	}
+	if err := temporary.Chmod(0o755); err != nil {
+		temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	if runtime.GOOS == "windows" {
+		if err := os.Remove(destination); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	if err := os.Rename(temporaryPath, destination); err != nil {
+		return fmt.Errorf("pin repository-local Yield runtime: %w", err)
+	}
+	if err := ensureLocalStateIgnored(root); err != nil {
+		return err
+	}
+	fmt.Printf("init: pinned Yield %s at %s\n", got, filepath.ToSlash(destination))
+	return nil
+}
+
 func scaffoldFiles(name, language, sdkPath string) map[string]string {
 	v := packageVersion()
 	switch language {
@@ -159,9 +245,9 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
 		}
 	case "rust":
 		return map[string]string{
-			"Cargo.toml":         fmt.Sprintf("[package]\nname = %q\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nyieldskill = { version = \"=%s\" }\nserde_json = \"1\"\n", name, v),
-			"src/main.rs":        mainRust,
-			"skill.json":         fmt.Sprintf("{\"version\":1,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\",\"--bin\",%q]}\n", name),
+			"Cargo.toml":  fmt.Sprintf("[package]\nname = %q\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nyieldskill = { version = \"=%s\" }\nserde_json = \"1\"\n", name, v),
+			"src/main.rs": mainRust,
+			"skill.json":  fmt.Sprintf("{\"version\":1,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\",\"--bin\",%q]}\n", name),
 		}
 	default:
 		gomod := fmt.Sprintf("module %s\n\ngo 1.26.5\n\nrequire github.com/operatorstack/yield v%s\n", name, v)
