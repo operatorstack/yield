@@ -8,7 +8,7 @@
     "prepare:selfhost": "node scripts/prepare-selfhost.mjs",
     "release:plan": "node scripts/release-plan.mjs",
     "test:release": "node --test scripts/*.test.mjs packaging/*.test.mjs",
-    "test:selfhost": "node --test skills/release-yield/*.test.mjs"
+    "test:selfhost": "node --test skills/release-yield/src/*.test.mjs"
   },
   "devDependencies": {
     "@operatorstack/yield": "0.1.38",
