@@ -10,23 +10,105 @@ async function text(path) {
 }
 
 test("README release example matches the tested TypeScript source", async () => {
-  const [readme, source] = await Promise.all([
+  const [readme, agentTaskDocs, source] = await Promise.all([
     text("README.md"),
+    text("docs/primitives/agent-task.md"),
     text("examples/release-checklist/main.ts"),
   ])
 
-  const readmeMatch = readme.match(
-    /<!-- release-example:start -->\s*```typescript\n([\s\S]*?)\n```\s*<!-- release-example:end -->/,
-  )
-  assert.ok(readmeMatch, "README release example markers are missing")
+  const example =
+    /<!-- release-example:start -->\s*```typescript\n([\s\S]*?)\n```\s*<!-- release-example:end -->/
 
   const sourceMatch = source.match(/\/\/ README_EXAMPLE_START\n([\s\S]*?)\n\/\/ README_EXAMPLE_END/)
   assert.ok(sourceMatch, "TypeScript release example markers are missing")
 
-  const readmeProgram = readmeMatch[1]
-    .replace(/^import \{ defineSkill \} from "@operatorstack\/yield";?\n+/, "")
-    .trim()
-  assert.equal(readmeProgram, sourceMatch[1].trim())
+  for (const [name, document] of [
+    ["README", readme],
+    ["AgentTask guide", agentTaskDocs],
+  ]) {
+    const match = document.match(example)
+    assert.ok(match, `${name} release example markers are missing`)
+    const program = match[1]
+      .replace(/^import \{ defineSkill \} from "@operatorstack\/yield";?\n+/, "")
+      .trim()
+    assert.equal(program, sourceMatch[1].trim())
+  }
+})
+
+test("AgentTask documentation preserves the typed judgment boundary", async () => {
+  const [
+    agentTask,
+    primitiveIndex,
+    docsIndex,
+    tutorial,
+    readme,
+    pythonReadme,
+    goReadme,
+    rustReadme,
+  ] = await Promise.all([
+    text("docs/primitives/agent-task.md"),
+    text("docs/primitives/README.md"),
+    text("docs/README.md"),
+    text("docs/tutorials/code-review.md"),
+    text("README.md"),
+    text("sdk/python/README.md"),
+    text("sdk/yield/README.md"),
+    text("sdk/rust/README.md"),
+  ])
+
+  const normalized = (document) => document.replace(/\s+/g, " ")
+  const normalizedAgentTask = normalized(agentTask)
+  assert.match(
+    normalizedAgentTask,
+    /Use the coding agent as a typed judgment step inside your workflow\./,
+  )
+  assert.match(
+    normalizedAgentTask,
+    /The agent interprets\. With a JSON Schema, Yield checks the returned shape\./,
+  )
+  assert.match(
+    normalizedAgentTask,
+    /It does not prove that the analysis is correct, files were inspected, or the requested work happened\./,
+  )
+  assert.match(
+    normalizedAgentTask,
+    /does not promise access to a complete conversation, the repository, or any hidden host context/,
+  )
+  assert.match(normalizedAgentTask, /Cursor, Codex, and Claude Code are verified integrations/)
+  assert.match(normalizedAgentTask, /`yskill test` reads a deterministic fixture response instead/)
+  assert.match(
+    primitiveIndex,
+    /Delegates one bounded judgment; an optional schema validates the result/,
+  )
+  assert.match(
+    normalized(docsIndex),
+    /call the coding agent with `AgentTask`, receive structured data, then continue in normal code/,
+  )
+  assert.match(
+    tutorial,
+    /\{ exit_code: check\.exit_code, stdout: check\.stdout, stderr: check\.stderr \}/,
+  )
+  assert.match(
+    normalized(readme),
+    /Use `AgentTask` only where a bounded step needs coding-agent judgment/,
+  )
+
+  for (const [name, document] of [
+    ["Python", pythonReadme],
+    ["Go", goReadme],
+    ["Rust", rustReadme],
+  ]) {
+    const normalizedDocument = normalized(document)
+    assert.match(
+      normalizedDocument,
+      /Delegate one bounded judgment; an optional schema validates the result/,
+    )
+    assert.match(normalizedDocument, /Host workspace and conversation access are host-dependent\./)
+    assert.match(
+      normalizedDocument,
+      /With its schema, Yield checks the returned JSON shape before the workflow continues/,
+    )
+  }
 })
 
 test("Python README example matches the tested environment doctor", async () => {

@@ -13,8 +13,8 @@ ctx.require(check.exit_code === 0, "typecheck passes", check)
 
 const review = ctx.agentTask<Review>(
   "review",
-  "Review the branch for correctness, security, and data-loss risks.",
-  undefined,
+  "Review the branch for correctness, security, and data-loss risks that the typecheck may miss.",
+  { exit_code: check.exit_code, stdout: check.stdout, stderr: check.stderr },
   reviewSchema,
 )
 
