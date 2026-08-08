@@ -10,20 +10,75 @@ const yieldRoot = resolve(evalRoot, "..")
 const libraryRoot = join(yieldRoot, "examples/library")
 const languages = ["typescript", "python", "go", "rust"]
 const runtimeCases = [
-  ["resume-complete", "./internal/engine", "TestEndToEndRunResumeComplete", "a recorded response advances the run to completion"],
-  ["response-lock", "./internal/engine", "TestConcurrentIdenticalResumeCommitsOnce", "concurrent identical responses create one completion event"],
-  ["response-recovery", "./internal/engine", "TestRespondRecoveryRejectsDifferentCommittedContent", "an exact committed response recovers and different content is refused"],
-  ["ask-user-options", "./internal/conformance", "TestGuardRefusals", "every SDK rejects an answer outside the declared options"],
-  ["deterministic-replay", "./internal/engine", "TestReplayIsDeterministic", "the saved log returns to the same next step"],
-  ["replay-divergence", "./internal/engine", "TestReplayDivergenceFailsLoudly", "changed behavior stops replay instead of reusing the wrong result"],
-  ["requirement-block", "./internal/engine", "TestFailedRequirementBlocksRun", "a failed rule ends the run as blocked"],
-  ["source-change", "./internal/engine", "TestDigestMismatchRefusedThenMigrates", "changed source is refused until the user accepts the change"],
+  [
+    "resume-complete",
+    "./internal/engine",
+    "TestEndToEndRunResumeComplete",
+    "a recorded response advances the run to completion",
+  ],
+  [
+    "response-lock",
+    "./internal/engine",
+    "TestConcurrentIdenticalResumeCommitsOnce",
+    "concurrent identical responses create one completion event",
+  ],
+  [
+    "response-recovery",
+    "./internal/engine",
+    "TestRespondRecoveryRejectsDifferentCommittedContent",
+    "an exact committed response recovers and different content is refused",
+  ],
+  [
+    "ask-user-options",
+    "./internal/conformance",
+    "TestGuardRefusals",
+    "every SDK rejects an answer outside the declared options",
+  ],
+  [
+    "deterministic-replay",
+    "./internal/engine",
+    "TestReplayIsDeterministic",
+    "the saved log returns to the same next step",
+  ],
+  [
+    "replay-divergence",
+    "./internal/engine",
+    "TestReplayDivergenceFailsLoudly",
+    "changed behavior stops replay instead of reusing the wrong result",
+  ],
+  [
+    "requirement-block",
+    "./internal/engine",
+    "TestFailedRequirementBlocksRun",
+    "a failed rule ends the run as blocked",
+  ],
+  [
+    "source-change",
+    "./internal/engine",
+    "TestDigestMismatchRefusedThenMigrates",
+    "changed source is refused until the user accepts the change",
+  ],
 ]
 const excludedDirectories = new Set([
-  ".git", ".yield", "node_modules", "runs", "raw", "artifacts",
-  "target", "build", "dist", "__pycache__",
+  ".git",
+  ".yield",
+  "node_modules",
+  "runs",
+  "raw",
+  "artifacts",
+  "target",
+  "build",
+  "dist",
+  "__pycache__",
 ])
-const digestRoots = ["cmd/yskill", "internal", "sdk", "examples/library", "evals/scripts", "evals/package.json"]
+const digestRoots = [
+  "cmd/yskill",
+  "internal",
+  "sdk",
+  "examples/library",
+  "evals/scripts",
+  "evals/package.json",
+]
 
 function execute(command, args, cwd = yieldRoot) {
   const result = spawnSync(command, args, { cwd, encoding: "utf8", env: process.env })
@@ -40,14 +95,14 @@ async function filesUnder(path) {
   const files = []
   for (const entry of await readdir(path, { withFileTypes: true })) {
     if (entry.isDirectory() && excludedDirectories.has(entry.name)) continue
-    files.push(...await filesUnder(join(path, entry.name)))
+    files.push(...(await filesUnder(join(path, entry.name))))
   }
   return files
 }
 
 async function sourceDigest() {
   const files = []
-  for (const root of digestRoots) files.push(...await filesUnder(join(yieldRoot, root)))
+  for (const root of digestRoots) files.push(...(await filesUnder(join(yieldRoot, root))))
   files.sort()
   const hash = createHash("sha256")
   for (const path of files) {
@@ -67,8 +122,14 @@ async function workflowCases(yskill) {
     for (const pattern of catalog) {
       const skill = join(languageRoot, pattern.slug)
       const output = execute(yskill, ["test", skill])
-      if (!/reached completed$/.test(output)) throw new Error(`${language}/${pattern.slug}: missing completed result`)
-      cases.push({ id: `${language}/${pattern.slug}`, language, pattern: pattern.slug, status: "passed" })
+      if (!/reached completed$/.test(output))
+        throw new Error(`${language}/${pattern.slug}: missing completed result`)
+      cases.push({
+        id: `${language}/${pattern.slug}`,
+        language,
+        pattern: pattern.slug,
+        status: "passed",
+      })
       await rm(join(skill, ".yield"), { recursive: true, force: true })
     }
   }
@@ -134,10 +195,15 @@ if (process.argv.includes("--write")) {
     if (published[field] !== result[field]) throw new Error(`published ${field} is stale`)
   }
   for (const field of ["workflow_conformance", "runtime_invariants", "claim_boundary"]) {
-    if (JSON.stringify(published[field]) !== JSON.stringify(result[field])) throw new Error(`published ${field} is stale`)
+    if (JSON.stringify(published[field]) !== JSON.stringify(result[field]))
+      throw new Error(`published ${field} is stale`)
   }
-  console.log(`passed ${result.workflow_conformance.passed}/${result.workflow_conformance.total} workflow tests`)
-  console.log(`passed ${result.runtime_invariants.passed}/${result.runtime_invariants.total} runtime checks`)
+  console.log(
+    `passed ${result.workflow_conformance.passed}/${result.workflow_conformance.total} workflow tests`,
+  )
+  console.log(
+    `passed ${result.runtime_invariants.passed}/${result.runtime_invariants.total} runtime checks`,
+  )
 } else {
   console.log(JSON.stringify(result, null, 2))
 }

@@ -5,7 +5,7 @@ diagnosing a failure, comparing designs, extracting a policy, or proposing a
 fix.
 
 ```ts
-type Diagnosis = { cause: string; confidence: number };
+type Diagnosis = { cause: string; confidence: number }
 
 const diagnosis = ctx.agentTask<Diagnosis>(
   "diagnose",
@@ -19,7 +19,7 @@ const diagnosis = ctx.agentTask<Diagnosis>(
       confidence: { type: "number" },
     },
   },
-);
+)
 ```
 
 The arguments are:

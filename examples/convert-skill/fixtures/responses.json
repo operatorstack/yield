@@ -18,12 +18,36 @@
   "extract-flow": {
     "summary": "Bounded incident investigation: collect evidence, form at least three hypotheses, probe cheapest-first, conclude with a causal chain or block honestly.",
     "steps": [
-      { "id": "collect-evidence", "kind": "agent_task", "description": "Gather observable evidence for the failure." },
-      { "id": "form-hypotheses", "kind": "agent_task", "description": "At least three hypotheses, cheapest-to-disprove first." },
-      { "id": "probe", "kind": "run_command", "description": "Run each hypothesis's disprove command." },
-      { "id": "assess", "kind": "agent_task", "description": "Judge refutation; surviving hypothesis needs a causal chain." },
-      { "id": "bound", "kind": "branch", "description": "At most three failed attempts, then block." },
-      { "id": "causal-chain", "kind": "require", "description": "Completion requires a stated causal chain." }
+      {
+        "id": "collect-evidence",
+        "kind": "agent_task",
+        "description": "Gather observable evidence for the failure."
+      },
+      {
+        "id": "form-hypotheses",
+        "kind": "agent_task",
+        "description": "At least three hypotheses, cheapest-to-disprove first."
+      },
+      {
+        "id": "probe",
+        "kind": "run_command",
+        "description": "Run each hypothesis's disprove command."
+      },
+      {
+        "id": "assess",
+        "kind": "agent_task",
+        "description": "Judge refutation; surviving hypothesis needs a causal chain."
+      },
+      {
+        "id": "bound",
+        "kind": "branch",
+        "description": "At most three failed attempts, then block."
+      },
+      {
+        "id": "causal-chain",
+        "kind": "require",
+        "description": "Completion requires a stated causal chain."
+      }
     ]
   },
   "pick-language": { "value": "python" },

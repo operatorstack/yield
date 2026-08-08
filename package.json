@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "changeset": "changeset",
+    "format": "node scripts/format.mjs --write",
+    "format:check": "node scripts/format.mjs --check",
     "postinstall": "node scripts/prepare-selfhost.mjs",
     "prepare:selfhost": "node scripts/prepare-selfhost.mjs",
     "release:plan": "node scripts/release-plan.mjs",
@@ -11,8 +13,10 @@
     "test:selfhost": "node --test skills/release-yield/src/*.test.mjs"
   },
   "devDependencies": {
-    "@operatorstack/yield": "0.1.38",
     "@changesets/cli": "2.31.1",
+    "@operatorstack/yield": "0.1.38",
+    "@taplo/cli": "0.7.0",
+    "prettier": "3.9.6",
     "yaml": "2.9.0"
   }
 }

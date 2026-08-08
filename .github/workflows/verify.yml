@@ -13,6 +13,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  format:
+    name: Repository formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - run: npm ci --ignore-scripts
+      - run: python -m pip install uv==0.12.3
+      - run: npm run format:check
+
   go:
     name: Go and agent registration (${{ matrix.os }})
     strategy:
@@ -169,7 +189,7 @@ jobs:
   validate:
     name: Release authority and full validation
     if: ${{ always() }}
-    needs: [go, release, selfhost, typescript, python, rust, conformance, examples]
+    needs: [format, go, release, selfhost, typescript, python, rust, conformance, examples]
     runs-on: ubuntu-latest
     steps:
       - name: Require every validation job

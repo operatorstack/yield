@@ -4,7 +4,9 @@ import { fileURLToPath } from "node:url"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const result = JSON.parse(await readFile(join(root, "results/latest.json"), "utf8"))
-const fail = (message) => { throw new Error(message) }
+const fail = (message) => {
+  throw new Error(message)
+}
 
 if (result.schema_version !== 2) fail("unsupported result schema")
 if (result.methodology_version !== "1.1") fail("unsupported methodology")

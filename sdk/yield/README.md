@@ -76,6 +76,7 @@ yskill init skills/investigate \
 Replace `skills/investigate/main.go` with this tested workflow:
 
 <!-- go-example:start -->
+
 ```go
 package main
 
@@ -172,6 +173,7 @@ func main() {
 	})
 }
 ```
+
 <!-- go-example:end -->
 
 The generated `go.mod` pins the public Yield module to the installed CLI
@@ -183,6 +185,7 @@ Use deterministic responses during tests. Save this as
 `skills/investigate/fixtures/responses.json`:
 
 <!-- go-fixture:start -->
+
 ```json
 {
   "collect-evidence": {
@@ -220,6 +223,7 @@ Use deterministic responses during tests. Save this as
   }
 }
 ```
+
 <!-- go-fixture:end -->
 
 Then test the workflow:
@@ -279,13 +283,13 @@ each required agent response.
 Replay must produce the same operation sequence. Yield reports divergence
 instead of giving a recorded response to a different operation.
 
-| Go primitive | Purpose |
-|---|---|
-| `ctx.RunCommand()` | Execute a command and record its exit code and output. |
-| `ctx.AgentTask()` | Ask the coding agent for schema-valid JSON. |
-| `ctx.AskUser()` | Request an explicit human decision. |
-| `ctx.Require()` | Bind a required claim to recorded evidence. |
-| `ctx.Blocked()` / `ctx.Refused()` | Stop honestly when work cannot or must not continue. |
+| Go primitive                      | Purpose                                                |
+| --------------------------------- | ------------------------------------------------------ |
+| `ctx.RunCommand()`                | Execute a command and record its exit code and output. |
+| `ctx.AgentTask()`                 | Ask the coding agent for schema-valid JSON.            |
+| `ctx.AskUser()`                   | Request an explicit human decision.                    |
+| `ctx.Require()`                   | Bind a required claim to recorded evidence.            |
+| `ctx.Blocked()` / `ctx.Refused()` | Stop honestly when work cannot or must not continue.   |
 
 See the [Go reference](https://pkg.go.dev/github.com/operatorstack/yield/sdk/yield),
 [primitive guides](https://yield.operatorstack.systems/docs/primitives/), and

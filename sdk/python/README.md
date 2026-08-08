@@ -87,11 +87,14 @@ python -m yieldskill init skills/env-doctor \
 Replace `skills/env-doctor/main.py` with this tested workflow:
 
 <!-- python-example:start -->
+
 ```python
 from yieldskill import define_skill
 
 def program(ctx):
-    probe = ctx.run_command("probe-python", "python3 --version || python --version", timeout_seconds=60)
+    probe = ctx.run_command(
+        "probe-python", "python3 --version || python --version", timeout_seconds=60
+    )
 
     diagnosis = ctx.agent_task(
         "diagnose",
@@ -116,7 +119,9 @@ def program(ctx):
         )
         if answer != "done":
             ctx.blocked("the environment fix was not applied")
-        recheck = ctx.run_command("recheck-python", "python3 --version || python --version", timeout_seconds=60)
+        recheck = ctx.run_command(
+            "recheck-python", "python3 --version || python --version", timeout_seconds=60
+        )
         ctx.require(recheck.exit_code == 0, "the environment probe passes after the fix", recheck)
         return {"healthy": True, "fixed": True}
 
@@ -126,6 +131,7 @@ def program(ctx):
 
 define_skill(program)
 ```
+
 <!-- python-example:end -->
 
 The generated `skill.json` declares Python as the runner. The generated
@@ -199,13 +205,13 @@ for each required agent or user response.
 Replay must produce the same operation sequence. Yield reports divergence
 instead of giving a recorded response to a different operation.
 
-| Python primitive | Purpose |
-|---|---|
-| `ctx.run_command()` | Execute a command and record its exit code and output. |
-| `ctx.agent_task()` | Ask the coding agent for schema-valid JSON. |
-| `ctx.ask_user()` | Request an explicit human decision. |
-| `ctx.require()` | Bind a required claim to recorded evidence. |
-| `ctx.blocked()` / `ctx.refused()` | Stop honestly when work cannot or must not continue. |
+| Python primitive                  | Purpose                                                |
+| --------------------------------- | ------------------------------------------------------ |
+| `ctx.run_command()`               | Execute a command and record its exit code and output. |
+| `ctx.agent_task()`                | Ask the coding agent for schema-valid JSON.            |
+| `ctx.ask_user()`                  | Request an explicit human decision.                    |
+| `ctx.require()`                   | Bind a required claim to recorded evidence.            |
+| `ctx.blocked()` / `ctx.refused()` | Stop honestly when work cannot or must not continue.   |
 
 See the [primitive guides](https://yield.operatorstack.systems/docs/primitives/)
 and [CLI reference](https://github.com/operatorstack/yield/blob/main/docs/reference/cli.md)

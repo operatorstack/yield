@@ -5,12 +5,12 @@ skills with deterministic code, state, and verification.
 
 The terms have separate jobs:
 
-| term | meaning |
-|---|---|
-| **skill** | one reusable capability, described for the coding agent |
-| **workflow** | sequencing, branching, checks, and saved state |
-| **skill workflow** | an executable composition of skills, code, commands, and human input |
-| **adapter** | a generated `SKILL.md` that lets one coding agent discover the workflow |
+| term               | meaning                                                                 |
+| ------------------ | ----------------------------------------------------------------------- |
+| **skill**          | one reusable capability, described for the coding agent                 |
+| **workflow**       | sequencing, branching, checks, and saved state                          |
+| **skill workflow** | an executable composition of skills, code, commands, and human input    |
+| **adapter**        | a generated `SKILL.md` that lets one coding agent discover the workflow |
 
 ## The two slices
 

@@ -47,12 +47,12 @@ available for 73 more coding agents.
 
 Run the command for your project:
 
-| Language | Command |
-|---|---|
-| TypeScript | `npm create @operatorstack/yield@latest` |
-| Python | `uvx --from yieldskill yskill bootstrap --language python` |
-| Rust | `cargo install yieldskill --locked`, then `yskill bootstrap --language rust` |
-| Go | `go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go` |
+| Language   | Command                                                                           |
+| ---------- | --------------------------------------------------------------------------------- |
+| TypeScript | `npm create @operatorstack/yield@latest`                                          |
+| Python     | `uvx --from yieldskill yskill bootstrap --language python`                        |
+| Rust       | `cargo install yieldskill --locked`, then `yskill bootstrap --language rust`      |
+| Go         | `go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go` |
 
 Yield detects the repository, language, and installed coding agents. It shows
 every proposed file and dependency change. It asks before it writes. It then
@@ -84,17 +84,18 @@ A release skill often starts as prose:
 Yield makes the order and stopping rules executable:
 
 <!-- release-example:start -->
-```typescript
-import { defineSkill } from "@operatorstack/yield";
 
-type Review = { critical: number; summary: string };
+```typescript
+import { defineSkill } from "@operatorstack/yield"
+
+type Review = { critical: number; summary: string }
 
 defineSkill((ctx) => {
   // Yield runs commands itself and records their output and exit status.
-  const tests = ctx.runCommand("test", "echo tests-ok", 300);
+  const tests = ctx.runCommand("test", "echo tests-ok", 300)
 
   // A failed requirement stops the workflow and keeps its evidence.
-  ctx.require(tests.exit_code === 0, "the test command succeeds", tests);
+  ctx.require(tests.exit_code === 0, "the test command succeeds", tests)
 
   // Review gives TypeScript its compile-time type. The JSON schema checks the
   // coding agent's response at runtime before this workflow can continue.
@@ -110,28 +111,29 @@ defineSkill((ctx) => {
         summary: { type: "string", minLength: 1 },
       },
     },
-  );
-  ctx.require(review.critical === 0, "the review has no critical findings", review);
+  )
+  ctx.require(review.critical === 0, "the review has no critical findings", review)
 
   // Yield emits these fixed choices. A supported host may show native controls;
   // otherwise the coding agent asks through its normal interface.
   const approval = ctx.askUser("approve-publish", "Publish this package?", [
     { value: "yes", label: "Publish" },
     { value: "no", label: "Stop" },
-  ]);
-  if (approval !== "yes") ctx.refused("the operator declined publication");
+  ])
+  if (approval !== "yes") ctx.refused("the operator declined publication")
 
   // Publishing cannot start before approval. Verification is a separate step,
   // so completion requires evidence that the registry contains the release.
-  const publish = ctx.runCommand("publish", "echo publish-ok", 600);
-  ctx.require(publish.exit_code === 0, "the publish command succeeds", publish);
+  const publish = ctx.runCommand("publish", "echo publish-ok", 600)
+  ctx.require(publish.exit_code === 0, "the publish command succeeds", publish)
 
-  const registry = ctx.runCommand("verify-registry", "echo registry-ok", 300);
-  ctx.require(registry.exit_code === 0, "the registry contains the release", registry);
+  const registry = ctx.runCommand("verify-registry", "echo registry-ok", 300)
+  ctx.require(registry.exit_code === 0, "the registry contains the release", registry)
 
-  return { published: true, summary: review.summary };
-});
+  return { published: true, summary: review.summary }
+})
 ```
+
 <!-- release-example:end -->
 
 The example uses harmless commands so its fixture can run in any checkout.
@@ -140,6 +142,7 @@ The complete tested source is in
 [`examples/release-checklist`](https://github.com/operatorstack/yield/tree/main/examples/release-checklist/).
 
 <!-- npm-exclude:start -->
+
 ## Yield releases Yield
 
 This repository uses its own exact published SDK for stable releases. The
@@ -263,13 +266,13 @@ The agent follows the generated adapter, runs the canonical workflow in
 If replay produces a different operation, the run fails instead of silently
 forking. Every side effect crosses one of these primitives:
 
-| Primitive | Purpose |
-|---|---|
-| `runCommand` | Execute a command and record its exit code and output. |
-| `agentTask` | Ask the coding agent for schema-valid JSON. |
-| `askUser` | Request an explicit human decision. |
-| `require` | Bind a required claim to recorded evidence. |
-| `blocked` / `refused` | Stop honestly when work cannot or must not continue. |
+| Primitive             | Purpose                                                |
+| --------------------- | ------------------------------------------------------ |
+| `runCommand`          | Execute a command and record its exit code and output. |
+| `agentTask`           | Ask the coding agent for schema-valid JSON.            |
+| `askUser`             | Request an explicit human decision.                    |
+| `require`             | Bind a required claim to recorded evidence.            |
+| `blocked` / `refused` | Stop honestly when work cannot or must not continue.   |
 
 See the [primitive guides](https://github.com/operatorstack/yield/blob/main/docs/primitives/README.md) and
 [runtime reference](https://github.com/operatorstack/yield/blob/main/docs/reference/cli.md) for the full contract.
@@ -279,12 +282,12 @@ See the [primitive guides](https://github.com/operatorstack/yield/blob/main/docs
 All four SDKs implement the same execution contract. The conformance suite runs
 the same program in every language and compares observable behavior.
 
-| Language | SDK | Example |
-|---|---|---|
-| TypeScript | [`@operatorstack/yield`](https://github.com/operatorstack/yield/tree/main/sdk/typescript/) | [`release-checklist`](https://github.com/operatorstack/yield/tree/main/examples/release-checklist/) |
-| Python | [`yieldskill`](https://github.com/operatorstack/yield/tree/main/sdk/python/) | [`env-doctor`](https://github.com/operatorstack/yield/tree/main/examples/env-doctor/) |
-| Go | [`github.com/operatorstack/yield/sdk/yield`](https://pkg.go.dev/github.com/operatorstack/yield/sdk/yield) | [`investigate`](https://github.com/operatorstack/yield/tree/main/examples/investigate/) |
-| Rust | [`yieldskill`](https://github.com/operatorstack/yield/tree/main/sdk/rust/) | [`data-migration`](https://github.com/operatorstack/yield/tree/main/examples/data-migration/) |
+| Language   | SDK                                                                                                       | Example                                                                                             |
+| ---------- | --------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| TypeScript | [`@operatorstack/yield`](https://github.com/operatorstack/yield/tree/main/sdk/typescript/)                | [`release-checklist`](https://github.com/operatorstack/yield/tree/main/examples/release-checklist/) |
+| Python     | [`yieldskill`](https://github.com/operatorstack/yield/tree/main/sdk/python/)                              | [`env-doctor`](https://github.com/operatorstack/yield/tree/main/examples/env-doctor/)               |
+| Go         | [`github.com/operatorstack/yield/sdk/yield`](https://pkg.go.dev/github.com/operatorstack/yield/sdk/yield) | [`investigate`](https://github.com/operatorstack/yield/tree/main/examples/investigate/)             |
+| Rust       | [`yieldskill`](https://github.com/operatorstack/yield/tree/main/sdk/rust/)                                | [`data-migration`](https://github.com/operatorstack/yield/tree/main/examples/data-migration/)       |
 
 Cursor, Codex, and Claude Code are verified integrations. Yield also includes
 registry-backed project paths for 73 more coding agents. Those paths support
@@ -318,9 +321,15 @@ loop, multi-agent orchestrator, or security sandbox.
 Run the main checks from the repository root:
 
 ```bash
+npm run format:check
 go test ./...
 npm run test:release
 ```
+
+Run `npm run format` to format the supported source files. Install the repository
+npm dependencies first. The command also needs Go, Rust, and `uvx`. Generated
+files and evaluation sources with byte-bound receipts stay unchanged until their
+generators or evaluations run.
 
 The [example library](https://github.com/operatorstack/yield/tree/main/examples/library/) contains ten common workflows in all
 four SDKs, including code review, failure investigation, CI repair, dependency

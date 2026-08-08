@@ -26,12 +26,12 @@ yskill register-all skills --agent cursor,codex,claude-code --prune
 
 Use the launcher installed by the selected language package:
 
-| Language | Launcher |
-|---|---|
-| TypeScript | `npm exec -- yskill` |
-| Python | `python -m yieldskill` |
-| Go | `.yield/bin/yskill` |
-| Rust | `.yield/bin/yskill` |
+| Language   | Launcher               |
+| ---------- | ---------------------- |
+| TypeScript | `npm exec -- yskill`   |
+| Python     | `python -m yieldskill` |
+| Go         | `.yield/bin/yskill`    |
+| Rust       | `.yield/bin/yskill`    |
 
 Go and Rust keep one version-locked runtime in `.yield/bin` at the repository
 root. Registration checks that runtime, the workflow SDK, and the generated
@@ -117,4 +117,7 @@ Workflow-only `doctor` works without `.git`. A Go or Rust runtime under
 `.yield/bin` also identifies the project root for `init`, `doctor`, and
 registration. For other non-Git layouts, pass `--root` so Yield knows where
 agent adapters belong.
+
+```
+
 ```

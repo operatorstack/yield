@@ -2,10 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "yield.v1 journal (replay input)",
   "type": "object",
-  "required": [
-    "run_id",
-    "skill"
-  ],
+  "required": ["run_id", "skill"],
   "properties": {
     "run_id": {
       "type": "string",
@@ -18,10 +15,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": [
-          "request",
-          "response"
-        ],
+        "required": ["request", "response"],
         "properties": {
           "request": {
             "$ref": "request-envelope.schema.json#/$defs/request"

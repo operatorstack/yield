@@ -8,18 +8,18 @@ Many review skills mix two different jobs in prose:
 Yield gives each job a clear owner.
 
 ```ts
-const check = ctx.runCommand("check", "npm run typecheck", 300);
-ctx.require(check.exit_code === 0, "typecheck passes", check);
+const check = ctx.runCommand("check", "npm run typecheck", 300)
+ctx.require(check.exit_code === 0, "typecheck passes", check)
 
 const review = ctx.agentTask<Review>(
   "review",
   "Review the branch for correctness, security, and data-loss risks.",
   undefined,
   reviewSchema,
-);
+)
 
-ctx.require(review.critical === 0, "no critical findings remain", review);
-return review;
+ctx.require(review.critical === 0, "no critical findings remain", review)
+return review
 ```
 
 ## Why this split helps

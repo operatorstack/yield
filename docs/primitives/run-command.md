@@ -5,8 +5,8 @@ output. Typical uses are tests, type checks, builds, dry runs, deploy commands,
 and verification probes.
 
 ```ts
-const test = ctx.runCommand("test", "npm test", 300);
-ctx.require(test.exit_code === 0, "the tests pass", test);
+const test = ctx.runCommand("test", "npm test", 300)
+ctx.require(test.exit_code === 0, "the tests pass", test)
 ```
 
 The arguments are:
@@ -24,8 +24,8 @@ command timed out.
 Pass the command result to `Require` when a later completion depends on it:
 
 ```ts
-const build = ctx.runCommand("build", "npm run build", 600);
-ctx.require(build.exit_code === 0, "the production build succeeds", build);
+const build = ctx.runCommand("build", "npm run build", 600)
+ctx.require(build.exit_code === 0, "the production build succeeds", build)
 ```
 
 This binds the claim to the recorded command result. A failed requirement ends

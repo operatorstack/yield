@@ -7,9 +7,9 @@ an irreversible action.
 const answer = ctx.askUser("approve", "Publish this release?", [
   { value: "yes", label: "Publish" },
   { value: "no", label: "Stop" },
-]);
+])
 
-if (answer !== "yes") ctx.refused("the user declined publication");
+if (answer !== "yes") ctx.refused("the user declined publication")
 ```
 
 The coding agent asks through its normal interface. Yield records the answer
