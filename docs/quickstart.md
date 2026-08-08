@@ -41,10 +41,16 @@ the new adapter.
 
 ## 4. Ask for the skill workflow
 
-Use a plain-language request:
+To create a new skill workflow, ask:
 
 ```text
-Use Yield to turn my release skill into a tested workflow.
+Use Yield to create a tested skill workflow for releasing my package.
+```
+
+To convert an existing `SKILL.md`, ask:
+
+```text
+Use Yield to convert my existing release SKILL.md into a tested skill workflow.
 ```
 
 The builder can start from a description. It can also convert an existing

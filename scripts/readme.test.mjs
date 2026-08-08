@@ -296,7 +296,12 @@ test("README and quickstart use the public documentation and package registries"
     assert.ok(agentSetup.includes(command), `agent setup is missing ${command}`);
   }
   assert.doesNotMatch(quickstart, /get\.operatorstack\.systems\/npm|@operatorstack\/yield@0\./);
-  assert.match(quickstart, /Use Yield to turn my release skill into a tested workflow\./);
+  const createRequest = "Use Yield to create a tested skill workflow for releasing my package.";
+  const convertRequest = "Use Yield to convert my existing release SKILL.md into a tested skill workflow.";
+  for (const document of [readme, quickstart, agentSetup, pythonReadme, rustReadme, goReadme]) {
+    assert.ok(document.includes(createRequest), "agent-first documentation is missing the create request");
+    assert.ok(document.includes(convertRequest), "agent-first documentation is missing the convert request");
+  }
   assert.match(quickstart, /^## Advanced: build manually$/m);
   assert.match(agentSetup, /^## Run the registered skill$/m);
 });

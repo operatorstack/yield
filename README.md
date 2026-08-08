@@ -58,10 +58,16 @@ Yield detects the repository, language, and installed coding agents. It shows
 every proposed file and dependency change. It asks before it writes. It then
 installs, tests, and registers the `yield-workflow-builder` skill workflow.
 
-Restart your coding agent. Then ask:
+Restart your coding agent. To create a new skill workflow, ask:
 
 ```text
-Use Yield to turn my release skill into a tested workflow.
+Use Yield to create a tested skill workflow for releasing my package.
+```
+
+To convert an existing `SKILL.md`, ask:
+
+```text
+Use Yield to convert my existing release SKILL.md into a tested skill workflow.
 ```
 
 The builder can create a skill workflow from a description. It can also
