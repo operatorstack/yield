@@ -52,6 +52,11 @@ func TestBootstrapCancellationDoesNotWrite(t *testing.T) {
 
 func TestBootstrapWritesBuilderProfileAndAdapter(t *testing.T) {
 	withBootstrapTestState(t)
+	var doctorAgents [][]string
+	bootstrapDoctor = func(_ string, _ string, agents []string) error {
+		doctorAgents = append(doctorAgents, append([]string(nil), agents...))
+		return nil
+	}
 	root := t.TempDir()
 	if err := cmdBootstrap([]string{"--root", root, "--language", "python", "--agent", "codex", "--yes"}); err != nil {
 		t.Fatal(err)
@@ -72,6 +77,9 @@ func TestBootstrapWritesBuilderProfileAndAdapter(t *testing.T) {
 	}
 	if err := cmdBootstrap([]string{"--root", root, "--language", "python", "--agent", "codex", "--yes"}); err != nil {
 		t.Fatalf("idempotent bootstrap failed: %v", err)
+	}
+	if len(doctorAgents) != 4 || len(doctorAgents[0]) != 0 || len(doctorAgents[1]) != 1 || doctorAgents[1][0] != "codex" {
+		t.Fatalf("bootstrap must verify the workflow before registration and adapters after it: %#v", doctorAgents)
 	}
 }
 
@@ -111,7 +119,8 @@ func TestBootstrapRefusesAdapterSymlinkEscape(t *testing.T) {
 
 func TestBuilderTemplatesExposeEquivalentOperations(t *testing.T) {
 	profile := bootstrapProfile{YieldVersion: "1.2.3", Agents: []string{"codex"}}
-	want := []string{"select-mode", "collect-specification", "extract-flow", "write-workflow", "verify-generated", "repair-generated-", "register-generated", "verify-adapters"}
+	want := []string{"select-mode", "collect-specification", "check-destination", "project-semantics", "extract-flow", "write-workflow", "verify-generated", "repair-generated-", "register-generated", "verify-adapters"}
+	projectionContract := []string{"source_clause", "disposition", "destinations", "reason", "control", "guidance", "both", "excluded", "ready", "unresolved"}
 	for _, language := range []string{"typescript", "python", "go", "rust"} {
 		files, _, err := renderBootstrapSkill(language, profile)
 		if err != nil {
@@ -128,6 +137,24 @@ func TestBuilderTemplatesExposeEquivalentOperations(t *testing.T) {
 				t.Errorf("%s builder is missing operation %s", language, operation)
 			}
 		}
+		for _, field := range projectionContract {
+			if !strings.Contains(program, field) {
+				t.Errorf("%s builder projection is missing %s", language, field)
+			}
+		}
+		for _, downstream := range []string{"source,projection", `"source":source,"projection":projection`} {
+			if strings.Contains(program, downstream) {
+				goto hasProjectionContext
+			}
+		}
+		t.Errorf("%s builder does not pass source and projection downstream", language)
+	hasProjectionContext:
+	}
+}
+
+func TestBuilderCreateFixtureDoesNotRequireProjection(t *testing.T) {
+	if strings.Contains(bootstrapFixtureResponses, `"project-semantics"`) {
+		t.Fatal("create mode fixture must remain unchanged by conversion projection")
 	}
 }
 

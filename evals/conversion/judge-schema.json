@@ -1,0 +1,53 @@
+{
+  "type": "object",
+  "required": ["candidate", "negative_control", "clause_findings", "defect_detection"],
+  "additionalProperties": false,
+  "properties": {
+    "candidate": {
+      "type": "object",
+      "required": ["verdict", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "verdict": {"enum": ["accept", "reject"]},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "negative_control": {
+      "type": "object",
+      "required": ["verdict", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "verdict": {"enum": ["accept", "reject"]},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "clause_findings": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["source_clause", "disposition", "preserved", "reachable", "finding"],
+        "additionalProperties": false,
+        "properties": {
+          "source_clause": {"type": "string", "minLength": 1},
+          "disposition": {"enum": ["control", "guidance", "both", "excluded"]},
+          "preserved": {"type": "boolean"},
+          "reachable": {"type": "boolean"},
+          "finding": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "defect_detection": {
+      "type": "object",
+      "required": ["missing", "contradictory", "incorrectly_duplicated", "excluded_without_reason", "unreachable"],
+      "additionalProperties": false,
+      "properties": {
+        "missing": {"type": "boolean"},
+        "contradictory": {"type": "boolean"},
+        "incorrectly_duplicated": {"type": "boolean"},
+        "excluded_without_reason": {"type": "boolean"},
+        "unreachable": {"type": "boolean"}
+      }
+    }
+  }
+}

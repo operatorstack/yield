@@ -86,7 +86,7 @@ func cmdBootstrap(args []string) error {
 	for _, agent := range plan.Agents {
 		ids = append(ids, agent.ID)
 	}
-	if err := bootstrapDoctor(plan.SkillDir, plan.Root, ids); err != nil {
+	if err := bootstrapDoctor(plan.SkillDir, plan.Root, nil); err != nil {
 		return fmt.Errorf("verify workflow builder: %w", err)
 	}
 	registrations, err := registerSkill(plan.SkillDir, plan.Root, ids)
@@ -95,6 +95,9 @@ func cmdBootstrap(args []string) error {
 	}
 	for _, item := range registrations {
 		fmt.Printf("registered: %-22s %s\n", item.AgentID, item.Path)
+	}
+	if err := bootstrapDoctor(plan.SkillDir, plan.Root, ids); err != nil {
+		return fmt.Errorf("verify workflow builder adapters: %w", err)
 	}
 	fmt.Println("bootstrap: workflow builder is ready")
 	fmt.Println("next: restart your coding agent, then ask it to create or convert a skill workflow")

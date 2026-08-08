@@ -127,6 +127,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
@@ -148,6 +150,12 @@ jobs:
         run: |
           npm ci
           npm test
+      - name: Validate semantic conversion receipt when required
+        working-directory: evals
+        env:
+          EVAL_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          EVAL_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: npm run test:conversion
       - name: Run every example fixture
         run: |
           go build -o "$RUNNER_TEMP/yskill" ./cmd/yskill
