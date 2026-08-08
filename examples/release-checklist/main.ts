@@ -16,7 +16,7 @@ defineSkill((ctx) => {
   // coding agent's response at runtime before this workflow can continue.
   const review = ctx.agentTask<Review>(
     "review-release",
-    "Review this release. Report critical findings and a short summary.",
+    "Review this release for correctness problems that the test command may miss. Report critical findings and a short summary.",
     { stdout: tests.stdout, stderr: tests.stderr },
     {
       type: "object",

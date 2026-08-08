@@ -215,13 +215,21 @@ each required agent or user response.
 Replay must produce the same operation sequence. Yield reports divergence
 instead of giving a recorded response to a different operation.
 
-| Rust primitive                    | Purpose                                                |
-| --------------------------------- | ------------------------------------------------------ |
-| `ctx.run_command()`               | Execute a command and record its exit code and output. |
-| `ctx.agent_task()`                | Ask the coding agent for schema-valid JSON.            |
-| `ctx.ask_user()`                  | Request an explicit human decision.                    |
-| `ctx.require()`                   | Bind a required claim to recorded evidence.            |
-| `ctx.blocked()` / `ctx.refused()` | Stop honestly when work cannot or must not continue.   |
+## Where AgentTask fits
+
+`ctx.agent_task()` delegates one bounded judgment to the coding agent. Pass
+important evidence explicitly, as this workflow passes its dry-run output.
+With its schema, Yield checks the returned JSON shape before the workflow
+continues; it does not prove the summary is correct. Host workspace and
+conversation access are host-dependent.
+
+| Rust primitive                    | Purpose                                                                 |
+| --------------------------------- | ----------------------------------------------------------------------- |
+| `ctx.run_command()`               | Execute a command and record its exit code and output.                  |
+| `ctx.agent_task()`                | Delegate one bounded judgment; an optional schema validates the result. |
+| `ctx.ask_user()`                  | Request an explicit human decision.                                     |
+| `ctx.require()`                   | Bind a required claim to recorded evidence.                             |
+| `ctx.blocked()` / `ctx.refused()` | Stop honestly when work cannot or must not continue.                    |
 
 See the [primitive guides](https://yield.operatorstack.systems/docs/primitives/)
 and [CLI reference](https://github.com/operatorstack/yield/blob/main/docs/reference/cli.md)

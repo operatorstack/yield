@@ -284,13 +284,21 @@ each required agent response.
 Replay must produce the same operation sequence. Yield reports divergence
 instead of giving a recorded response to a different operation.
 
-| Go primitive                      | Purpose                                                |
-| --------------------------------- | ------------------------------------------------------ |
-| `ctx.RunCommand()`                | Execute a command and record its exit code and output. |
-| `ctx.AgentTask()`                 | Ask the coding agent for schema-valid JSON.            |
-| `ctx.AskUser()`                   | Request an explicit human decision.                    |
-| `ctx.Require()`                   | Bind a required claim to recorded evidence.            |
-| `ctx.Blocked()` / `ctx.Refused()` | Stop honestly when work cannot or must not continue.   |
+## Where AgentTask fits
+
+`ctx.AgentTask()` delegates one bounded judgment to the coding agent. Pass
+important evidence explicitly, as this workflow passes its earlier structured
+results. With its schema, Yield checks the returned JSON shape before the
+workflow continues; it does not prove the diagnosis is correct. Host workspace
+and conversation access are host-dependent.
+
+| Go primitive                      | Purpose                                                                 |
+| --------------------------------- | ----------------------------------------------------------------------- |
+| `ctx.RunCommand()`                | Execute a command and record its exit code and output.                  |
+| `ctx.AgentTask()`                 | Delegate one bounded judgment; an optional schema validates the result. |
+| `ctx.AskUser()`                   | Request an explicit human decision.                                     |
+| `ctx.Require()`                   | Bind a required claim to recorded evidence.                             |
+| `ctx.Blocked()` / `ctx.Refused()` | Stop honestly when work cannot or must not continue.                    |
 
 See the [Go reference](https://pkg.go.dev/github.com/operatorstack/yield/sdk/yield),
 [primitive guides](https://yield.operatorstack.systems/docs/primitives/), and

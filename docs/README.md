@@ -18,6 +18,9 @@ code. The coding agent still investigates, reviews, edits, and explains. Your
 program decides which operation comes next, what evidence must exist, and when
 the run is finished.
 
+When one step needs judgment, call the coding agent with `AgentTask`, receive
+structured data, then continue in normal code.
+
 A **skill workflow** is a portable, executable process that combines agent
 skills with deterministic code, state, and verification. The canonical
 workflow is the source you edit. Generated adapters let coding agents discover

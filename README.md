@@ -40,6 +40,9 @@ programs. The canonical workflow stays inside your repository beside the code
 and dependencies it uses. Generated `SKILL.md` files only help coding agents
 discover it.
 
+Write the workflow in code. Use `AgentTask` only where a bounded step needs
+coding-agent judgment, then continue with structured data in normal code.
+
 Verified with Cursor, Codex, and Claude Code. Registry-backed project paths are
 available for 73 more coding agents.
 
@@ -81,7 +84,9 @@ A release skill often starts as prose:
 > Run the tests. Review the release. Stop if the review finds a critical issue.
 > Ask me before publishing. Publish the package, then verify the registry.
 
-Yield makes the order and stopping rules executable:
+Yield makes the order and stopping rules executable. The coding agent reviews
+what the deterministic check may miss; the program still owns the gate,
+approval, publish, and verification steps:
 
 <!-- release-example:start -->
 
@@ -101,7 +106,7 @@ defineSkill((ctx) => {
   // coding agent's response at runtime before this workflow can continue.
   const review = ctx.agentTask<Review>(
     "review-release",
-    "Review this release. Report critical findings and a short summary.",
+    "Review this release for correctness problems that the test command may miss. Report critical findings and a short summary.",
     { stdout: tests.stdout, stderr: tests.stderr },
     {
       type: "object",
@@ -267,13 +272,13 @@ The agent follows the generated adapter, runs the canonical workflow in
 If replay produces a different operation, the run fails instead of silently
 forking. Every side effect crosses one of these primitives:
 
-| Primitive             | Purpose                                                |
-| --------------------- | ------------------------------------------------------ |
-| `runCommand`          | Execute a command and record its exit code and output. |
-| `agentTask`           | Ask the coding agent for schema-valid JSON.            |
-| `askUser`             | Request an explicit human decision.                    |
-| `require`             | Bind a required claim to recorded evidence.            |
-| `blocked` / `refused` | Stop honestly when work cannot or must not continue.   |
+| Primitive             | Purpose                                                                 |
+| --------------------- | ----------------------------------------------------------------------- |
+| `runCommand`          | Execute a command and record its exit code and output.                  |
+| `agentTask`           | Delegate one bounded judgment; an optional schema validates the result. |
+| `askUser`             | Request an explicit human decision.                                     |
+| `require`             | Bind a required claim to recorded evidence.                             |
+| `blocked` / `refused` | Stop honestly when work cannot or must not continue.                    |
 
 See the [primitive guides](https://github.com/operatorstack/yield/blob/main/docs/primitives/README.md) and
 [runtime reference](https://github.com/operatorstack/yield/blob/main/docs/reference/cli.md) for the full contract.
