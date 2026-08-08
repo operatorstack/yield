@@ -89,12 +89,9 @@ test("Go README example matches the tested investigation workflow", async () => 
     /<!-- go-example:start -->\s*```go\n([\s\S]*?)\n```\s*<!-- go-example:end -->/,
   );
   assert.ok(readmeMatch, "Go README example markers are missing");
-  const sourceMatch = source.match(
-    /\/\/ README_EXAMPLE_START\n([\s\S]*?)\n\/\/ README_EXAMPLE_END/,
-  );
-  assert.ok(sourceMatch, "Go source example markers are missing");
-  const readmeProgram = readmeMatch[1].replace(/^package main\n+/, "").trim();
-  assert.equal(readmeProgram, sourceMatch[1].trim());
+  const sourceMatch = source.match(/^(package main[\s\S]*)$/m);
+  assert.ok(sourceMatch, "Go source program is missing");
+  assert.equal(readmeMatch[1].trim(), sourceMatch[1].trim());
 
   const fixtureMatch = readme.match(
     /<!-- go-fixture:start -->\s*```json\n([\s\S]*?)\n```\s*<!-- go-fixture:end -->/,
