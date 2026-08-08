@@ -194,7 +194,7 @@ class Context:
                             "detail": (
                                 f'replay produced operation "{req["id"]}" ({req["kind"]}) '
                                 f'where the journal recorded "{entry["request"]["id"]}" '
-                                f'({entry["request"]["kind"]})'
+                                f"({entry['request']['kind']})"
                             ),
                         },
                     }

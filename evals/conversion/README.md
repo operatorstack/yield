@@ -21,12 +21,12 @@ the reason for an exclusion.
 4. Give a reason for each excluded clause.
 5. Pass the source and projection into flow extraction, writing, and repair.
 
-| Source clause | Disposition | Required destination |
-|---|---|---|
-| Run tests and stop on failure. | `control` | Code |
-| Prefer changed-code evidence. | `guidance` | `SKILL.md` or `agent_task` |
-| Ask for approval and explain why. | `both` | Code and model-facing guidance |
-| Yarn is only release history. | `excluded` | No destination; give a reason |
+| Source clause                     | Disposition | Required destination           |
+| --------------------------------- | ----------- | ------------------------------ |
+| Run tests and stop on failure.    | `control`   | Code                           |
+| Prefer changed-code evidence.     | `guidance`  | `SKILL.md` or `agent_task`     |
+| Ask for approval and explain why. | `both`      | Code and model-facing guidance |
+| Yarn is only release history.     | `excluded`  | No destination; give a reason  |
 
 Run the paid evaluation:
 

@@ -6,13 +6,13 @@ An approval belongs before the command that changes the system.
 const approval = ctx.askUser("approve", "Publish this release?", [
   { value: "yes", label: "Publish" },
   { value: "no", label: "Stop" },
-]);
+])
 
-if (approval !== "yes") ctx.refused("the user declined publication");
+if (approval !== "yes") ctx.refused("the user declined publication")
 
-const publish = ctx.runCommand("publish", "npm run publish", 600);
-ctx.require(publish.exit_code === 0, "the publish command succeeds", publish);
-return { published: true };
+const publish = ctx.runCommand("publish", "npm run publish", 600)
+ctx.require(publish.exit_code === 0, "the publish command succeeds", publish)
+return { published: true }
 ```
 
 Yield does not provide publishing logic. `npm run publish` is your command and

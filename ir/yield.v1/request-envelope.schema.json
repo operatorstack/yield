@@ -2,13 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "yield.v1 request envelope",
   "type": "object",
-  "required": [
-    "protocol",
-    "run_id",
-    "skill",
-    "sequence",
-    "request"
-  ],
+  "required": ["protocol", "run_id", "skill", "sequence", "request"],
   "properties": {
     "protocol": {
       "const": "yield.v1"
@@ -32,10 +26,7 @@
   "$defs": {
     "skillRef": {
       "type": "object",
-      "required": [
-        "name",
-        "digest"
-      ],
+      "required": ["name", "digest"],
       "properties": {
         "name": {
           "type": "string",
@@ -53,22 +44,14 @@
     },
     "request": {
       "type": "object",
-      "required": [
-        "id",
-        "kind",
-        "payload"
-      ],
+      "required": ["id", "kind", "payload"],
       "properties": {
         "id": {
           "type": "string",
           "minLength": 1
         },
         "kind": {
-          "enum": [
-            "ask_user",
-            "agent_task",
-            "run_command"
-          ]
+          "enum": ["ask_user", "agent_task", "run_command"]
         },
         "payload": {},
         "output_schema": {}

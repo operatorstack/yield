@@ -1,8 +1,5 @@
 {
   "version": 1,
   "language": "typescript",
-  "run": [
-    "node",
-    "main.ts"
-  ]
+  "run": ["node", "main.ts"]
 }

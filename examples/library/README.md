@@ -4,18 +4,18 @@ Ten common skill workflows for coding agents, each implemented in TypeScript, Py
 Go, and Rust. Choose the language already used by your repository; the
 workflow and fixture are otherwise the same.
 
-| Skill workflow | What the code keeps in order |
-|---|---|
-| review-branch | checks -> review -> zero-critical gate |
-| investigate-failure | evidence -> diagnosis -> supported cause |
-| qa-web-change | build -> changed-route QA -> no blockers |
-| release-package | tests -> review -> approval -> publish -> verify |
-| triage-issue | read -> classify -> one next action |
-| repair-ci | failed log -> supported repair -> rerun |
-| upgrade-dependency | baseline -> compatibility review -> approval -> update -> tests |
-| migrate-database | dry-run -> risk review -> approval -> apply -> verify |
-| audit-security | mechanical scans -> trust-boundary review -> zero-critical gate |
-| publish-ios | archive -> metadata review -> approval -> upload -> processing check |
+| Skill workflow      | What the code keeps in order                                         |
+| ------------------- | -------------------------------------------------------------------- |
+| review-branch       | checks -> review -> zero-critical gate                               |
+| investigate-failure | evidence -> diagnosis -> supported cause                             |
+| qa-web-change       | build -> changed-route QA -> no blockers                             |
+| release-package     | tests -> review -> approval -> publish -> verify                     |
+| triage-issue        | read -> classify -> one next action                                  |
+| repair-ci           | failed log -> supported repair -> rerun                              |
+| upgrade-dependency  | baseline -> compatibility review -> approval -> update -> tests      |
+| migrate-database    | dry-run -> risk review -> approval -> apply -> verify                |
+| audit-security      | mechanical scans -> trust-boundary review -> zero-critical gate      |
+| publish-ios         | archive -> metadata review -> approval -> upload -> processing check |
 
 The source files live under:
 

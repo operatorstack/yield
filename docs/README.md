@@ -1,5 +1,7 @@
 # Yield documentation
 
+- [Repository formatting](formatting.md)
+
 Move repeatable coding-agent instructions from words into code.
 
 The [public documentation](https://yield.operatorstack.systems/docs/) is the
@@ -42,13 +44,13 @@ and start it.
 
 ## The split to remember
 
-| Put in code | Leave with the model |
-|---|---|
-| order and branching | investigation and judgment |
-| retry limits | reading unfamiliar code |
-| commands that must really run | proposing changes |
-| approval points | writing explanations |
-| evidence required to finish | interpreting evidence |
+| Put in code                   | Leave with the model       |
+| ----------------------------- | -------------------------- |
+| order and branching           | investigation and judgment |
+| retry limits                  | reading unfamiliar code    |
+| commands that must really run | proposing changes          |
+| approval points               | writing explanations       |
+| evidence required to finish   | interpreting evidence      |
 
 This is not a new agent loop or a hosted agent runtime. A thin `SKILL.md` starts
 the program, the program emits one typed operation, and the coding agent

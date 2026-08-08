@@ -9,12 +9,12 @@ surface and nothing else.
 
 ## Files
 
-| schema | what it defines |
-|---|---|
-| `yield.v1/request-envelope.schema.json` | one yielded operation, bound to run, sequence, and skill digest |
-| `yield.v1/response-envelope.schema.json` | the answer for exactly one pending request |
-| `yield.v1/journal.schema.json` | the replay input: run identity + answered operations in order |
-| `yield.v1/program-output.schema.json` | the single output of one skill-program execution: `request` \| `terminal` \| `diverged` |
+| schema                                   | what it defines                                                                         |
+| ---------------------------------------- | --------------------------------------------------------------------------------------- |
+| `yield.v1/request-envelope.schema.json`  | one yielded operation, bound to run, sequence, and skill digest                         |
+| `yield.v1/response-envelope.schema.json` | the answer for exactly one pending request                                              |
+| `yield.v1/journal.schema.json`           | the replay input: run identity + answered operations in order                           |
+| `yield.v1/program-output.schema.json`    | the single output of one skill-program execution: `request` \| `terminal` \| `diverged` |
 
 ## The SDK execution contract
 
