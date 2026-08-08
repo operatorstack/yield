@@ -89,10 +89,16 @@ go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go
 ```
 
 Bootstrap shows every proposed change. Confirm the plan. Restart the coding
-agent after registration. Then ask:
+agent after registration. To create a new skill workflow, ask:
 
 ```text
-Use Yield to turn my release skill into a tested workflow.
+Use Yield to create a tested skill workflow for releasing my package.
+```
+
+To convert an existing `SKILL.md`, ask:
+
+```text
+Use Yield to convert my existing release SKILL.md into a tested skill workflow.
 ```
 
 The builder collects the specification, writes the skill workflow, runs its

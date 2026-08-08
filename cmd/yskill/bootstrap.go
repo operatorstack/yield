@@ -97,7 +97,9 @@ func cmdBootstrap(args []string) error {
 		fmt.Printf("registered: %-22s %s\n", item.AgentID, item.Path)
 	}
 	fmt.Println("bootstrap: workflow builder is ready")
-	fmt.Println("next: restart your coding agent, then say: Use Yield to turn my release skill into a tested workflow.")
+	fmt.Println("next: restart your coding agent, then ask it to create or convert a skill workflow")
+	fmt.Println("create: Use Yield to create a tested skill workflow for releasing my package.")
+	fmt.Println("convert: Use Yield to convert my existing release SKILL.md into a tested skill workflow.")
 	return nil
 }
 
