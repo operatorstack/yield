@@ -5,8 +5,8 @@
 // conversion.
 //
 // Division of labor: the program owns the pipeline order, the language
-// menu, the retry bound, and the evidence gate. The model owns reading
-// the prose, extracting the flow, and writing the code.
+// menu, the retry bound, and the evidence gate. The model owns projecting
+// each source clause, extracting the flow, and writing the code and guidance.
 package main
 
 import (
@@ -38,6 +38,42 @@ const flowSchema = `{
   }
 }`
 
+const projectionSchema = `{
+  "type": "object",
+  "required": ["clauses", "ready", "unresolved"],
+  "additionalProperties": false,
+  "properties": {
+    "clauses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["source_clause", "disposition", "destinations", "reason"],
+        "additionalProperties": false,
+        "properties": {
+          "source_clause": {"type": "string", "minLength": 1},
+          "disposition": {"enum": ["control", "guidance", "both", "excluded"]},
+          "destinations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind", "target"],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {"enum": ["code", "skill", "agent_task"]},
+                "target": {"type": "string", "minLength": 1}
+              }
+            }
+          },
+          "reason": {"type": "string"}
+        }
+      }
+    },
+    "ready": {"type": "boolean"},
+    "unresolved": {"type": "array", "items": {"type": "string", "minLength": 1}}
+  }
+}`
+
 const filesSchema = `{
   "type": "object",
   "required": ["files"],
@@ -58,29 +94,51 @@ func main() {
 		prose := ctx.RunCommand("read-prose", fmt.Sprintf("cat %s/SKILL.md", shellQuote(source)), 60)
 		ctx.Require(prose.ExitCode == 0, "the source SKILL.md is readable", map[string]int{"exit_code": prose.ExitCode})
 
-		flowRaw := ctx.AgentTask("extract-flow",
-			"Read the prose skill below and extract its implicit control flow as ordered steps: "+
-				"questions to the user (ask_user), model judgment (agent_task), commands (run_command), "+
-				"branches, and verification points (require). Preserve the skill's intent; do not invent steps.",
-			map[string]string{"skill_md": prose.Stdout},
-			json.RawMessage(flowSchema))
-
 		lang := ctx.AskUser("pick-language", "Target language for the generated program?",
 			yield.Option{Value: "go", Label: "Go"},
 			yield.Option{Value: "typescript", Label: "TypeScript"},
 			yield.Option{Value: "python", Label: "Python"},
 			yield.Option{Value: "rust", Label: "Rust"})
 
+		projectionRaw := ctx.AgentTask("project-semantics",
+			"Map every source clause exactly once using Pi(S)={(c,d,T,r)|c in clauses(S)}. "+
+				"YAML frontmatter is metadata, not a clause. Each top-level bullet is exactly one clause, including a compound sentence. For prose without bullets, treat each paragraph as one clause. "+
+				"Use disposition control, guidance, both, or excluded. Control needs a reachable code destination. "+
+				"Guidance needs a reachable skill or agent_task destination. Both needs both kinds. "+
+				"Excluded needs no destination and a non-empty reason. Name concrete destinations that the writer can create. "+
+				"Use the target language's canonical entrypoint for code: main.ts, main.py, main.go, or src/main.rs. "+
+				"Report uncertainty in unresolved and set ready false. Do not write files.",
+			map[string]string{"skill_md": prose.Stdout, "language": lang},
+			json.RawMessage(projectionSchema))
+		var projection struct {
+			Ready      bool     `json:"ready"`
+			Unresolved []string `json:"unresolved"`
+		}
+		if err := json.Unmarshal(projectionRaw, &projection); err != nil {
+			return yield.Outcome{}, err
+		}
+		if !projection.Ready || len(projection.Unresolved) > 0 {
+			return yield.Outcome{}, ctx.Blocked("the semantic projection has unresolved source clauses")
+		}
+
+		flowRaw := ctx.AgentTask("extract-flow",
+			"Read the prose skill and its semantic projection below. Extract its implicit control flow as ordered steps: "+
+				"questions to the user (ask_user), model judgment (agent_task), commands (run_command), "+
+				"branches, and verification points (require). Preserve the skill's intent; do not invent steps.",
+			map[string]any{"skill_md": prose.Stdout, "projection": json.RawMessage(projectionRaw)},
+			json.RawMessage(flowSchema))
+
 		dest := ctx.AskUser("dest-path", "Directory to write the converted skill into?")
 
 		written := ctx.AgentTask("write-skill",
 			"Write the converted Yield skill into the destination directory: the program "+
 				"(main.go / main.ts / main.py / src/main.rs per the chosen language, using that language's SDK "+
-				"from this repository), a THIN SKILL.md (keep the original prose voice, delegate sequencing to "+
-				"`yskill run .`), a skill.json runner manifest (omit for Go), and fixtures/responses.json with a "+
-				"happy-path scripted response for every ask_user and agent_task operation. "+
+				"from this repository), a thin SKILL.md (keep useful judgment, examples, tone, and tool advice; delegate sequencing to "+
+				"`yskill run .`), a skill.json runner manifest, and fixtures/responses.json with a "+
+				"happy-path scripted response for every ask_user and agent_task operation. Follow every semantic disposition. "+
+				"Thin does not mean deleting useful guidance. "+
 				"Return {\"files\": [paths you actually wrote]}.",
-			map[string]any{"flow": json.RawMessage(flowRaw), "language": lang, "destination": dest},
+			map[string]any{"source": prose.Stdout, "projection": json.RawMessage(projectionRaw), "flow": json.RawMessage(flowRaw), "language": lang, "destination": dest},
 			json.RawMessage(filesSchema))
 
 		// The evidence gate with a bounded repair loop: at most two repair
@@ -95,6 +153,8 @@ func main() {
 					"{\"files\": [paths you changed]}.",
 				map[string]any{
 					"destination": dest,
+					"source":      prose.Stdout,
+					"projection":  json.RawMessage(projectionRaw),
 					"stdout":      test.Stdout,
 					"stderr":      test.Stderr,
 				},

@@ -1,0 +1,7 @@
+{
+  "missing": "One source clause has no projection row.",
+  "contradictory": "A guidance clause maps only to code.",
+  "incorrectly_duplicated": "One source clause has two incompatible disposition rows.",
+  "excluded_without_reason": "An excluded clause has an empty reason.",
+  "unreachable": "A destination names a file or task that the coding agent cannot reach."
+}

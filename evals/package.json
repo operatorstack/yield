@@ -7,8 +7,10 @@
     "eval": "node scripts/run.mjs --write",
     "eval:agent": "node agent/scripts/run.mjs --write",
     "eval:agent:smoke": "node agent/scripts/run.mjs --case success --repeat 1",
+    "eval:conversion": "node conversion/scripts/run.mjs --write",
     "test": "node scripts/validate.mjs && node scripts/run.mjs --check",
     "test:agent": "node agent/scripts/validate.mjs",
+    "test:conversion": "node --test conversion/scripts/conversion.test.mjs && node conversion/scripts/validate.mjs",
     "validate": "node scripts/validate.mjs"
   }
 }

@@ -1,5 +1,20 @@
 {
   "source-path": { "value": "../investigate" },
+  "project-semantics": {
+    "clauses": [
+      {
+        "source_clause": "Investigate failures with bounded evidence gathering and model judgment.",
+        "disposition": "both",
+        "destinations": [
+          { "kind": "code", "target": "main.py investigation sequence" },
+          { "kind": "skill", "target": "SKILL.md investigation guidance" }
+        ],
+        "reason": ""
+      }
+    ],
+    "ready": true,
+    "unresolved": []
+  },
   "extract-flow": {
     "summary": "Bounded incident investigation: collect evidence, form at least three hypotheses, probe cheapest-first, conclude with a causal chain or block honestly.",
     "steps": [
