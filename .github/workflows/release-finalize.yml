@@ -91,15 +91,23 @@ jobs:
         run: |
           set -euo pipefail
           version="${TAG#v}"
-          run="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/npm-publish.yml/runs?head_sha=${SOURCE_SHA}&status=completed&per_page=30" \
-            --jq '[.workflow_runs[] | select(.event == "workflow_dispatch")][0] // {}')"
-          test "$(jq -r '.conclusion // "missing"' <<< "$run")" = success
-          run_id="$(jq -r '.id // empty' <<< "$run")"
+          package_receipt="packages-${version}-${SOURCE_SHA}"
+          crates_receipt="crates-${version}-${SOURCE_SHA}"
+          run_id=""
+          while read -r candidate; do
+            test -n "$candidate" || continue
+            artifact_names="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${candidate}/artifacts?per_page=100" --jq '.artifacts[].name')"
+            if grep -Fqx "$package_receipt" <<< "$artifact_names" && grep -Fqx "$crates_receipt" <<< "$artifact_names"; then
+              run_id="$candidate"
+              break
+            fi
+          done < <(gh api "/repos/${GITHUB_REPOSITORY}/actions/workflows/npm-publish.yml/runs?status=completed&per_page=100" \
+            --jq '.workflow_runs[] | select(.event == "workflow_dispatch" and .conclusion == "success") | .id')
           test -n "$run_id"
           gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
-            --name "packages-${version}-${SOURCE_SHA}" --dir "$RUNNER_TEMP/release-unit"
+            --name "$package_receipt" --dir "$RUNNER_TEMP/release-unit"
           gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
-            --name "crates-${version}-${SOURCE_SHA}" --dir "$RUNNER_TEMP/crates-receipt"
+            --name "$crates_receipt" --dir "$RUNNER_TEMP/crates-receipt"
           for package in \
             @operatorstack/yield \
             @operatorstack/create-yield \
