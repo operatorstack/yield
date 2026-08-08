@@ -206,6 +206,18 @@ jobs:
           else
             (cd dist/release-unit/npm/yield && npm publish --tag "$DIST_TAG")
           fi
+      - name: Publish npm initializer
+        env:
+          DIST_TAG: ${{ needs.resolve.outputs.dist_tag }}
+          VERSION: ${{ needs.resolve.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if npm view "@operatorstack/create-yield@${VERSION}" version >/dev/null 2>&1; then
+            echo "@operatorstack/create-yield@${VERSION} already exists"
+          else
+            (cd dist/release-unit/npm/create-yield && npm publish --tag "$DIST_TAG")
+          fi
       - name: Verify complete npm release unit
         env:
           VERSION: ${{ needs.resolve.outputs.version }}
@@ -220,6 +232,17 @@ jobs:
               sleep 10
             done
           done
+      - name: Smoke test npm initializer
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/create-yield-smoke"
+          mkdir -p "$root"
+          npm create "@operatorstack/yield@${VERSION}" -- \
+            --root "$root" --agent codex --dry-run
+          test ! -e "$root/skills"
 
   pypi:
     needs: [resolve, build]

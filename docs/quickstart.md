@@ -1,170 +1,61 @@
 # Create your first skill workflow
 
-This tutorial turns a repeated review checklist into a small TypeScript
-program: run a real check, ask the coding agent to review the branch, stop on
-critical findings, and save the structured result.
+Bootstrap installs a tested workflow builder for your coding agent. Run one
+command from the repository root.
 
-You need Node.js 24 or newer.
+## 1. Run bootstrap
 
-## 1. Install Yield
-
-```bash
-mkdir yield-example
-cd yield-example
-npm init -y
-npm install --save-exact @operatorstack/yield
-npm exec -- yskill --version
-```
-
-The package includes the TypeScript SDK and its matching Yield runtime.
-
-## 2. Initialize the skill workflow
+Choose the command for the project language:
 
 ```bash
-npm exec -- yskill init skills/review \
-  --language typescript \
-  --description "Check and review the current branch before it is shipped."
+# TypeScript
+npm create @operatorstack/yield@latest
+
+# Python
+uvx --from yieldskill yskill bootstrap --language python
+
+# Rust
+cargo install yieldskill --locked
+yskill bootstrap --language rust
+
+# Go
+go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go
 ```
 
-The canonical workflow stays under `skills/review`, inside the same dependency tree as
-`@operatorstack/yield`. The generated `skill.json` records the language and
-program entry point:
+Bootstrap detects installed Codex, Claude Code, and Cursor project adapters.
+Use `--agent codex,claude-code,cursor` to select them explicitly.
 
-```json
-{"version":1,"language":"typescript","run":["node","main.ts"]}
-```
+## 2. Review the plan
 
-The starter is intentionally incomplete. It cannot pass `doctor --test` until
-you replace its program and fixture with the behavior described by the skill.
+Yield prints every file, dependency, and command that it will change. Confirm
+the plan to continue. Use `--dry-run` to stop after the plan. Use `--yes` only
+when another trusted process already approved the changes.
 
-## 3. Implement the workflow and fixture
+Yield writes the builder under `skills/yield-workflow-builder`. It stores local
+bootstrap state under ignored `.yield/`. It does not use an install hook.
 
-Replace `skills/review/main.ts`:
+## 3. Restart the coding agent
 
-```ts
-import { defineSkill } from "@operatorstack/yield";
+Restart the coding-agent session after registration. This lets the agent find
+the new adapter.
 
-type Review = {
-  critical: number;
-  summary: string;
-};
+## 4. Ask for the skill workflow
 
-defineSkill((ctx) => {
-  const check = ctx.runCommand("check", "npm run check", 60);
-  ctx.require(check.exit_code === 0, "the code check passes", check);
-
-  const review = ctx.agentTask<Review>(
-    "review",
-    "Review the current branch. Find correctness, security, and data-loss risks.",
-    undefined,
-    {
-      type: "object",
-      required: ["critical", "summary"],
-      properties: {
-        critical: { type: "number" },
-        summary: { type: "string" },
-      },
-    },
-  );
-
-  ctx.require(review.critical === 0, "no critical findings remain", review);
-  return review;
-});
-```
-
-Add the real project check to the root `package.json`:
-
-```json
-{"scripts":{"check":"node --check skills/review/main.ts"}}
-```
-
-The generated `skills/review/SKILL.md` remains short. It tells the agent when
-to use the workflow and how to follow the yielded operations; the program owns
-the order and finish rule.
-
-## 4. Test the skill workflow
-
-Replace `skills/review/fixtures/responses.json`:
-
-```json
-{
-  "review": {
-    "critical": 0,
-    "summary": "No critical findings in the fixture run."
-  }
-}
-```
-
-Run the workflow check:
-
-```bash
-npm exec -- yskill doctor skills/review --test
-```
-
-`run_command` operations execute for real. The fixture supplies only model and
-user responses. A successful result ends with `reached completed` and a doctor
-summary.
-
-## 5. Generate coding-agent adapters
-
-```bash
-# Detect installed verified agents
-npm exec -- yskill register skills/review
-
-# Or select them explicitly
-npm exec -- yskill register skills/review \
-  --agent cursor,codex,claude-code
-```
-
-Yield keeps one canonical skill workflow and writes only generated adapters:
+Use a plain-language request:
 
 ```text
-.cursor/skills/review/SKILL.md   # Cursor
-.agents/skills/review/SKILL.md   # Codex
-.claude/skills/review/SKILL.md   # Claude Code
+Use Yield to turn my release skill into a tested workflow.
 ```
 
-Check the generated adapters:
+The builder can start from a description. It can also convert an existing
+`SKILL.md`. It writes the workflow, runs `doctor --test`, allows two repair
+attempts, registers adapters, and verifies them.
 
-```bash
-npm exec -- yskill doctor skills/review \
-  --agent cursor,codex,claude-code
-```
+The workflow remains under `skills/`. Generated agent adapters contain only
+the commands that start and resume it.
 
-## 6. Run the skill
+## Advanced: build manually
 
-Start a new coding-agent session so it discovers the generated adapter. Where
-slash skills are supported, run:
-
-```text
-/review
-```
-
-Otherwise, ask the agent in plain language:
-
-```text
-Use the review skill to check the current branch.
-```
-
-The agent starts the canonical workflow in `skills/review` and follows each
-operation until the run completes, blocks, or is refused.
-
-## Run an existing workflow
-
-Initialization is only for creating or wrapping a workflow. For an existing
-workflow, install the matching language package, register it for the agents in
-the project, then run it directly when needed:
-
-```bash
-npm exec -- yskill register skills/review --agent cursor
-npm exec -- yskill run skills/review
-```
-
-The agent reads the generated adapter, starts the canonical skill workflow, performs
-each yielded operation, and answers with `yskill respond`. If the session
-closes, the run remains on disk.
-
-Next: [understand skill workflows](skill-workflows.md), [set up coding
-agents](agent-setup.md), [understand each
-primitive](primitives/README.md), or follow the [complete review
-tutorial](tutorials/code-review.md).
+Use [`yskill init`](reference/cli.md#init) when you want to write the program
+and fixtures yourself. See the [primitive guides](primitives/README.md) and
+[working examples](examples.md).

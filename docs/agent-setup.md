@@ -69,31 +69,34 @@ Use the review skill to check the current branch.
 The host owns how the request is presented. The generated adapter starts the
 canonical workflow under `skills/review`; it does not contain a second copy.
 
-## Copy this to your agent
+## Set up the workflow builder
 
-Replace the bracketed values, then paste this into the coding agent already
-open in the project:
+Run the native bootstrap command from the repository root:
+
+```bash
+# TypeScript
+npm create @operatorstack/yield@latest
+
+# Python
+uvx --from yieldskill yskill bootstrap --language python
+
+# Rust
+cargo install yieldskill --locked
+yskill bootstrap --language rust
+
+# Go
+go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go
+```
+
+Bootstrap shows every proposed change. Confirm the plan. Restart the coding
+agent after registration. Then ask:
 
 ```text
-Set up a Yield skill workflow named [skill-name] in skills/[skill-name].
+Use Yield to turn my release skill into a tested workflow.
+```
 
-1. Detect whether this project uses TypeScript, Python, Go, or Rust.
-2. Install that language's Yield package using the project's existing package
-   manager. Do not install a second global runtime.
-3. Run yskill init with the detected language and this description:
-   [what the workflow does and when it should run]
-4. Replace the starter program and fixture with the requested skill workflow. The
-   starter is intentionally blocked and must not pass tests unchanged.
-5. Run yskill doctor with --test before registration.
-6. Keep the canonical workflow beside the project's language dependencies.
-7. Run yskill register for the coding agent you are currently using.
-8. Use the launcher from the installed language package for every yskill
-   command: npm exec -- yskill, python -m yieldskill, or .yield/bin/yskill.
-9. Run yskill doctor with --agent and --test.
-10. Report the commands, generated adapter path, and every changed file.
-
-Do not move the skill workflow into an agent discovery directory and do not copy its
-dependencies into an adapter.
+The builder collects the specification, writes the skill workflow, runs its
+fixture, allows two repair attempts, registers adapters, and verifies them.
 
 ## Questions and agent results
 

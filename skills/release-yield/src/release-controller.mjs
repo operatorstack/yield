@@ -11,6 +11,7 @@ const bumps = new Set(["auto", "patch", "minor", "major"]);
 const active = new Set(["queued", "in_progress", "pending", "waiting", "requested"]);
 const npmPackages = [
   "@operatorstack/yield",
+  "@operatorstack/create-yield",
   "@operatorstack/yield-darwin-amd64",
   "@operatorstack/yield-darwin-arm64",
   "@operatorstack/yield-linux-amd64",

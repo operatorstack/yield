@@ -1,0 +1,35 @@
+{
+  "name": "@operatorstack/create-yield",
+  "version": "0.0.0",
+  "description": "Create a tested Yield skill workflow for your coding agent.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "create-yield": "bin/create-yield.mjs"
+  },
+  "files": [
+    "bin",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=23.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/operatorstack/yield.git",
+    "directory": "packaging/create-yield"
+  },
+  "homepage": "https://yield.operatorstack.systems/",
+  "bugs": {
+    "url": "https://github.com/operatorstack/yield/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true,
+    "registry": "https://registry.npmjs.org/"
+  },
+  "dependencies": {
+    "@operatorstack/yield": "0.0.0"
+  }
+}

@@ -23,12 +23,12 @@ and start it.
 
 ## Start here
 
-1. [Read the public guide](https://yield.operatorstack.systems/docs/) — the
-   quickest path from installation to a running workflow.
+1. [Bootstrap the workflow builder](quickstart.md) — install, test, and
+   register it for your coding agent.
 2. [Understand skill workflows](skill-workflows.md) — the canonical workflow,
    generated adapter, and execution boundary.
-3. [Build and run your first skill workflow](quickstart.md) — a TypeScript
-   workflow you can test in about ten minutes.
+3. [Read the public guide](https://yield.operatorstack.systems/docs/) — the
+   complete guide for the current release.
 4. [Register it with your coding agents](agent-setup.md) — keep one workflow
    and generate the small discovery adapters each agent needs.
 5. [Learn the primitives](primitives/README.md) — commands, model work, human
@@ -37,8 +37,8 @@ and start it.
    environment repair, bounded debugging, and migration.
 7. [Browse the examples](examples.md) — working skill workflows in Go,
    TypeScript, Python, and Rust.
-8. [Convert an existing prose skill](convert-existing-skill.md) — use Yield's
-   verified converter after you understand one ordinary workflow.
+8. [Convert an existing prose skill](convert-existing-skill.md) — use the
+   workflow builder to convert an existing `SKILL.md`.
 
 ## The split to remember
 

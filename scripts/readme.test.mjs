@@ -284,10 +284,20 @@ test("README and quickstart use the public documentation and package registries"
   assert.doesNotMatch(rustReadme, /get\.operatorstack\.systems\/cargo/);
   assert.match(goReadme, /go install github\.com\/operatorstack\/yield\/cmd\/yskill@latest/);
   assert.match(docsIndex, /\[public documentation\]\(https:\/\/yield\.operatorstack\.systems\/docs\/\)/);
-  assert.match(quickstart, /npm install --save-exact @operatorstack\/yield/);
+  const commands = [
+    "npm create @operatorstack/yield@latest",
+    "uvx --from yieldskill yskill bootstrap --language python",
+    "yskill bootstrap --language rust",
+    "go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go",
+  ];
+  for (const command of commands) {
+    assert.ok(readme.includes(command), `README is missing ${command}`);
+    assert.ok(quickstart.includes(command), `quickstart is missing ${command}`);
+    assert.ok(agentSetup.includes(command), `agent setup is missing ${command}`);
+  }
   assert.doesNotMatch(quickstart, /get\.operatorstack\.systems\/npm|@operatorstack\/yield@0\./);
-  assert.match(quickstart, /^## 6\. Run the skill$/m);
-  assert.match(quickstart, /^\/review$/m);
+  assert.match(quickstart, /Use Yield to turn my release skill into a tested workflow\./);
+  assert.match(quickstart, /^## Advanced: build manually$/m);
   assert.match(agentSetup, /^## Run the registered skill$/m);
 });
 

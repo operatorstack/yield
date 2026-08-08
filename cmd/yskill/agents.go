@@ -576,6 +576,18 @@ func within(parent, child string) bool {
 }
 
 func launcherFor(language, skillDir, repoRoot string) (string, error) {
+	if language == "python" {
+		profile, err := readBootstrapProfile(repoRoot)
+		if err != nil {
+			return "", err
+		}
+		if profile.LauncherProfile == "python-uvx" {
+			if profile.YieldVersion == "" {
+				return "", fmt.Errorf("bootstrap profile is missing yield_version")
+			}
+			return fmt.Sprintf("uvx --from 'yieldskill==%s' yskill", shellQuoteValue(profile.YieldVersion)), nil
+		}
+	}
 	switch language {
 	case "typescript":
 		packageRoot, err := findTypeScriptPackageRoot(skillDir, repoRoot)

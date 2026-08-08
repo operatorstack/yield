@@ -27,6 +27,9 @@ import (
 const usage = `yskill — run and resume skill workflows
 
 Usage:
+  yskill bootstrap                           install the governed workflow builder
+         [--language typescript|python|go|rust] [--agent cursor,codex,...|auto]
+         [--root repo] [--dry-run] [--yes]
   yskill init <dir>                          scaffold a skill workflow (or wrap an existing prose skill)
          [--language typescript|python|go|rust] [--description text]
   yskill register <skill-dir>                expose one skill workflow to coding agents
@@ -70,6 +73,8 @@ func main() {
 	}
 	var err error
 	switch os.Args[1] {
+	case "bootstrap":
+		err = cmdBootstrap(os.Args[2:])
 	case "init":
 		err = cmdInit(os.Args[2:])
 	case "register":

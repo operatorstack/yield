@@ -17,7 +17,7 @@ test("accepts stable and exact Yield canary versions", () => {
   assert.equal(isPackageVersion("v1.2.3"), false);
 });
 
-test("assembles one public npm package and six matching npm and Python runtimes", async (t) => {
+test("assembles two public npm packages and six matching npm and Python runtimes", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "yield-assemble-"));
   t.after(() => rm(root, { recursive: true, force: true }));
 
@@ -31,6 +31,7 @@ test("assembles one public npm package and six matching npm and Python runtimes"
   await assemble({ version: "1.2.3", binaries, output });
   const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
   const main = await readJson(join(output, "npm/yield/package.json"));
+  const initializer = await readJson(join(output, "npm/create-yield/package.json"));
 
   assert.equal(main.name, "@operatorstack/yield");
   assert.equal(main.version, "1.2.3");
@@ -44,6 +45,17 @@ test("assembles one public npm package and six matching npm and Python runtimes"
     main.optionalDependencies,
     Object.fromEntries(targets.map((target) => [npmPackage(target), "1.2.3"])),
   );
+  assert.equal(initializer.name, "@operatorstack/create-yield");
+  assert.equal(initializer.version, "1.2.3");
+  assert.equal(initializer.dependencies["@operatorstack/yield"], "1.2.3");
+  assert.equal(initializer.publishConfig.provenance, true);
+  assert.match(await readFile(join(output, "npm/create-yield/LICENSE"), "utf8"), /MIT License/);
+  assert.match(await readFile(join(output, "npm/create-yield/bin/create-yield.mjs"), "utf8"), /bootstrap/);
+  const initializerPack = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], {
+    cwd: join(output, "npm/create-yield"),
+    encoding: "utf8",
+  }));
+  assert.equal(initializerPack[0].files.find((file) => file.path === "bin/create-yield.mjs").mode, 0o755);
   const assembledReadme = await readFile(join(output, "npm/yield/README.md"), "utf8");
   const repositoryReadme = await readFile(join(import.meta.dirname, "../README.md"), "utf8");
   assert.match(repositoryReadme, /pypi\.org\/project\/yieldskill/);

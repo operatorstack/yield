@@ -25,7 +25,7 @@ function successReceipts(overrides = {}) {
     "wait-finalizer": { status: "ok", run_id: "13", run_url: "https://example.test/13" },
     "verify-public-release": {
       status: "ok",
-      targets: { npm: 7, pypi: { project: "yieldskill", wheels: 6 }, crates: 7, go: "github.com/operatorstack/yield" },
+      targets: { npm: 8, pypi: { project: "yieldskill", wheels: 6 }, crates: 7, go: "github.com/operatorstack/yield" },
     },
     ...overrides,
   };
@@ -69,7 +69,7 @@ test("enforces dry run, immutable authorization, protected publication, and veri
   ]);
   assert.equal(result.version, "1.2.3");
   assert.equal(result.source_sha, sha);
-  assert.equal(result.verified.npm, 7);
+  assert.equal(result.verified.npm, 8);
 });
 
 test("stops before live dispatch when authorization is declined", () => {

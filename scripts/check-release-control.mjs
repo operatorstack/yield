@@ -81,6 +81,10 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   const pythonWheelStep = publisher.jobs?.build?.steps?.find((step) => step.name === "Build Python wheels");
   expect(pythonWheelStep?.if === "needs.resolve.outputs.channel == 'stable'", "PyPI wheels must be built only for stable PEP 440 versions");
   expect(raw["npm-publish.yml"].indexOf("Publish platform runtimes") < raw["npm-publish.yml"].indexOf("Publish SDK and CLI"), "runtime packages must publish before the SDK package");
+  expect(raw["npm-publish.yml"].includes("@operatorstack/create-yield@${VERSION}"), "npm trusted publishing must include the initializer package");
+  expect(raw["npm-publish.yml"].indexOf("Publish SDK and CLI") < raw["npm-publish.yml"].indexOf("Publish npm initializer"), "the SDK package must publish before the initializer");
+  expect(raw["npm-publish.yml"].indexOf("Publish npm initializer") < raw["npm-publish.yml"].indexOf("Verify complete npm release unit"), "the initializer must publish before release-unit verification");
+  expect(raw["npm-publish.yml"].includes('npm create "@operatorstack/yield@${VERSION}"'), "the exact published initializer must pass a dry-run smoke test");
   expect(raw["npm-publish.yml"].includes("pypa/gh-action-pypi-publish@"), "PyPI publishing must use the trusted-publishing action");
   expect(raw["npm-publish.yml"].includes("rust-lang/crates-io-auth-action@"), "crates.io publishing must use the trusted-publishing action");
   expect(raw["npm-publish.yml"].includes("chmod 0644 dist/packages/rust/runtime/*/runtime/*"), "Rust archives must normalize embedded runtime modes before artifact transport");

@@ -102,6 +102,7 @@ jobs:
             --name "crates-${version}-${SOURCE_SHA}" --dir "$RUNNER_TEMP/crates-receipt"
           for package in \
             @operatorstack/yield \
+            @operatorstack/create-yield \
             @operatorstack/yield-darwin-amd64 @operatorstack/yield-darwin-arm64 \
             @operatorstack/yield-linux-amd64 @operatorstack/yield-linux-arm64 \
             @operatorstack/yield-windows-amd64 @operatorstack/yield-windows-arm64; do

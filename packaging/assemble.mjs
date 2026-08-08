@@ -54,6 +54,7 @@ async function validateBinaries(directory) {
 async function assembleNpm({ version, binaries, output }) {
   const npm = join(output, "npm");
   const main = join(npm, "yield");
+  const initializer = join(npm, "create-yield");
   await cp(join(root, "sdk/typescript"), main, { recursive: true, filter: (source) => !source.includes("node_modules") && !source.includes("/dist") });
   await mkdir(join(main, "assets"), { recursive: true });
   const [readme] = await Promise.all([
@@ -72,6 +73,14 @@ async function assembleNpm({ version, binaries, output }) {
   packageJson.optionalDependencies = Object.fromEntries(targets.map((target) => [npmPackage(target), version]));
   packageJson.files = [...new Set([...(packageJson.files ?? []), "assets"])];
   await writeFile(join(main, "package.json"), `${JSON.stringify(packageJson, null, 2)}\n`);
+
+  await cp(join(root, "packaging/create-yield"), initializer, { recursive: true });
+  await cp(join(root, "LICENSE"), join(initializer, "LICENSE"));
+  await chmod(join(initializer, "bin/create-yield.mjs"), 0o755);
+  const initializerPackage = await json(join(initializer, "package.json"));
+  initializerPackage.version = version;
+  initializerPackage.dependencies["@operatorstack/yield"] = version;
+  await writeFile(join(initializer, "package.json"), `${JSON.stringify(initializerPackage, null, 2)}\n`);
 
   for (const target of targets) {
     const directory = join(npm, target.id);
