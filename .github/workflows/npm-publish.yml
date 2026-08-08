@@ -411,5 +411,5 @@ jobs:
           YIELD_JOURNAL="$journal" node skills/release-yield/main.ts > "$output"
           node -e '
             const output = require(process.argv[1]);
-            if (output.type !== "request" || output.envelope.request.id !== "select-bump") process.exit(1);
+            if (output.type !== "request" || output.envelope.request.id !== "select-mode") process.exit(1);
           ' "$output"
