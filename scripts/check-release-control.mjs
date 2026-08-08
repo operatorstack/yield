@@ -302,8 +302,31 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
     "crates.io publishing must not use a bootstrap token",
   )
   for (const [name, text] of Object.entries(raw)) {
+    let credentialSurface = text
+    if (name === "npm-publish.yml") {
+      const initializerStart = text.indexOf("      - name: Publish npm initializer")
+      const initializerEnd = text.indexOf("      - name: Verify complete npm release unit")
+      expect(
+        initializerStart >= 0 && initializerEnd > initializerStart,
+        "npm bootstrap credential must be confined to the initializer step",
+      )
+      const initializer = text.slice(initializerStart, initializerEnd)
+      expect(
+        initializer.includes("NPM_TOKEN: ${{ secrets.NPM_TOKEN }}"),
+        "the initializer bootstrap credential must be explicitly scoped",
+      )
+      expect(
+        initializer.includes(
+          'NODE_AUTH_TOKEN="$NPM_TOKEN" npm publish "dist/release-unit/npm/${file}"',
+        ),
+        "the bootstrap credential must authenticate only the verified initializer archive",
+      )
+      credentialSurface = text.slice(0, initializerStart) + text.slice(initializerEnd)
+    }
     expect(
-      !/NPM_TOKEN|NODE_AUTH_TOKEN|PYPI_TOKEN|secrets\.(npm|pypi)|password:/i.test(text),
+      !/NPM_TOKEN|NODE_AUTH_TOKEN|PYPI_TOKEN|secrets\.(npm|pypi)|password:/i.test(
+        credentialSurface,
+      ),
       `${name}: long-lived registry credentials are forbidden`,
     )
   }

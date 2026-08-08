@@ -209,6 +209,7 @@ jobs:
         env:
           DIST_TAG: ${{ needs.resolve.outputs.dist_tag }}
           VERSION: ${{ needs.resolve.outputs.version }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
@@ -216,7 +217,11 @@ jobs:
             echo "@operatorstack/create-yield@${VERSION} already exists"
           else
             file="$(jq -r '.archives[] | select(.name == "@operatorstack/create-yield") | .file' dist/release-unit/npm/npm-release.json)"
-            npm publish "dist/release-unit/npm/${file}" --tag "$DIST_TAG"
+            if [[ -n "${NPM_TOKEN:-}" ]]; then
+              NODE_AUTH_TOKEN="$NPM_TOKEN" npm publish "dist/release-unit/npm/${file}" --tag "$DIST_TAG"
+            else
+              npm publish "dist/release-unit/npm/${file}" --tag "$DIST_TAG"
+            fi
           fi
       - name: Verify complete npm release unit
         env:

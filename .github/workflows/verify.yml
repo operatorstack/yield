@@ -179,9 +179,16 @@ jobs:
         run: npm run test:conversion
       - name: Run every example fixture
         run: |
-          plan="$RUNNER_TEMP/example-release-plan.env"
-          node scripts/release-plan.mjs --bump auto --output "$plan" --notes "$RUNNER_TEMP/example-release-notes.md"
-          . "$plan"
+          base_tag="$(git tag --merged HEAD --list 'v[0-9]*' --sort=-v:refname | head -n1)"
+          test -n "$base_tag"
+          pending_changesets="$(git diff --name-only --diff-filter=A "$base_tag"..HEAD -- '.changeset/*.md')"
+          if [[ -n "$pending_changesets" ]]; then
+            plan="$RUNNER_TEMP/example-release-plan.env"
+            node scripts/release-plan.mjs --bump auto --output "$plan" --notes "$RUNNER_TEMP/example-release-notes.md"
+            . "$plan"
+          else
+            version="${base_tag#v}"
+          fi
           go build -ldflags "-X main.version=$version" -o "$RUNNER_TEMP/yskill" ./cmd/yskill
           "$RUNNER_TEMP/yskill" test examples/investigate
           "$RUNNER_TEMP/yskill" test examples/release-checklist
