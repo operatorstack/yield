@@ -82,6 +82,7 @@ async function assembleNpm({ version, binaries, output }) {
     await writeFile(join(directory, "package.json"), `${JSON.stringify({
       name: npmPackage(target), version, description: `Yield runtime for ${target.id}`,
       license: "MIT", os: [target.nodeOs], cpu: [target.nodeCpu], main: `./${runtime}`,
+      bin: { "yskill-runtime": `./${runtime}` },
       files: [runtime, "LICENSE"], repository: { type: "git", url: "git+https://github.com/operatorstack/yield.git" },
       homepage: "https://yield.operatorstack.systems/",
       bugs: { url: "https://github.com/operatorstack/yield/issues" },

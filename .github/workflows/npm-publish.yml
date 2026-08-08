@@ -353,3 +353,36 @@ jobs:
           name: crates-${{ needs.resolve.outputs.version }}-${{ needs.resolve.outputs.source_sha }}
           path: dist/crates-receipt/
           if-no-files-found: error
+
+  selfhost-canary:
+    name: Release skill against exact canary
+    needs: [resolve, npm]
+    if: needs.resolve.outputs.channel == 'canary'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          ref: ${{ needs.resolve.outputs.source_sha }}
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          package-manager-cache: false
+      - name: Install the exact published canary without changing repository state
+        env:
+          VERSION: ${{ needs.resolve.outputs.version }}
+        run: |
+          npm ci --ignore-scripts
+          npm install --no-save --package-lock=false --ignore-scripts "@operatorstack/yield@${VERSION}"
+          test "$(npm exec -- yskill version | awk '{print $2}')" = "$VERSION"
+      - name: Run the release skill contract against the canary SDK
+        run: |
+          npm run test:selfhost
+          journal="$RUNNER_TEMP/release-yield-journal.json"
+          output="$RUNNER_TEMP/release-yield-output.json"
+          printf '%s\n' '{"run_id":"canary-smoke","skill":{"name":"release-yield","digest":"sha256:canary"}}' > "$journal"
+          YIELD_JOURNAL="$journal" node skills/release-yield/main.ts > "$output"
+          node -e '
+            const output = require(process.argv[1]);
+            if (output.type !== "request" || output.envelope.request.id !== "select-bump") process.exit(1);
+          ' "$output"
