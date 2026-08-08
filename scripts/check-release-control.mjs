@@ -44,7 +44,7 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(!names.includes("sync-upstream.yml"), "projection sync workflow must be removed after graduation");
 
   const verify = workflows["verify.yml"];
-  const validationJobs = ["go", "release", "typescript", "python", "rust", "conformance", "examples"];
+  const validationJobs = ["go", "release", "selfhost", "typescript", "python", "rust", "conformance", "examples"];
   expect(verify, "verify.yml is required");
   expect(verify.on?.pull_request !== undefined, "verification must run on every pull request");
   expect(validationJobs.every((name) => verify.jobs?.[name]), "verification must expose every SDK and package boundary");
@@ -75,6 +75,9 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(publisher.jobs?.crates?.permissions?.contents === "read" && publisher.jobs?.crates?.permissions?.["id-token"] === "write", "crates.io publisher must use read-only source plus OIDC");
   expect(publisher.jobs?.pypi?.environment === "pypi-production", "stable PyPI publishing must use the protected pypi-production environment");
   expect(publisher.jobs?.crates?.environment === "crates-production", "stable crates.io publishing must use the protected crates-production environment");
+  expect(publisher.jobs?.["selfhost-canary"]?.needs?.includes("npm"), "canary self-hosting must follow successful npm publication");
+  expect(raw["npm-publish.yml"].includes('"@operatorstack/yield@${VERSION}"'), "canary self-hosting must install the exact resolved version");
+  expect(!raw["npm-publish.yml"].includes("@operatorstack/yield@canary"), "canary self-hosting must not execute a floating dist-tag");
   const pythonWheelStep = publisher.jobs?.build?.steps?.find((step) => step.name === "Build Python wheels");
   expect(pythonWheelStep?.if === "needs.resolve.outputs.channel == 'stable'", "PyPI wheels must be built only for stable PEP 440 versions");
   expect(raw["npm-publish.yml"].indexOf("Publish platform runtimes") < raw["npm-publish.yml"].indexOf("Publish SDK and CLI"), "runtime packages must publish before the SDK package");

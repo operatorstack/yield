@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { access, mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -55,6 +56,10 @@ test("assembles one public npm package and six matching npm and Python runtimes"
   assert.ok(main.files.includes("assets"));
   assert.match(assembledReadme, /<h1 align="center">Yield<\/h1>/);
   assert.match(await readFile(join(output, "npm/yield/LICENSE"), "utf8"), /MIT License/);
+  await assert.rejects(access(join(output, "npm/yield/skills/release-yield")), { code: "ENOENT" });
+  await assert.rejects(access(join(output, "npm/yield/.agents")), { code: "ENOENT" });
+  await assert.rejects(access(join(output, "npm/yield/.cursor")), { code: "ENOENT" });
+  await assert.rejects(access(join(output, "npm/yield/.claude")), { code: "ENOENT" });
 
   for (const target of targets) {
     const runtime = await readJson(join(output, `npm/${target.id}/package.json`));
@@ -63,7 +68,13 @@ test("assembles one public npm package and six matching npm and Python runtimes"
     assert.equal(runtime.homepage, homepage);
     assert.deepEqual(runtime.os, [target.nodeOs]);
     assert.deepEqual(runtime.cpu, [target.nodeCpu]);
+    assert.deepEqual(runtime.bin, { "yskill-runtime": `./${target.goos === "windows" ? "yskill.exe" : "yskill"}` });
     assert.equal(runtime.publishConfig.provenance, true);
+    const packed = JSON.parse(execFileSync("npm", ["pack", "--dry-run", "--json"], {
+      cwd: join(output, `npm/${target.id}`),
+      encoding: "utf8",
+    }));
+    assert.equal(packed[0].files.find((file) => file.path === (target.goos === "windows" ? "yskill.exe" : "yskill")).mode, 0o755);
     assert.match(await readFile(join(output, `npm/${target.id}/LICENSE`), "utf8"), /MIT License/);
 
     const pythonRoot = join(output, `python/${target.id}`);

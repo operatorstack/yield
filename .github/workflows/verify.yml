@@ -43,6 +43,20 @@ jobs:
       - run: npm run test:release
       - run: node scripts/check-release-control.mjs
 
+  selfhost:
+    name: Published SDK self-hosting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run prepare:selfhost
+      - run: npm run test:selfhost
+      - run: npm exec -- yskill doctor skills/release-yield --root . --agent codex,cursor,claude-code
+
   typescript:
     name: TypeScript SDK and npm package
     runs-on: ubuntu-latest
@@ -147,7 +161,7 @@ jobs:
   validate:
     name: Release authority and full validation
     if: ${{ always() }}
-    needs: [go, release, typescript, python, rust, conformance, examples]
+    needs: [go, release, selfhost, typescript, python, rust, conformance, examples]
     runs-on: ubuntu-latest
     steps:
       - name: Require every validation job

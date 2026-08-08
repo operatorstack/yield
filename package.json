@@ -1,12 +1,17 @@
 {
   "name": "@operatorstack/yield-repository",
   "private": true,
+  "type": "module",
   "scripts": {
     "changeset": "changeset",
+    "postinstall": "node scripts/prepare-selfhost.mjs",
+    "prepare:selfhost": "node scripts/prepare-selfhost.mjs",
     "release:plan": "node scripts/release-plan.mjs",
-    "test:release": "node --test scripts/*.test.mjs packaging/*.test.mjs"
+    "test:release": "node --test scripts/*.test.mjs packaging/*.test.mjs",
+    "test:selfhost": "node --test skills/release-yield/*.test.mjs"
   },
   "devDependencies": {
+    "@operatorstack/yield": "0.1.38",
     "@changesets/cli": "2.31.1",
     "yaml": "2.9.0"
   }

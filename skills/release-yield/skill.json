@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "language": "typescript",
+  "run": [
+    "node",
+    "main.ts"
+  ]
+}

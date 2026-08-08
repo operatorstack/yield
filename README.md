@@ -108,6 +108,20 @@ Replace them with the test, publish, and registry commands for your project.
 The complete tested source is in
 [`examples/release-checklist`](https://github.com/operatorstack/yield/tree/main/examples/release-checklist/).
 
+<!-- npm-exclude:start -->
+## Yield releases Yield
+
+This repository uses its own exact published SDK for stable releases. The
+canonical [`release-yield`](https://github.com/operatorstack/yield/tree/main/skills/release-yield)
+workflow dispatches the protected GitHub release controller, records the human
+authorization, waits through the npm, PyPI, and crates.io environments, and
+verifies the Go module and final GitHub release. It never publishes from the
+developer's computer.
+
+Every newly published canary runs the same contract tests in an isolated CI
+lane. Stable release execution remains pinned to an exact public version.
+<!-- npm-exclude:end -->
+
 ## Use Yield in five steps
 
 ### 1. Install Yield
