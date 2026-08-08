@@ -263,11 +263,11 @@ func TestBuilderFixturesReachCompletedAcrossLanguages(t *testing.T) {
 				runTestCommand(t, dir, "go", "mod", "tidy")
 			}
 			if language == "go" || language == "rust" {
-				runtimePath := filepath.Join(root, ".yield", "bin", "yskill")
+				runtimePath := localRuntimePath(root)
 				if err := os.MkdirAll(filepath.Dir(runtimePath), 0o755); err != nil {
 					t.Fatal(err)
 				}
-				runTestCommand(t, repoRoot, "go", "build", "-o", runtimePath, "./cmd/yskill")
+				runTestCommand(t, repoRoot, "go", "build", "-ldflags", "-X main.version=dev", "-o", runtimePath, "./cmd/yskill")
 			}
 			if err := cmdDoctor([]string{dir, "--root", root, "--test"}); err != nil {
 				t.Fatalf("%s builder fixture did not complete: %v", language, err)
