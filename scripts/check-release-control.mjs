@@ -99,6 +99,8 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(raw["release-finalize.yml"].includes("npm-publish.yml"), "finalization must bind the combined publisher receipt");
   expect(raw["release-finalize.yml"].includes("pypi-release.mjs verify"), "finalization must verify the PyPI wheel hashes");
   expect(raw["release-finalize.yml"].includes("crates-release.mjs verify"), "finalization must verify the crates.io package hashes");
+  expect(raw["release-finalize.yml"].includes("go-release.mjs"), "finalization must verify the public Go module and command install");
+  expect(raw["release-finalize.yml"].includes("--source-sha \"$SOURCE_SHA\""), "Go finalization must bind the module to the release source");
   expect(raw["release-finalize.yml"].includes("--name \"crates-${version}-${SOURCE_SHA}\""), "finalization must consume the publisher-produced crates receipt");
   expect(raw["release.yml"].includes("gh workflow run npm-publish.yml"), "the release controller must dispatch the trusted-publishing event after tagging");
   expect(!Object.values(raw).some((text) => text.includes("CRATES_BOOTSTRAP_TOKEN")), "crates.io publishing must not use a bootstrap token");

@@ -78,6 +78,54 @@ test("Rust README example matches the tested data migration", async () => {
   assert.deepEqual(JSON.parse(fixtureMatch[1]), JSON.parse(fixture));
 });
 
+test("Go README example matches the tested investigation workflow", async () => {
+  const [readme, source, fixture] = await Promise.all([
+    text("sdk/yield/README.md"),
+    text("examples/investigate/main.go"),
+    text("examples/investigate/fixtures/responses.json"),
+  ]);
+
+  const readmeMatch = readme.match(
+    /<!-- go-example:start -->\s*```go\n([\s\S]*?)\n```\s*<!-- go-example:end -->/,
+  );
+  assert.ok(readmeMatch, "Go README example markers are missing");
+  const sourceMatch = source.match(/^(package main[\s\S]*)$/m);
+  assert.ok(sourceMatch, "Go source program is missing");
+  assert.equal(readmeMatch[1].trim(), sourceMatch[1].trim());
+
+  const fixtureMatch = readme.match(
+    /<!-- go-fixture:start -->\s*```json\n([\s\S]*?)\n```\s*<!-- go-fixture:end -->/,
+  );
+  assert.ok(fixtureMatch, "Go README fixture markers are missing");
+  assert.deepEqual(JSON.parse(fixtureMatch[1]), JSON.parse(fixture));
+});
+
+test("Go README presents a public five-step workflow", async () => {
+  const readme = await text("sdk/yield/README.md");
+  const headings = [
+    "### 1. Install Yield",
+    "### 2. Create the workflow",
+    "### 3. Test the workflow",
+    "### 4. Register the skill",
+    "### 5. Run the skill",
+  ];
+  let previous = -1;
+  for (const heading of headings) {
+    const current = readme.indexOf(heading);
+    assert.ok(current > previous, `${heading} is missing or out of order`);
+    previous = current;
+  }
+  assert.match(readme, /go install github\.com\/operatorstack\/yield\/cmd\/yskill@latest/);
+  assert.match(readme, /yskill init skills\/investigate/);
+  assert.match(readme, /yskill doctor skills\/investigate --test/);
+  assert.match(readme, /yskill register skills\/investigate/);
+  assert.match(readme, /^\/investigate$/m);
+  assert.match(readme, /https:\/\/pkg\.go\.dev\/github\.com\/operatorstack\/yield\/sdk\/yield/);
+  assert.match(readme, /https:\/\/proxy\.golang\.org/);
+  assert.doesNotMatch(readme, /npmjs\.com|pypi\.org|crates\.io/);
+  assert.doesNotMatch(readme, /(?:href|src)="(?!https:\/\/)/);
+});
+
 test("Rust README presents a public five-step workflow", async () => {
   const readme = await text("sdk/rust/README.md");
   const headings = [
@@ -215,10 +263,11 @@ test("README uses the borderless Yield mark", async () => {
 });
 
 test("README and quickstart use the public documentation and package registries", async () => {
-  const [readme, pythonReadme, rustReadme, docsIndex, quickstart, agentSetup] = await Promise.all([
+  const [readme, pythonReadme, rustReadme, goReadme, docsIndex, quickstart, agentSetup] = await Promise.all([
     text("README.md"),
     text("sdk/python/README.md"),
     text("sdk/rust/README.md"),
+    text("sdk/yield/README.md"),
     text("docs/README.md"),
     text("docs/quickstart.md"),
     text("docs/agent-setup.md"),
@@ -227,11 +276,13 @@ test("README and quickstart use the public documentation and package registries"
   assert.match(readme, /href="https:\/\/yield\.operatorstack\.systems\/docs\/">Documentation<\/a>/);
   assert.match(readme, /href="https:\/\/pypi\.org\/project\/yieldskill\/">PyPI<\/a>/);
   assert.match(readme, /href="https:\/\/crates\.io\/crates\/yieldskill">crates\.io<\/a>/);
+  assert.match(readme, /href="https:\/\/pkg\.go\.dev\/github\.com\/operatorstack\/yield\/sdk\/yield">pkg\.go\.dev<\/a>/);
   assert.match(pythonReadme, /python -m pip install yieldskill/);
   assert.match(pythonReadme, /https:\/\/pypi\.org\/project\/yieldskill\//);
   assert.doesNotMatch(pythonReadme, /get\.operatorstack\.systems\/pip/);
   assert.match(rustReadme, /cargo install yieldskill --locked/);
   assert.doesNotMatch(rustReadme, /get\.operatorstack\.systems\/cargo/);
+  assert.match(goReadme, /go install github\.com\/operatorstack\/yield\/cmd\/yskill@latest/);
   assert.match(docsIndex, /\[public documentation\]\(https:\/\/yield\.operatorstack\.systems\/docs\/\)/);
   assert.match(quickstart, /npm install --save-exact @operatorstack\/yield/);
   assert.doesNotMatch(quickstart, /get\.operatorstack\.systems\/npm|@operatorstack\/yield@0\./);
