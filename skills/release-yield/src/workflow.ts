@@ -1,6 +1,13 @@
 import type { CommandResult, Context } from "@operatorstack/yield";
 
 export type ReleaseBump = "auto" | "patch" | "minor" | "major";
+export type ReleaseMode = "dry-run" | "release";
+
+type Changeset = {
+  bump: "patch" | "minor" | "major";
+  path: string;
+  summary: string;
+};
 
 type Receipt = {
   status: "ok" | "blocked" | "failed";
@@ -10,7 +17,7 @@ type Receipt = {
 
 type ReleaseContext = Pick<Context, "askUser" | "runCommand" | "require" | "blocked" | "refused">;
 
-const controller = "node scripts/release-controller.mjs";
+const controller = "node src/release-controller.mjs";
 
 function parseReceipt(ctx: ReleaseContext, claim: string, result: CommandResult): Receipt {
   ctx.require(result.exit_code === 0 && !result.timed_out, claim, result);
@@ -42,13 +49,46 @@ function matchingField(ctx: ReleaseContext, receipt: Receipt, field: string, pat
   return value;
 }
 
+function changesetsField(ctx: ReleaseContext, receipt: Receipt): Changeset[] {
+  const value = receipt.changesets;
+  ctx.require(Array.isArray(value) && value.length > 0, "the release plan contains at least one Changeset", receipt);
+  for (const item of value as unknown[]) {
+    const candidate = item as Partial<Changeset>;
+    ctx.require(
+      typeof candidate?.path === "string" && candidate.path.length > 0
+        && typeof candidate.summary === "string" && candidate.summary.length > 0
+        && ["patch", "minor", "major"].includes(candidate.bump ?? ""),
+      "every planned Changeset has a path, bump, and summary",
+      receipt,
+    );
+  }
+  return value as Changeset[];
+}
+
 export function runReleaseYield(ctx: ReleaseContext) {
+  const mode = ctx.askUser("select-mode", "Choose how far this Yield release run may proceed.", [
+    { value: "dry-run", label: "Dry run only" },
+    { value: "release", label: "Prepare release" },
+  ]) as ReleaseMode;
+
   const bump = ctx.askUser("select-bump", "Choose the Yield release bump.", [
     { value: "auto", label: "Use Changesets" },
     { value: "patch", label: "Patch" },
     { value: "minor", label: "Minor" },
     { value: "major", label: "Major" },
   ]) as ReleaseBump;
+
+  if (bump === "minor" || bump === "major") {
+    const confirmation = ctx.askUser(
+      "confirm-high-impact-bump",
+      `Confirm the ${bump} release intent before GitHub performs the protected dry run.`,
+      [
+        { value: "confirm", label: `Confirm ${bump}` },
+        { value: "cancel", label: "Cancel" },
+      ],
+    );
+    if (confirmation !== "confirm") ctx.refused(`${bump} release intent was not confirmed`);
+  }
 
   const preflight = command(ctx, "preflight", `preflight --bump ${bump}`, "the protected main preflight passes");
   const sourceSha = matchingField(ctx, preflight, "source_sha", /^[0-9a-f]{40}$/);
@@ -61,28 +101,31 @@ export function runReleaseYield(ctx: ReleaseContext) {
   const plan = command(ctx, "resolve-plan", `plan --bump ${bump}`, "the local deterministic release plan resolves");
   const version = matchingField(ctx, plan, "version", /^\d+\.\d+\.\d+$/);
   const tag = matchingField(ctx, plan, "tag", /^v\d+\.\d+\.\d+$/);
+  const changesets = changesetsField(ctx, plan);
   ctx.require(tag === `v${version}`, "the release tag matches the planned version", plan);
   ctx.require(stringField(ctx, plan, "source_sha") === sourceSha, "the displayed plan uses the dry-run source SHA", plan);
 
-  const authorization = ctx.askUser(
-    "authorize-release",
-    `Dry run passed for ${tag} from ${sourceSha}. Continue with the protected release?`,
-    [
-      { value: "release", label: `Release ${tag}` },
-      { value: "dry-run", label: "Finish after dry run" },
-      { value: "stop", label: "Stop" },
-    ],
-  );
-  if (authorization === "dry-run") {
+  if (mode === "dry-run") {
     return {
-      mode: "dry-run",
+      mode,
       bump,
       version,
       tag,
       source_sha: sourceSha,
+      changesets,
       dry_run: { id: dryRunID, url: dry.run_url },
     };
   }
+
+  const changesetSummary = changesets.map((item) => `${item.path} (${item.bump}): ${item.summary}`).join("; ");
+  const authorization = ctx.askUser(
+    "authorize-release",
+    `Dry run passed for ${tag} from ${sourceSha}. Changesets: ${changesetSummary}. Continue with the protected release?`,
+    [
+      { value: "release", label: `Release ${tag}` },
+      { value: "stop", label: "Stop" },
+    ],
+  );
   if (authorization !== "release") ctx.refused(`release of ${tag} was not authorized`);
 
   const live = command(ctx, "dispatch-release", `dispatch --bump ${bump} --dry-run false`, "the protected release workflow is dispatched");
@@ -131,6 +174,7 @@ export function runReleaseYield(ctx: ReleaseContext) {
     version,
     tag,
     source_sha: sourceSha,
+    changesets,
     dry_run: { id: dryRunID, url: dry.run_url },
     release_controller: { id: releaseRunID, url: live.run_url },
     publisher: { id: publisherRunID, url: release.publisher_run_url },

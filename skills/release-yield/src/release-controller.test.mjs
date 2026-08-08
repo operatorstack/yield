@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Blocked, selectNewRun } from "./scripts/release-controller.mjs";
+import { Blocked, selectNewRun } from "./release-controller.mjs";
 
 const runs = [
   { databaseId: 3, event: "workflow_dispatch", headSha: "abc" },

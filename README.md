@@ -118,6 +118,11 @@ authorization, waits through the npm, PyPI, and crates.io environments, and
 verifies the Go module and final GitHub release. It never publishes from the
 developer's computer.
 
+The workflow starts by choosing **Dry run only** or **Prepare release**. Minor
+and major intent requires a separate confirmation before any GitHub operation.
+Dry-run-only returns the immutable version, tag, source SHA, Changesets, and
+workflow URL without publishing.
+
 Every newly published canary runs the same contract tests in an isolated CI
 lane. Stable release execution remains pinned to an exact public version.
 <!-- npm-exclude:end -->
