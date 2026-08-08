@@ -181,6 +181,14 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
     "npm trusted publishing must include the initializer package",
   )
   expect(
+    raw["npm-publish.yml"].includes("packaging/npm-release.mjs --source"),
+    "npm packages must be transported as immutable tarballs",
+  )
+  expect(
+    raw["npm-publish.yml"].includes('npm publish "dist/release-unit/npm/${file}"'),
+    "npm publisher must publish the verified archive, not a directory",
+  )
+  expect(
     raw["npm-publish.yml"].indexOf("Publish SDK and CLI") <
       raw["npm-publish.yml"].indexOf("Publish npm initializer"),
     "the SDK package must publish before the initializer",
@@ -267,6 +275,15 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(
     raw["release-finalize.yml"].includes("go-release.mjs"),
     "finalization must verify the public Go module and command install",
+  )
+  expect(
+    raw["release-finalize.yml"].includes("package-contract.mjs"),
+    "finalization must create the website package contract before release publication",
+  )
+  expect(
+    raw["release-finalize.yml"].indexOf("gh release upload") <
+      raw["release-finalize.yml"].indexOf("--draft=false"),
+    "website contract assets must upload before the release is published",
   )
   expect(
     raw["release-finalize.yml"].includes('--source-sha "$SOURCE_SHA"'),

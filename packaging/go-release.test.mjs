@@ -3,7 +3,9 @@ import assert from "node:assert/strict"
 import { modulePath, validateModuleReceipt, verifyGoRelease } from "./go-release.mjs"
 
 const sourceSha = "a".repeat(40)
-const goPlatform = `${process.platform === "win32" ? "windows" : process.platform}/${process.arch === "x64" ? "amd64" : process.arch}`
+const goPlatform = `${process.platform === "win32" ? "windows" : process.platform}/${
+  process.arch === "x64" ? "amd64" : process.arch
+}`
 
 function receipt(version = "1.2.3") {
   return {

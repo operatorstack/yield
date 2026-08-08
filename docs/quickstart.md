@@ -15,11 +15,11 @@ npm create @operatorstack/yield@latest
 uvx --from yieldskill yskill bootstrap --language python
 
 # Rust
-cargo install yieldskill --locked
-yskill bootstrap --language rust
+cargo install yieldskill --root .yield --locked
+.yield/bin/yskill bootstrap --root . --language rust
 
 # Go
-go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go
+go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --root . --language go
 ```
 
 Bootstrap detects installed Codex, Claude Code, and Cursor project adapters.

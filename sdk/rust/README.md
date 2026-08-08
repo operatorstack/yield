@@ -33,8 +33,8 @@ The crate and library names are both `yieldskill`. The installed command is
 ## Start with your coding agent
 
 ```bash
-cargo install yieldskill --locked
-yskill bootstrap --language rust
+cargo install yieldskill --root .yield --locked
+.yield/bin/yskill bootstrap --root . --language rust
 ```
 
 Review and confirm the plan. Restart your coding agent. Then ask it to create
@@ -57,8 +57,8 @@ Use Yield to convert my existing release SKILL.md into a tested skill workflow.
 Yield supports Rust on macOS, Linux, and Windows. Install the public crate:
 
 ```bash
-cargo install yieldskill --locked
-yskill --version
+cargo install yieldskill --root .yield --locked
+.yield/bin/yskill --version
 ```
 
 The crate contains the matching `yskill` runtime for your platform. You do not
@@ -69,7 +69,7 @@ need Go, Node.js, or a separate CLI download.
 Create a Rust workflow inside your repository:
 
 ```bash
-yskill init skills/data-migration \
+.yield/bin/yskill init skills/data-migration \
   --language rust \
   --description "Dry-run, approve, apply, and verify a database migration."
 ```
@@ -161,7 +161,7 @@ Use deterministic fixture responses during tests. Save this as
 Then test the workflow:
 
 ```bash
-yskill doctor skills/data-migration --test
+.yield/bin/yskill doctor skills/data-migration --root . --test
 ```
 
 Yield runs commands for real and supplies agent and user responses from the
@@ -172,14 +172,14 @@ fixture. A successful test reaches `completed` without leaving a run journal.
 Registration lets installed coding agents discover the workflow:
 
 ```bash
-yskill register skills/data-migration
+.yield/bin/yskill register skills/data-migration --root .
 ```
 
 Select the verified agents explicitly when you do not want automatic
 detection:
 
 ```bash
-yskill register skills/data-migration \
+.yield/bin/yskill register skills/data-migration --root . \
   --agent cursor,codex,claude-code
 ```
 

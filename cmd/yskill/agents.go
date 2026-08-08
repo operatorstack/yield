@@ -710,6 +710,9 @@ func verifyWorkflowSDKVersion(manifest skillManifest, skillDir, repoRoot, expect
 	if expected == "dev" {
 		return nil
 	}
+	if manifest.YieldVersion != expected {
+		return fmt.Errorf("workflow declares Yield %s, but the running supervisor is Yield %s", manifest.YieldVersion, expected)
+	}
 	var declared string
 	if manifest.Language == "typescript" {
 		root, err := findTypeScriptPackageRoot(skillDir, repoRoot)

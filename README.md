@@ -47,12 +47,12 @@ available for 73 more coding agents.
 
 Run the command for your project:
 
-| Language   | Command                                                                           |
-| ---------- | --------------------------------------------------------------------------------- |
-| TypeScript | `npm create @operatorstack/yield@latest`                                          |
-| Python     | `uvx --from yieldskill yskill bootstrap --language python`                        |
-| Rust       | `cargo install yieldskill --locked`, then `yskill bootstrap --language rust`      |
-| Go         | `go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go` |
+| Language   | Command                                                                                                        |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
+| TypeScript | `npm create @operatorstack/yield@latest`                                                                       |
+| Python     | `uvx --from yieldskill yskill bootstrap --language python`                                                     |
+| Rust       | `cargo install yieldskill --root .yield --locked`, then `.yield/bin/yskill bootstrap --root . --language rust` |
+| Go         | `go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --root . --language go`                     |
 
 Yield detects the repository, language, and installed coding agents. It shows
 every proposed file and dependency change. It asks before it writes. It then
@@ -159,6 +159,7 @@ workflow URL without publishing.
 
 Every newly published canary runs the same contract tests in an isolated CI
 lane. Stable release execution remains pinned to an exact public version.
+
 <!-- npm-exclude:end -->
 
 ## Advanced: build manually

@@ -381,11 +381,11 @@ func TestReplayDivergenceFailsLoudly(t *testing.T) {
 
 func TestExecuteRejectsAmbiguousProgramOutput(t *testing.T) {
 	dir := t.TempDir()
-	manifest := `{"run":["sh","-c","printf '%s\\n' '{\"type\":\"request\",\"envelope\":{},\"terminal\":{\"status\":\"completed\"}}'"]}`
+	manifest := `{"version":1,"yield_version":"1.2.3","run":["sh","-c","printf '%s\\n' '{\"type\":\"request\",\"envelope\":{},\"terminal\":{\"status\":\"completed\"}}'"]}`
 	if err := os.WriteFile(filepath.Join(dir, "skill.json"), []byte(manifest), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	e := &Engine{SkillDir: dir, RunsDir: t.TempDir(), Stderr: os.Stderr}
+	e := &Engine{SkillDir: dir, RunsDir: t.TempDir(), Stderr: os.Stderr, SupervisorVersion: "1.2.3"}
 	l, err := runlog.Create(e.RunsDir, "run_1")
 	if err != nil {
 		t.Fatal(err)
@@ -399,6 +399,52 @@ func TestExecuteRejectsAmbiguousProgramOutput(t *testing.T) {
 	_, err = e.execute(l, "run_1")
 	if err == nil || !strings.Contains(err.Error(), "exactly one variant") {
 		t.Fatalf("engine must reject ambiguous output before dispatch, got %v", err)
+	}
+}
+
+func TestExecuteBindsWorkflowToSupervisorVersion(t *testing.T) {
+	makeLog := func(t *testing.T, e *Engine) *runlog.Log {
+		t.Helper()
+		l, err := runlog.Create(e.RunsDir, "run_1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := l.Append(runlog.RunStarted, map[string]any{
+			"run_id": "run_1",
+			"skill":  protocol.SkillRef{Name: "identity", Digest: protocol.DigestBytes([]byte("identity"))},
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return l
+	}
+	makeEngine := func(t *testing.T, supervisor string) *Engine {
+		t.Helper()
+		dir := t.TempDir()
+		manifest := `{"version":1,"yield_version":"1.2.3","language":"typescript","run":["sh","-c","test \"$YIELD_SUPERVISOR_VERSION\" = 1.2.3 && printf '%s\\n' '{\"type\":\"terminal\",\"terminal\":{\"status\":\"completed\"}}'"]}`
+		if err := os.WriteFile(filepath.Join(dir, "skill.json"), []byte(manifest), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return &Engine{SkillDir: dir, RunsDir: t.TempDir(), Stderr: os.Stderr, SupervisorVersion: supervisor}
+	}
+
+	t.Run("matching version reaches the SDK", func(t *testing.T) {
+		e := makeEngine(t, "1.2.3")
+		out, err := e.execute(makeLog(t, e), "run_1")
+		if err != nil || out.Terminal == nil || out.Terminal.Status != protocol.StatusCompleted {
+			t.Fatalf("matching supervisor = out %#v, err %v", out, err)
+		}
+	})
+	for _, supervisor := range []string{"", "1.2.2", "1.2.4"} {
+		t.Run("rejects "+supervisor, func(t *testing.T) {
+			e := makeEngine(t, supervisor)
+			_, err := e.execute(makeLog(t, e), "run_1")
+			if err == nil || !strings.Contains(err.Error(), "1.2.3") {
+				t.Fatalf("supervisor %q error = %v", supervisor, err)
+			}
+			if supervisor != "" && !strings.Contains(err.Error(), supervisor) {
+				t.Fatalf("error must name both versions: %v", err)
+			}
+		})
 	}
 }
 

@@ -107,10 +107,13 @@ test("Go README presents a public five-step workflow", async () => {
     assert.ok(current > previous, `${heading} is missing or out of order`)
     previous = current
   }
-  assert.match(readme, /go install github\.com\/operatorstack\/yield\/cmd\/yskill@latest/)
-  assert.match(readme, /yskill init skills\/investigate/)
-  assert.match(readme, /yskill doctor skills\/investigate --test/)
-  assert.match(readme, /yskill register skills\/investigate/)
+  assert.match(
+    readme,
+    /GOBIN="\$PWD\/\.yield\/bin" go install github\.com\/operatorstack\/yield\/cmd\/yskill@latest/,
+  )
+  assert.match(readme, /\.yield\/bin\/yskill init skills\/investigate/)
+  assert.match(readme, /\.yield\/bin\/yskill doctor skills\/investigate --root \. --test/)
+  assert.match(readme, /\.yield\/bin\/yskill register skills\/investigate --root \./)
   assert.match(readme, /^\/investigate$/m)
   assert.match(readme, /https:\/\/pkg\.go\.dev\/github\.com\/operatorstack\/yield\/sdk\/yield/)
   assert.match(readme, /https:\/\/proxy\.golang\.org/)
@@ -135,10 +138,10 @@ test("Rust README presents a public five-step workflow", async () => {
     previous = current
   }
 
-  assert.match(readme, /cargo install yieldskill --locked/)
-  assert.match(readme, /yskill init skills\/data-migration/)
-  assert.match(readme, /yskill doctor skills\/data-migration --test/)
-  assert.match(readme, /yskill register skills\/data-migration/)
+  assert.match(readme, /cargo install yieldskill --root \.yield --locked/)
+  assert.match(readme, /\.yield\/bin\/yskill init skills\/data-migration/)
+  assert.match(readme, /\.yield\/bin\/yskill doctor skills\/data-migration --root \. --test/)
+  assert.match(readme, /\.yield\/bin\/yskill register skills\/data-migration --root \./)
   assert.match(readme, /^\/data-migration$/m)
   assert.match(readme, /https:\/\/crates\.io\/crates\/yieldskill/)
   assert.match(readme, /https:\/\/docs\.rs\/yieldskill/)
@@ -278,7 +281,7 @@ test("README and quickstart use the public documentation and package registries"
   assert.match(pythonReadme, /python -m pip install yieldskill/)
   assert.match(pythonReadme, /https:\/\/pypi\.org\/project\/yieldskill\//)
   assert.doesNotMatch(pythonReadme, /get\.operatorstack\.systems\/pip/)
-  assert.match(rustReadme, /cargo install yieldskill --locked/)
+  assert.match(rustReadme, /cargo install yieldskill --root \.yield --locked/)
   assert.doesNotMatch(rustReadme, /get\.operatorstack\.systems\/cargo/)
   assert.match(goReadme, /go install github\.com\/operatorstack\/yield\/cmd\/yskill@latest/)
   assert.match(
@@ -288,8 +291,8 @@ test("README and quickstart use the public documentation and package registries"
   const commands = [
     "npm create @operatorstack/yield@latest",
     "uvx --from yieldskill yskill bootstrap --language python",
-    "yskill bootstrap --language rust",
-    "go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go",
+    ".yield/bin/yskill bootstrap --root . --language rust",
+    "go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --root . --language go",
   ]
   for (const command of commands) {
     assert.ok(readme.includes(command), `README is missing ${command}`)

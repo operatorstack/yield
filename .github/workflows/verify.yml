@@ -165,6 +165,7 @@ jobs:
             sdk/rust
             examples/data-migration
             examples/library/rust
+      - run: npm ci --ignore-scripts
       - name: Rerun first-party evaluations
         working-directory: evals
         run: |
@@ -178,7 +179,10 @@ jobs:
         run: npm run test:conversion
       - name: Run every example fixture
         run: |
-          go build -o "$RUNNER_TEMP/yskill" ./cmd/yskill
+          plan="$RUNNER_TEMP/example-release-plan.env"
+          node scripts/release-plan.mjs --bump auto --output "$plan" --notes "$RUNNER_TEMP/example-release-notes.md"
+          . "$plan"
+          go build -ldflags "-X main.version=$version" -o "$RUNNER_TEMP/yskill" ./cmd/yskill
           "$RUNNER_TEMP/yskill" test examples/investigate
           "$RUNNER_TEMP/yskill" test examples/release-checklist
           "$RUNNER_TEMP/yskill" test examples/env-doctor

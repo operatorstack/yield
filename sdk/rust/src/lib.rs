@@ -20,6 +20,39 @@ use std::process::exit;
 
 pub const PROTOCOL: &str = "yield.v1";
 
+fn verify_supervisor_identity() {
+    let Ok(bytes) = std::fs::read("skill.json") else {
+        return;
+    };
+    let Ok(manifest) = serde_json::from_slice::<Value>(&bytes) else {
+        return;
+    };
+    if manifest.get("version").and_then(Value::as_i64) != Some(1) {
+        return;
+    }
+    let expected = manifest
+        .get("yield_version")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let actual = std::env::var("YIELD_SUPERVISOR_VERSION").unwrap_or_default();
+    if expected.is_empty() || actual != expected {
+        eprintln!(
+            "yield: supervisor version {} does not match workflow Yield version {}",
+            if actual.is_empty() {
+                "missing"
+            } else {
+                &actual
+            },
+            if expected.is_empty() {
+                "missing"
+            } else {
+                expected
+            }
+        );
+        exit(2);
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillRef {
     pub name: String,
@@ -349,6 +382,7 @@ impl Context {
 /// value is the run result; return `Err(ctx.blocked(...))` or
 /// `Err(ctx.refused(...))` for the honest terminals.
 pub fn define_skill(program: fn(&mut Context) -> SkillResult) -> ! {
+    verify_supervisor_identity();
     let path = match std::env::var("YIELD_JOURNAL") {
         Ok(p) => p,
         Err(_) => {

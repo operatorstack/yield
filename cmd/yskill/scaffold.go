@@ -149,7 +149,13 @@ func scaffoldSkill(dir, language, sdkPath, description string) error {
 	fmt.Printf("init: %s skill %q scaffolded in %s\n", language, name, dir)
 	fmt.Println("next: replace the starter program and fixtures with the described workflow")
 	fmt.Printf("test: %s doctor %s --test\n", launcher, workflow)
-	fmt.Printf("then: %s register %s\n", launcher, workflow)
+	rootFlag := ""
+	if language == "typescript" || language == "python" {
+		if _, err := findRepoRoot(dir, ""); err != nil {
+			rootFlag = " --root ."
+		}
+	}
+	fmt.Printf("then: %s register %s%s\n", launcher, workflow, rootFlag)
 	return nil
 }
 
@@ -240,19 +246,19 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
   "dependencies": { "@operatorstack/yield": "%s" }
 }
 `, v),
-			"skill.json": "{\"version\":1,\"language\":\"typescript\",\"run\":[\"node\",\"main.ts\"]}\n",
+			"skill.json": fmt.Sprintf("{\"version\":1,\"yield_version\":%q,\"language\":\"typescript\",\"run\":[\"node\",\"main.ts\"]}\n", v),
 		}
 	case "python":
 		return map[string]string{
 			"main.py":          mainPython,
 			"requirements.txt": fmt.Sprintf("yieldskill==%s\n", v),
-			"skill.json":       "{\"version\":1,\"language\":\"python\",\"run\":[\"python\",\"main.py\"]}\n",
+			"skill.json":       fmt.Sprintf("{\"version\":1,\"yield_version\":%q,\"language\":\"python\",\"run\":[\"python\",\"main.py\"]}\n", v),
 		}
 	case "rust":
 		return map[string]string{
 			"Cargo.toml":  fmt.Sprintf("[package]\nname = %q\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nyieldskill = { version = \"=%s\" }\nserde_json = \"1\"\n", name, v),
 			"src/main.rs": mainRust,
-			"skill.json":  fmt.Sprintf("{\"version\":1,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\",\"--bin\",%q]}\n", name),
+			"skill.json":  fmt.Sprintf("{\"version\":1,\"yield_version\":%q,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\",\"--bin\",%q]}\n", v, name),
 		}
 	default:
 		gomod := fmt.Sprintf("module %s\n\ngo 1.26.5\n\nrequire github.com/operatorstack/yield v%s\n", name, v)
@@ -262,7 +268,7 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
 		return map[string]string{
 			"main.go":    mainGo,
 			"go.mod":     gomod,
-			"skill.json": "{\"version\":1,\"language\":\"go\",\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n",
+			"skill.json": fmt.Sprintf("{\"version\":1,\"yield_version\":%q,\"language\":\"go\",\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n", v),
 		}
 	}
 }

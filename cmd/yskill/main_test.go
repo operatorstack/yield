@@ -207,8 +207,8 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if generated.Version != 1 || generated.Language != tt.language {
-				t.Fatalf("skill.json = version %d language %q", generated.Version, generated.Language)
+			if generated.Version != 1 || generated.YieldVersion != "0.1.9" || generated.Language != tt.language {
+				t.Fatalf("skill.json = version %d yield version %q language %q", generated.Version, generated.YieldVersion, generated.Language)
 			}
 			skill := readTestFile(t, filepath.Join(dir, "SKILL.md"))
 			workflow := shellQuoteForPlatform(dir, runtime.GOOS)
@@ -276,13 +276,25 @@ func TestPackageScaffoldsPrintCreatedWorkflowInNextCommands(t *testing.T) {
 			workflow := shellQuoteForPlatform(dir, runtime.GOOS)
 			for _, line := range []string{
 				"test: " + tt.launcher + " doctor " + workflow + " --test",
-				"then: " + tt.launcher + " register " + workflow,
+				"then: " + tt.launcher + " register " + workflow + " --root .",
 			} {
 				if !strings.Contains(output, line) {
 					t.Fatalf("init output does not contain %q:\n%s", line, output)
 				}
 			}
 		})
+	}
+}
+
+func TestSkillManifestRequiresExactYieldVersion(t *testing.T) {
+	dir := t.TempDir()
+	writeTestFile(t, filepath.Join(dir, "skill.json"), `{"version":1,"language":"typescript","run":["node","main.ts"]}`)
+	if _, err := readSkillManifest(dir); err == nil || !strings.Contains(err.Error(), "requires an exact yield_version") {
+		t.Fatalf("missing yield_version error = %v", err)
+	}
+	writeTestFile(t, filepath.Join(dir, "skill.json"), `{"version":3,"yield_version":"0.2.0","language":"typescript","run":["node","main.ts"]}`)
+	if _, err := readSkillManifest(dir); err == nil || !strings.Contains(err.Error(), "version must be 1") {
+		t.Fatalf("non-v1 schema error = %v", err)
 	}
 }
 
@@ -313,7 +325,7 @@ func TestRustScaffoldNamesPrimaryBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 	manifest := readTestFile(t, filepath.Join(dir, "skill.json"))
-	if manifest != "{\"version\":1,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\",\"--bin\",\"safe-change\"]}\n" {
+	if manifest != "{\"version\":1,\"yield_version\":\"0.1.28\",\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\",\"--bin\",\"safe-change\"]}\n" {
 		t.Fatalf("skill.json = %q", manifest)
 	}
 }
@@ -358,7 +370,7 @@ func TestGoScaffoldCanResolveItsPinnedModuleOnFirstRun(t *testing.T) {
 		t.Fatal(err)
 	}
 	manifest := readTestFile(t, filepath.Join(dir, "skill.json"))
-	if manifest != "{\"version\":1,\"language\":\"go\",\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n" {
+	if manifest != "{\"version\":1,\"yield_version\":\"0.1.9\",\"language\":\"go\",\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n" {
 		t.Fatalf("skill.json = %q", manifest)
 	}
 }

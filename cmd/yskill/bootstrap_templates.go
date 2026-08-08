@@ -63,21 +63,21 @@ log. It is not a generated destination file.
 	case "typescript":
 		files["main.ts"] = bootstrapTypeScript
 		files["package.json"] = fmt.Sprintf("{\n  \"private\": true,\n  \"type\": \"module\",\n  \"dependencies\": { \"@operatorstack/yield\": \"%s\" }\n}\n", version)
-		files["skill.json"] = "{\"version\":1,\"language\":\"typescript\",\"run\":[\"node\",\"main.ts\"]}\n"
+		files["skill.json"] = fmt.Sprintf("{\"version\":1,\"yield_version\":%q,\"language\":\"typescript\",\"run\":[\"node\",\"main.ts\"]}\n", version)
 		dependency = "npm install --ignore-scripts --no-audit --no-fund (inside skills/yield-workflow-builder)"
 	case "python":
 		files["main.py"] = bootstrapPython
 		files["requirements.txt"] = fmt.Sprintf("yieldskill==%s\n", version)
-		files["skill.json"] = "{\"version\":1,\"language\":\"python\",\"run\":[\"python\",\"main.py\"]}\n"
+		files["skill.json"] = fmt.Sprintf("{\"version\":1,\"yield_version\":%q,\"language\":\"python\",\"run\":[\"python\",\"main.py\"]}\n", version)
 	case "go":
 		files["main.go"] = bootstrapGo
 		files["go.mod"] = fmt.Sprintf("module yield-workflow-builder\n\ngo 1.26.5\n\nrequire github.com/operatorstack/yield v%s\n", version)
-		files["skill.json"] = "{\"version\":1,\"language\":\"go\",\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n"
+		files["skill.json"] = fmt.Sprintf("{\"version\":1,\"yield_version\":%q,\"language\":\"go\",\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n", version)
 		dependency = "go mod tidy (inside skills/yield-workflow-builder)"
 	case "rust":
 		files["src/main.rs"] = bootstrapRust
 		files["Cargo.toml"] = fmt.Sprintf("[package]\nname = \"yield-workflow-builder\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nyieldskill = { version = \"=%s\" }\nserde_json = \"1\"\n", version)
-		files["skill.json"] = "{\"version\":1,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\"]}\n"
+		files["skill.json"] = fmt.Sprintf("{\"version\":1,\"yield_version\":%q,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\"]}\n", version)
 	default:
 		return nil, "", fmt.Errorf("unsupported language %q", language)
 	}

@@ -15,9 +15,10 @@ import (
 var portableSkillName = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 
 type skillManifest struct {
-	Version  int      `json:"version"`
-	Language string   `json:"language"`
-	Run      []string `json:"run"`
+	Version      int      `json:"version"`
+	YieldVersion string   `json:"yield_version"`
+	Language     string   `json:"language"`
+	Run          []string `json:"run"`
 }
 
 type skillMetadata struct {
@@ -36,6 +37,9 @@ func readSkillManifest(dir string) (skillManifest, error) {
 	}
 	if manifest.Version != 1 {
 		return skillManifest{}, fmt.Errorf("skill.json version must be 1")
+	}
+	if !releaseVersionPattern.MatchString(manifest.YieldVersion) {
+		return skillManifest{}, fmt.Errorf("skill.json version 1 requires an exact yield_version")
 	}
 	switch manifest.Language {
 	case "typescript", "python", "go", "rust":

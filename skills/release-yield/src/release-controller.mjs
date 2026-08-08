@@ -141,7 +141,9 @@ function approve(runID, deployments, expected) {
     )
   } catch {
     throw new Blocked(
-      `GitHub refused approval for ${names.join(", ")}; approve the environments at the workflow run`,
+      `GitHub refused approval for ${names.join(
+        ", ",
+      )}; approve the environments at the workflow run`,
     )
   }
   return names
@@ -378,7 +380,10 @@ async function main() {
   } catch (error) {
     const status = error instanceof Blocked ? "blocked" : "failed"
     process.stdout.write(
-      `${JSON.stringify({ status, reason: error instanceof Error ? error.message : String(error) })}\n`,
+      `${JSON.stringify({
+        status,
+        reason: error instanceof Error ? error.message : String(error),
+      })}\n`,
     )
   }
 }

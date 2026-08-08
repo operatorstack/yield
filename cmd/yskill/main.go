@@ -56,6 +56,24 @@ Usage:
 var version = "dev"
 var readBuildInfo = debug.ReadBuildInfo
 
+func newEngine(skillDir string) (*engine.Engine, error) {
+	e, err := engine.New(skillDir)
+	if err != nil {
+		return nil, err
+	}
+	e.SupervisorVersion = runtimeVersion()
+	return e, nil
+}
+
+func newEngineWithRunsDir(skillDir, runsDir string) (*engine.Engine, error) {
+	e, err := engine.NewWithRunsDir(skillDir, runsDir)
+	if err != nil {
+		return nil, err
+	}
+	e.SupervisorVersion = runtimeVersion()
+	return e, nil
+}
+
 func runtimeVersion() string {
 	if version != "" && version != "dev" {
 		return strings.TrimPrefix(version, "v")
@@ -122,7 +140,7 @@ func cmdRun(args []string) error {
 	if fs.NArg() != 1 {
 		return fmt.Errorf("run takes exactly one skill directory")
 	}
-	e, err := engine.New(fs.Arg(0))
+	e, err := newEngine(fs.Arg(0))
 	if err != nil {
 		return err
 	}
@@ -152,7 +170,7 @@ func cmdResume(args []string) error {
 	if fs.NArg() != 1 || *response == "" {
 		return fmt.Errorf("resume takes a run id and --response file")
 	}
-	e, err := engine.New(*skillDir)
+	e, err := newEngine(*skillDir)
 	if err != nil {
 		return err
 	}
@@ -180,7 +198,7 @@ func cmdRespond(args []string) error {
 	if fs.NArg() != 1 || seen["value"] == seen["result-json"] {
 		return fmt.Errorf("respond takes one run id and exactly one of --value or --result-json")
 	}
-	e, err := engine.New(*skillDir)
+	e, err := newEngine(*skillDir)
 	if err != nil {
 		return err
 	}
@@ -218,7 +236,7 @@ func cmdInspect(args []string) error {
 	if err := parseOnePositional(fs, args); err != nil {
 		return err
 	}
-	e, err := engine.New(*skillDir)
+	e, err := newEngine(*skillDir)
 	if err != nil {
 		return err
 	}
@@ -253,7 +271,7 @@ func cmdPrune(args []string) error {
 	if fs.NArg() != 1 || *olderThan <= 0 || *keepLast < 0 {
 		return fmt.Errorf("prune takes one skill directory, --older-than greater than zero, and a nonnegative --keep-last")
 	}
-	e, err := engine.New(fs.Arg(0))
+	e, err := newEngine(fs.Arg(0))
 	if err != nil {
 		return err
 	}
@@ -315,7 +333,7 @@ func cmdReplay(args []string) error {
 	if fs.NArg() != 1 {
 		return fmt.Errorf("replay takes exactly one run id")
 	}
-	e, err := engine.New(*skillDir)
+	e, err := newEngine(*skillDir)
 	if err != nil {
 		return err
 	}
@@ -362,13 +380,13 @@ func cmdTest(args []string) (retErr error) {
 	}
 	var e *engine.Engine
 	if *keepRun {
-		e, err = engine.New(dir)
+		e, err = newEngine(dir)
 	} else {
 		var runs string
 		runs, err = os.MkdirTemp("", "yield-test-runs-*")
 		if err == nil {
 			defer os.RemoveAll(runs)
-			e, err = engine.NewWithRunsDir(dir, runs)
+			e, err = newEngineWithRunsDir(dir, runs)
 		}
 	}
 	if err != nil {

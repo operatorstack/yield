@@ -121,7 +121,11 @@ async function main() {
       missing_count: result.missing.length,
     })
     process.stdout.write(
-      `${JSON.stringify({ version, missing: result.missing.map(({ filename }) => filename) }, null, 2)}\n`,
+      `${JSON.stringify(
+        { version, missing: result.missing.map(({ filename }) => filename) },
+        null,
+        2,
+      )}\n`,
     )
     return
   }

@@ -59,6 +59,7 @@ const runtimeCases = [
     "changed source is refused until the user accepts the change",
   ],
 ]
+const workflowRuntimeVersion = "0.2.0"
 const excludedDirectories = new Set([
   ".git",
   ".yield",
@@ -147,7 +148,14 @@ async function evaluate() {
   const temporary = await mkdtemp(join(tmpdir(), "yield-evals-"))
   try {
     const yskill = join(temporary, "yskill")
-    execute("go", ["build", "-o", yskill, "./cmd/yskill"])
+    execute("go", [
+      "build",
+      "-ldflags",
+      `-X main.version=${workflowRuntimeVersion}`,
+      "-o",
+      yskill,
+      "./cmd/yskill",
+    ])
     const { catalog, cases } = await workflowCases(yskill)
     const invariants = evaluateRuntime()
     return {
