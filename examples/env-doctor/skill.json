@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "yield_version": "0.2.0",
   "language": "python",
   "run": ["python3", "main.py"]
 }

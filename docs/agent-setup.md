@@ -8,20 +8,20 @@ adapters required for agent discovery.
 
 ```bash
 # Detect installed verified agents
-yskill register skills/review
+.yield/bin/yskill register skills/review --root .
 
 # Or choose agents explicitly
-yskill register skills/review --agent cursor,codex,claude-code
+.yield/bin/yskill register skills/review --root . --agent cursor,codex,claude-code
 
 # Check the workflow itself
-yskill doctor skills/review --test
+.yield/bin/yskill doctor skills/review --root . --test
 
 # Check selected adapters too
-yskill doctor skills/review --agent cursor,codex,claude-code --test
+.yield/bin/yskill doctor skills/review --root . --agent cursor,codex,claude-code --test
 
 # Register a complete workflow directory in one pass
-yskill register-all skills --agent cursor,codex,claude-code --dry-run
-yskill register-all skills --agent cursor,codex,claude-code --prune
+.yield/bin/yskill register-all skills --root . --agent cursor,codex,claude-code --dry-run
+.yield/bin/yskill register-all skills --root . --agent cursor,codex,claude-code --prune
 ```
 
 Use the launcher installed by the selected language package:
@@ -81,11 +81,11 @@ npm create @operatorstack/yield@latest
 uvx --from yieldskill yskill bootstrap --language python
 
 # Rust
-cargo install yieldskill --locked
-yskill bootstrap --language rust
+cargo install yieldskill --root .yield --locked
+.yield/bin/yskill bootstrap --root . --language rust
 
 # Go
-go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go
+go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --root . --language go
 ```
 
 Bootstrap shows every proposed change. Confirm the plan. Restart the coding

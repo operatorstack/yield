@@ -135,20 +135,17 @@ jobs:
             cp "$directory/target/package/${name}-${VERSION}.crate" dist/crates/
           done
           test "$(find dist/crates -maxdepth 1 -name '*.crate' | wc -l | tr -d ' ')" = 6
-      - name: Inspect npm tarballs
+      - name: Pack immutable npm release unit
         shell: bash
         run: |
           set -euo pipefail
-          for directory in dist/packages/npm/*; do
-            (cd "$directory" && npm pack --dry-run)
-          done
+          node packaging/npm-release.mjs --source dist/packages/npm --output dist/release-unit/npm --source-sha "${{ needs.resolve.outputs.source_sha }}"
       - name: Assemble immutable release unit
         env:
           CHANNEL: ${{ needs.resolve.outputs.channel }}
         run: |
           mkdir -p dist/release-unit
           cp dist/packages/SHA256SUMS.json dist/release-unit/
-          cp -R dist/packages/npm dist/release-unit/npm
           if [[ "$CHANNEL" == stable ]]; then
             cp -R dist/pypi dist/release-unit/pypi
             cp -R dist/packages/rust dist/release-unit/rust
@@ -186,12 +183,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for directory in dist/release-unit/npm/darwin-* dist/release-unit/npm/linux-* dist/release-unit/npm/windows-*; do
-            package="$(node -p "require('./${directory}/package.json').name")"
+          jq -c '.archives[] | select(.name != "@operatorstack/yield" and .name != "@operatorstack/create-yield")' dist/release-unit/npm/npm-release.json | while read -r archive; do
+            package="$(jq -r '.name' <<< "$archive")"
+            file="$(jq -r '.file' <<< "$archive")"
             if npm view "${package}@${VERSION}" version >/dev/null 2>&1; then
               echo "${package}@${VERSION} already exists"
             else
-              (cd "$directory" && npm publish --tag "$DIST_TAG")
+              npm publish "dist/release-unit/npm/${file}" --tag "$DIST_TAG"
             fi
           done
       - name: Publish SDK and CLI
@@ -204,7 +202,8 @@ jobs:
           if npm view "@operatorstack/yield@${VERSION}" version >/dev/null 2>&1; then
             echo "@operatorstack/yield@${VERSION} already exists"
           else
-            (cd dist/release-unit/npm/yield && npm publish --tag "$DIST_TAG")
+            file="$(jq -r '.archives[] | select(.name == "@operatorstack/yield") | .file' dist/release-unit/npm/npm-release.json)"
+            npm publish "dist/release-unit/npm/${file}" --tag "$DIST_TAG"
           fi
       - name: Publish npm initializer
         env:
@@ -216,7 +215,8 @@ jobs:
           if npm view "@operatorstack/create-yield@${VERSION}" version >/dev/null 2>&1; then
             echo "@operatorstack/create-yield@${VERSION} already exists"
           else
-            (cd dist/release-unit/npm/create-yield && npm publish --tag "$DIST_TAG")
+            file="$(jq -r '.archives[] | select(.name == "@operatorstack/create-yield") | .file' dist/release-unit/npm/npm-release.json)"
+            npm publish "dist/release-unit/npm/${file}" --tag "$DIST_TAG"
           fi
       - name: Verify complete npm release unit
         env:
@@ -224,8 +224,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for directory in dist/release-unit/npm/*; do
-            package="$(node -p "require('./${directory}/package.json').name")"
+          jq -r '.archives[].name' dist/release-unit/npm/npm-release.json | while read -r package; do
             for attempt in {1..12}; do
               if [[ "$(npm view "${package}@${VERSION}" version 2>/dev/null || true)" == "$VERSION" ]]; then break; fi
               test "$attempt" -lt 12

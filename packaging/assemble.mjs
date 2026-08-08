@@ -165,7 +165,9 @@ async function assemblePython({ version, binaries, output }) {
 }
 
 function rustDependency(target, version) {
-  return `[target.'cfg(all(target_os = "${target.rustOs}", target_arch = "${target.rustArch}"))'.dependencies]\n${rustPackage(target)} = { version = "=${version}" }\n`
+  return `[target.'cfg(all(target_os = "${target.rustOs}", target_arch = "${
+    target.rustArch
+  }"))'.dependencies]\n${rustPackage(target)} = { version = "=${version}" }\n`
 }
 
 async function assembleRust({ version, binaries, output }, records) {
@@ -188,7 +190,9 @@ async function assembleRust({ version, binaries, output }, records) {
     )
     await writeFile(
       join(directory, "src/lib.rs"),
-      `pub const BYTES: &[u8] = include_bytes!("../runtime/${runtime}");\npub const SHA256: &str = "${runtimeByTarget.get(target.id).sha256}";\n`,
+      `pub const BYTES: &[u8] = include_bytes!("../runtime/${runtime}");\npub const SHA256: &str = "${
+        runtimeByTarget.get(target.id).sha256
+      }";\n`,
     )
   }
 
@@ -202,7 +206,9 @@ async function assembleRust({ version, binaries, output }, records) {
     /^version = ".*"/m,
     `version = "${version}"`,
   )
-  cargo += `\n[[bin]]\nname = "yskill"\npath = "src/bin/yskill.rs"\n\n${targets.map((target) => rustDependency(target, version)).join("\n")}`
+  cargo += `\n[[bin]]\nname = "yskill"\npath = "src/bin/yskill.rs"\n\n${targets
+    .map((target) => rustDependency(target, version))
+    .join("\n")}`
   await writeFile(join(main, "Cargo.toml"), cargo)
   await mkdir(join(main, "src/bin"), { recursive: true })
   await cp(join(root, "packaging/rust-launcher.rs"), join(main, "src/bin/yskill.rs"))

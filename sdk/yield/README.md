@@ -32,7 +32,7 @@ The Go module is `github.com/operatorstack/yield`. Import the SDK as
 ## Start with your coding agent
 
 ```bash
-go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go
+go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --root . --language go
 ```
 
 Review and confirm the plan. Restart your coding agent. Then ask it to create
@@ -55,8 +55,9 @@ Use Yield to convert my existing release SKILL.md into a tested skill workflow.
 Yield supports Go on macOS, Linux, and Windows. Install the public command:
 
 ```bash
-go install github.com/operatorstack/yield/cmd/yskill@latest
-yskill --version
+mkdir -p .yield/bin
+GOBIN="$PWD/.yield/bin" go install github.com/operatorstack/yield/cmd/yskill@latest
+.yield/bin/yskill --version
 ```
 
 Go downloads the tagged module through
@@ -68,7 +69,7 @@ registry account or private package source.
 Create a Go workflow inside your repository:
 
 ```bash
-yskill init skills/investigate \
+.yield/bin/yskill init skills/investigate \
   --language go \
   --description "Collect failure evidence, test hypotheses, and report the cause."
 ```
@@ -229,7 +230,7 @@ Use deterministic responses during tests. Save this as
 Then test the workflow:
 
 ```bash
-yskill doctor skills/investigate --test
+.yield/bin/yskill doctor skills/investigate --root . --test
 ```
 
 Yield runs commands for real and supplies agent responses from the fixture. A
@@ -240,14 +241,14 @@ successful test reaches `completed` without leaving a run journal.
 Registration lets installed coding agents discover the workflow:
 
 ```bash
-yskill register skills/investigate
+.yield/bin/yskill register skills/investigate --root .
 ```
 
 Select the verified agents explicitly when you do not want automatic
 detection:
 
 ```bash
-yskill register skills/investigate \
+.yield/bin/yskill register skills/investigate --root . \
   --agent cursor,codex,claude-code
 ```
 

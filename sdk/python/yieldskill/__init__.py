@@ -249,10 +249,29 @@ def _emit(output: dict) -> None:
     sys.exit(0)
 
 
+def _verify_supervisor_identity() -> None:
+    try:
+        with open("skill.json", "r", encoding="utf-8") as f:
+            manifest = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return
+    if manifest.get("version") != 1:
+        return
+    expected = manifest.get("yield_version")
+    actual = os.environ.get("YIELD_SUPERVISOR_VERSION")
+    if not expected or actual != expected:
+        print(
+            f"yield: supervisor version {actual or 'missing'} does not match workflow Yield version {expected or 'missing'}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+
 def define_skill(program: Callable[[Context], Any]) -> None:
     """Run a skill program under the supervisor protocol. The program's
     return value is the run result; call ctx.blocked()/ctx.refused() for
     the honest terminals."""
+    _verify_supervisor_identity()
     path = os.environ.get("YIELD_JOURNAL")
     if not path:
         print(

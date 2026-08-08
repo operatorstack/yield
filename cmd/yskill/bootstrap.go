@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 )
@@ -247,8 +248,12 @@ func printBootstrapPlan(plan bootstrapPlan) {
 	if plan.Dependency != "" {
 		fmt.Printf("  run   %s\n", plan.Dependency)
 	}
-	fmt.Println("  run   yskill doctor skills/yield-workflow-builder --test")
-	fmt.Println("  run   yskill register skills/yield-workflow-builder")
+	launcher := "yskill"
+	if plan.Language == "go" || plan.Language == "rust" {
+		launcher = repositoryRuntimeLauncher(filepath.ToSlash(filepath.Join(".yield", "bin", "yskill")), runtime.GOOS)
+	}
+	fmt.Printf("  run   %s doctor skills/yield-workflow-builder --root . --test\n", launcher)
+	fmt.Printf("  run   %s register skills/yield-workflow-builder --root .\n", launcher)
 }
 
 func detectBootstrapLanguage(root string) (string, error) {

@@ -23,6 +23,31 @@ import (
 // the supervisor (yskill) hands to the subprocess.
 const EnvJournal = "YIELD_JOURNAL"
 
+func verifySupervisorIdentity() {
+	b, err := os.ReadFile("skill.json")
+	if err != nil {
+		return
+	}
+	var manifest struct {
+		Version      int    `json:"version"`
+		YieldVersion string `json:"yield_version"`
+	}
+	if json.Unmarshal(b, &manifest) != nil || manifest.Version != 1 {
+		return
+	}
+	actual := os.Getenv("YIELD_SUPERVISOR_VERSION")
+	if manifest.YieldVersion == "" || actual != manifest.YieldVersion {
+		if actual == "" {
+			actual = "missing"
+		}
+		if manifest.YieldVersion == "" {
+			manifest.YieldVersion = "missing"
+		}
+		fmt.Fprintf(os.Stderr, "yield: supervisor version %s does not match workflow Yield version %s\n", actual, manifest.YieldVersion)
+		os.Exit(2)
+	}
+}
+
 // Context carries the replay cursor and the primitives.
 type Context struct {
 	journal      protocol.Journal
@@ -173,6 +198,7 @@ func (c *Context) step(req protocol.Request) protocol.ResponseEnvelope {
 // journal named by YIELD_JOURNAL, executes the program, and emits exactly
 // one ProgramOutput on stdout.
 func Main(program func(*Context) (Outcome, error)) {
+	verifySupervisorIdentity()
 	path := os.Getenv(EnvJournal)
 	if path == "" {
 		fmt.Fprintln(os.Stderr, "yield: YIELD_JOURNAL is not set; this program is run by yskill, not directly")

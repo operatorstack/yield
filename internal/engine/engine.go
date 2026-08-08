@@ -25,8 +25,9 @@ import (
 
 // Engine binds a skill directory to a runs directory.
 type Engine struct {
-	SkillDir string
-	RunsDir  string
+	SkillDir          string
+	RunsDir           string
+	SupervisorVersion string
 	// Stderr receives subprocess diagnostics (compile errors etc.).
 	Stderr *os.File
 }
@@ -424,7 +425,30 @@ func (e *Engine) execute(l *runlog.Log, runID string) (*protocol.ProgramOutput, 
 	defer cancel()
 	cmd := exec.CommandContext(ctx, runner[0], runner[1:]...)
 	cmd.Dir = e.SkillDir
-	cmd.Env = append(os.Environ(), "YIELD_JOURNAL="+jf.Name())
+	environment := append(os.Environ(), "YIELD_JOURNAL="+jf.Name())
+	if b, readErr := os.ReadFile(filepath.Join(e.SkillDir, "skill.json")); readErr == nil {
+		var manifest struct {
+			Version      int    `json:"version"`
+			YieldVersion string `json:"yield_version"`
+		}
+		if json.Unmarshal(b, &manifest) == nil {
+			if manifest.Version != 1 || manifest.YieldVersion == "" {
+				return nil, fmt.Errorf("skill.json version 1 requires a declared Yield version")
+			}
+			if e.SupervisorVersion == "" {
+				return nil, fmt.Errorf("skill requires Yield %s, but the running supervisor version is missing", manifest.YieldVersion)
+			}
+			if e.SupervisorVersion != "dev" && manifest.YieldVersion != e.SupervisorVersion {
+				return nil, fmt.Errorf("skill requires Yield %s, but the running supervisor is Yield %s", manifest.YieldVersion, e.SupervisorVersion)
+			}
+			supervisorVersion := e.SupervisorVersion
+			if supervisorVersion == "dev" {
+				supervisorVersion = manifest.YieldVersion
+			}
+			environment = append(environment, "YIELD_SUPERVISOR_VERSION="+supervisorVersion)
+		}
+	}
+	cmd.Env = environment
 	cmd.Stderr = e.Stderr
 	outBytes, err := cmd.Output()
 	if err != nil {

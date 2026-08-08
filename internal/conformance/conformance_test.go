@@ -47,7 +47,7 @@ func newEngine(t *testing.T, lang language) *engine.Engine {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &engine.Engine{SkillDir: abs, RunsDir: t.TempDir(), Stderr: os.Stderr}
+	return &engine.Engine{SkillDir: abs, RunsDir: t.TempDir(), Stderr: os.Stderr, SupervisorVersion: "dev"}
 }
 
 func respond(t *testing.T, e *engine.Engine, p *engine.Progress, result string) (*engine.Progress, error) {

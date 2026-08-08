@@ -123,5 +123,16 @@ jobs:
             --source-sha "$SOURCE_SHA" \
             --attempts 3 \
             --delay-ms 10000
+          node evals/scripts/run.mjs --check
           test "$(git rev-list -n 1 "$TAG")" = "$SOURCE_SHA"
+          assets="$RUNNER_TEMP/release-assets"
+          mkdir -p "$assets"
+          node packaging/package-contract.mjs \
+            --version "$version" \
+            --source-sha "$SOURCE_SHA" \
+            --npm-release "$RUNNER_TEMP/release-unit/npm/npm-release.json" \
+            --evaluation evals/results/latest.json \
+            --release-url "https://github.com/${GITHUB_REPOSITORY}/releases/tag/${TAG}" \
+            --output "$assets"
+          gh release upload "$TAG" "$assets/yield-package-contract.json" "$assets/yield-website-promotion.json" --repo "$GITHUB_REPOSITORY" --clobber
           gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false

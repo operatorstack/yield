@@ -71,6 +71,20 @@ interface Journal {
   entries?: { request: Request; response: ResponseEnvelope }[];
 }
 
+function verifySupervisorIdentity(): void {
+  let manifest: { version?: number; yield_version?: string };
+  try {
+    manifest = JSON.parse(readFileSync("skill.json", "utf8")) as { version?: number; yield_version?: string };
+  } catch {
+    return;
+  }
+  if (manifest.version !== 1) return;
+  if (!manifest.yield_version || env.YIELD_SUPERVISOR_VERSION !== manifest.yield_version) {
+    stderr.write(`yield: supervisor version ${env.YIELD_SUPERVISOR_VERSION || "missing"} does not match workflow Yield version ${manifest.yield_version || "missing"}\n`);
+    exit(2);
+  }
+}
+
 type ProgramOutput =
   | { type: "request"; envelope: RequestEnvelope; requirements?: Requirement[] }
   | {
@@ -302,6 +316,7 @@ function emit(output: ProgramOutput): never {
  * the honest terminals.
  */
 export function defineSkill(program: (ctx: Context) => unknown): void {
+  verifySupervisorIdentity();
   const path = env.YIELD_JOURNAL;
   if (!path) {
     stderr.write(

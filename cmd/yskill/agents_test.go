@@ -67,7 +67,7 @@ func TestEveryRegistryAgentGeneratesAContainedAdapter(t *testing.T) {
 	writeTestFile(t, filepath.Join(repo, "package.json"), `{"dependencies":{"@operatorstack/yield":"0.1.17"}}`)
 	skill := filepath.Join(repo, "workflows", "review")
 	writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: review\ndescription: Review the branch when the user wants code checked before shipping.\n---\n")
-	writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"language":"typescript","run":["node","main.ts"]}`)
+	writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"yield_version":"0.1.23","language":"typescript","run":["node","main.ts"]}`)
 	writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
 	registry, err := loadAgentRegistry()
 	if err != nil {
@@ -225,7 +225,7 @@ func TestRegisterAllPreflightsAndWritesEveryWorkflow(t *testing.T) {
 	for _, name := range []string{"review", "release"} {
 		skill := filepath.Join(repo, "skills", name)
 		writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: "+name+"\ndescription: Run "+name+" when the matching project workflow is requested.\n---\n")
-		writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"language":"typescript","run":["node","main.ts"]}`)
+		writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"yield_version":"0.1.23","language":"typescript","run":["node","main.ts"]}`)
 		writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
 	}
 	output := captureStdout(t, func() {
@@ -256,7 +256,7 @@ func TestRegisterAllPruneRemovesOnlyOwnedAdapterFile(t *testing.T) {
 	for _, name := range []string{"review", "release"} {
 		skill := filepath.Join(repo, "skills", name)
 		writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: "+name+"\ndescription: Run "+name+" when the matching project workflow is requested.\n---\n")
-		writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"language":"typescript","run":["node","main.ts"]}`)
+		writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"yield_version":"0.1.23","language":"typescript","run":["node","main.ts"]}`)
 		writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
 	}
 	if err := cmdRegisterAll([]string{filepath.Join(repo, "skills"), "--root", repo, "--agent", "codex"}); err != nil {
@@ -285,7 +285,7 @@ func TestRegisterAllRefusesCrossDirectoryNameCollisionBeforeWrites(t *testing.T)
 	makeSkill := func(parent string) string {
 		skill := filepath.Join(repo, parent, "review")
 		writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: review\ndescription: Review the project when a user asks for a check.\n---\n")
-		writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"language":"typescript","run":["node","main.ts"]}`)
+		writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"yield_version":"0.1.23","language":"typescript","run":["node","main.ts"]}`)
 		writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
 		return skill
 	}
@@ -442,7 +442,7 @@ func TestWorkflowSDKVersionMustMatchRuntime(t *testing.T) {
 
 func TestGoWorkflowSDKVersionAcceptsGeneratedAndBlockForms(t *testing.T) {
 	repo := t.TempDir()
-	manifest := skillManifest{Version: 1, Language: "go", Run: []string{"go", "run", "."}}
+	manifest := skillManifest{Version: 1, YieldVersion: "0.1.23", Language: "go", Run: []string{"go", "run", "."}}
 	for name, goMod := range map[string]string{
 		"generated": "module review\n\ngo 1.26.5\n\nrequire github.com/operatorstack/yield v0.1.23\n",
 		"block":     "module review\n\ngo 1.26.5\n\nrequire (\n\tgithub.com/operatorstack/yield v0.1.23\n)\n",
@@ -462,7 +462,7 @@ func TestDoctorReportsSDKRuntimeAndAdapterVersionProblemsTogether(t *testing.T) 
 	writeTestFile(t, filepath.Join(repo, ".git", "keep"), "")
 	skill := filepath.Join(repo, "skills", "review")
 	writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: review\ndescription: Review code before it is shipped.\n---\n")
-	writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"language":"go","run":["go","run","."]}`)
+	writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"yield_version":"0.1.23","language":"go","run":["go","run","."]}`)
 	writeTestFile(t, filepath.Join(skill, "go.mod"), "module review\n\ngo 1.26.5\n\nrequire github.com/operatorstack/yield v0.1.22\n")
 	writeTestFile(t, filepath.Join(skill, "main.go"), "package main\nfunc main() {}\n")
 	writeTestFile(t, localRuntimePath(repo), "runtime")
@@ -491,7 +491,7 @@ func createTypeScriptSkill(t *testing.T, repo, name string) string {
 	writeTestFile(t, filepath.Join(repo, "package.json"), `{"dependencies":{"@operatorstack/yield":"0.1.17"}}`)
 	skill := filepath.Join(repo, "skills", name)
 	writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: "+name+"\ndescription: Review the branch when the user wants code checked before shipping.\n---\n")
-	writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"language":"typescript","run":["node","main.ts"]}`)
+	writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"yield_version":"0.1.23","language":"typescript","run":["node","main.ts"]}`)
 	writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
 	return skill
 }
