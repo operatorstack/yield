@@ -205,11 +205,14 @@ func TestBuilderTemplatesCompile(t *testing.T) {
 }
 
 func TestBuilderFixturesReachCompletedAcrossLanguages(t *testing.T) {
+	oldVersion := version
+	version = "0.1.0"
+	t.Cleanup(func() { version = oldVersion })
 	repoRoot, err := filepath.Abs(filepath.Join("..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}
-	profile := bootstrapProfile{YieldVersion: "0.0.0", Agents: []string{"codex"}}
+	profile := bootstrapProfile{YieldVersion: "0.1.0", Agents: []string{"codex"}}
 	for _, language := range []string{"typescript", "python", "go", "rust"} {
 		t.Run(language, func(t *testing.T) {
 			root := t.TempDir()
@@ -222,7 +225,7 @@ func TestBuilderFixturesReachCompletedAcrossLanguages(t *testing.T) {
 				files["go.mod"] += "\nreplace github.com/operatorstack/yield => " + filepath.ToSlash(repoRoot) + "\n"
 			}
 			if language == "rust" {
-				files["Cargo.toml"] = strings.Replace(files["Cargo.toml"], `yieldskill = { version = "=0.0.0" }`, `yieldskill = { path = "`+filepath.ToSlash(filepath.Join(repoRoot, "sdk", "rust"))+`" }`, 1)
+				files["Cargo.toml"] = strings.Replace(files["Cargo.toml"], `yieldskill = { version = "=0.1.0" }`, `yieldskill = { version = "=0.1.0", path = "`+filepath.ToSlash(filepath.Join(repoRoot, "sdk", "rust"))+`" }`, 1)
 			}
 			for path, content := range files {
 				full := filepath.Join(dir, filepath.FromSlash(path))
@@ -267,7 +270,7 @@ func TestBuilderFixturesReachCompletedAcrossLanguages(t *testing.T) {
 				if err := os.MkdirAll(filepath.Dir(runtimePath), 0o755); err != nil {
 					t.Fatal(err)
 				}
-				runTestCommand(t, repoRoot, "go", "build", "-ldflags", "-X main.version=dev", "-o", runtimePath, "./cmd/yskill")
+				runTestCommand(t, repoRoot, "go", "build", "-ldflags", "-X main.version=0.1.0", "-o", runtimePath, "./cmd/yskill")
 			}
 			if err := cmdDoctor([]string{dir, "--root", root, "--test"}); err != nil {
 				t.Fatalf("%s builder fixture did not complete: %v", language, err)
