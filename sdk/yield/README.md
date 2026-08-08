@@ -29,7 +29,16 @@
 The Go module is `github.com/operatorstack/yield`. Import the SDK as
 `github.com/operatorstack/yield/sdk/yield`. The installed command is `yskill`.
 
-## Build a Go skill in five steps
+## Start with your coding agent
+
+```bash
+go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go
+```
+
+Review and confirm the plan. Restart your coding agent. Then ask it to create
+or convert a skill workflow.
+
+## Advanced: build manually
 
 ### 1. Install Yield
 

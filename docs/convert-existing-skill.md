@@ -1,64 +1,38 @@
-# Convert an existing prose skill
+# Convert an existing skill
 
-Use conversion after you have run one ordinary Yield workflow. Conversion is a
-separate job from the runtime itself: the converter helps extract and encode a
-policy; Yield then executes and verifies the resulting program.
+The workflow builder can convert an existing `SKILL.md` into a tested skill
+workflow. The source and destination must stay inside the repository.
 
-The repository includes [`examples/convert-skill`](../examples/convert-skill/),
-a converter that is itself a Yield skill.
+## 1. Install the builder
 
-## What moves, and what stays
-
-Keep these in the thin `SKILL.md`:
-
-- the goal and when the skill should be used;
-- domain context the model needs;
-- judgment criteria and useful examples;
-- the instruction to start and resume the Yield program.
-
-Move these into the program:
-
-- required order;
-- branches and retry limits;
-- commands whose output must be observed;
-- approval points;
-- claims required for completion;
-- `Blocked` and `Refused` outcomes.
-
-## Run the converter
-
-From a checkout of the public repository:
+Run the bootstrap command for the project language. For example:
 
 ```bash
-go build -o /tmp/yskill ./cmd/yskill
-cd examples/convert-skill
-YSKILL=/tmp/yskill /tmp/yskill run .
+npm create @operatorstack/yield@latest
 ```
 
-The workflow asks for:
+See the [quickstart](quickstart.md) for Python, Rust, and Go commands.
 
-1. the source directory containing `SKILL.md`;
-2. a target language;
-3. a destination directory.
+## 2. Restart the coding agent
 
-The coding agent extracts the implicit flow and writes the generated files. The
-converter then runs the generated skill's own fixtures under `yskill test`. It
-allows two bounded repair attempts and returns `Blocked` if the fixture run
-still fails.
+Restart the session after bootstrap registers the adapter.
 
-## What “verified” means here
+## 3. Request the conversion
 
-The converter verifies that the generated program executes its declared fixture
-path. It does **not** prove that the extracted policy is behaviorally equivalent
-to every reading of the original prose.
+Tell the agent which skill to convert and what must remain true:
 
-Review the conversion as a policy change:
+```text
+Use Yield to convert skills/release/SKILL.md into a tested skill workflow.
+Keep the approval before publish. Require registry verification before completion.
+```
 
-- map every load-bearing source instruction to code, retained model judgment,
-  or an explicit exclusion;
-- add a positive fixture and at least one negative or refusal path;
-- test bypass attempts and failure states;
-- replay a completed run to check determinism;
-- keep performance or token-reduction claims separate from runtime correctness.
+The builder reads the source, extracts its control flow, and writes a new
+destination. It refuses an existing destination. It never overwrites the
+source.
 
-The converter cannot report success before the generated fixture run passes.
+The builder runs the generated fixture. It allows two repair attempts. It then
+registers and verifies the selected coding-agent adapters. It reports success
+only after these checks pass.
+
+Review the generated program. A passing fixture proves the tested path. It
+does not prove that every sentence in the prose skill has the same behavior.

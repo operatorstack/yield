@@ -30,7 +30,17 @@
 The crate and library names are both `yieldskill`. The installed command is
 `yskill`.
 
-## Build a Rust skill in five steps
+## Start with your coding agent
+
+```bash
+cargo install yieldskill --locked
+yskill bootstrap --language rust
+```
+
+Review and confirm the plan. Restart your coding agent. Then ask it to create
+or convert a skill workflow.
+
+## Advanced: build manually
 
 ### 1. Install Yield
 

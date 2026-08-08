@@ -43,6 +43,31 @@ discover it.
 Verified with Cursor, Codex, and Claude Code. Registry-backed project paths are
 available for 73 more coding agents.
 
+## Start with your coding agent
+
+Run the command for your project:
+
+| Language | Command |
+|---|---|
+| TypeScript | `npm create @operatorstack/yield@latest` |
+| Python | `uvx --from yieldskill yskill bootstrap --language python` |
+| Rust | `cargo install yieldskill --locked`, then `yskill bootstrap --language rust` |
+| Go | `go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --language go` |
+
+Yield detects the repository, language, and installed coding agents. It shows
+every proposed file and dependency change. It asks before it writes. It then
+installs, tests, and registers the `yield-workflow-builder` skill workflow.
+
+Restart your coding agent. Then ask:
+
+```text
+Use Yield to turn my release skill into a tested workflow.
+```
+
+The builder can create a skill workflow from a description. It can also
+convert an existing `SKILL.md`. Yield does not use install hooks to change the
+repository.
+
 ## Move repeated instructions into code
 
 A release skill often starts as prose:
@@ -127,7 +152,7 @@ Every newly published canary runs the same contract tests in an isolated CI
 lane. Stable release execution remains pinned to an exact public version.
 <!-- npm-exclude:end -->
 
-## Use Yield in five steps
+## Advanced: build manually
 
 ### 1. Install Yield
 
@@ -139,7 +164,7 @@ npm exec -- yskill --version
 ```
 
 [Public npm releases](https://www.npmjs.com/package/@operatorstack/yield)
-use trusted publishing. The SDK package and all six runtime packages include
+use trusted publishing. The initializer, SDK, and six runtime packages include
 SLSA v1 provenance.
 
 ### 2. Create the workflow

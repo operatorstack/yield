@@ -158,6 +158,11 @@ func pinCurrentRuntime(dir string) error {
 	if err != nil {
 		return nil
 	}
+	return pinRuntimeAtRoot(root)
+}
+
+func pinRuntimeAtRoot(root string) error {
+	var err error
 	source := strings.TrimSpace(os.Getenv("YIELD_LAUNCHER_PATH"))
 	if source == "" {
 		source, err = currentExecutable()

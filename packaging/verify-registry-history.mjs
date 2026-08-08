@@ -51,7 +51,7 @@ function cargoVersions(text, expectedName) {
 
 export async function verifyRegistryHistory({ versions, base, fetchImpl = fetch }) {
   const missing = [];
-  const npmNames = ["@operatorstack/yield", ...targets.map(npmPackage)];
+  const npmNames = ["@operatorstack/yield", "@operatorstack/create-yield", ...targets.map(npmPackage)];
   for (const name of npmNames) {
     const packument = await fetchJSON(fetchImpl, `${base}/npm/${npmPath(name)}`);
     const available = new Set(Object.keys(packument.versions ?? {}));

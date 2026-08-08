@@ -29,7 +29,16 @@
 The package name and import name are both `yieldskill`. Python reserves
 `yield` as a keyword.
 
-## Build a Python skill in five steps
+## Start with your coding agent
+
+```bash
+uvx --from yieldskill yskill bootstrap --language python
+```
+
+Review and confirm the plan. Restart your coding agent. Then ask it to create
+or convert a skill workflow.
+
+## Advanced: build manually
 
 ### 1. Install Yield
 
