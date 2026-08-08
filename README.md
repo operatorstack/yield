@@ -17,6 +17,7 @@
   <!-- npm-exclude:start -->
   <a href="https://pypi.org/project/yieldskill/"><img alt="PyPI version" src="https://img.shields.io/pypi/v/yieldskill?style=flat-square" /></a>
   <a href="https://crates.io/crates/yieldskill"><img alt="crates.io version" src="https://img.shields.io/crates/v/yieldskill?style=flat-square" /></a>
+  <a href="https://pkg.go.dev/github.com/operatorstack/yield/sdk/yield"><img alt="Go reference" src="https://pkg.go.dev/badge/github.com/operatorstack/yield/sdk/yield.svg" /></a>
   <!-- npm-exclude:end -->
   <a href="https://github.com/operatorstack/yield/actions/workflows/verify.yml"><img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/operatorstack/yield/verify.yml?branch=main&amp;style=flat-square&amp;label=build" /></a>
   <a href="https://github.com/operatorstack/yield/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/npm/l/@operatorstack/yield?style=flat-square" /></a>
@@ -29,6 +30,7 @@
   <!-- npm-exclude:start -->
   <a href="https://pypi.org/project/yieldskill/">PyPI</a> ·
   <a href="https://crates.io/crates/yieldskill">crates.io</a> ·
+  <a href="https://pkg.go.dev/github.com/operatorstack/yield/sdk/yield">pkg.go.dev</a> ·
   <!-- npm-exclude:end -->
   <a href="https://github.com/operatorstack/yield">GitHub</a>
 </p>
@@ -231,7 +233,7 @@ the same program in every language and compares observable behavior.
 |---|---|---|
 | TypeScript | [`@operatorstack/yield`](https://github.com/operatorstack/yield/tree/main/sdk/typescript/) | [`release-checklist`](https://github.com/operatorstack/yield/tree/main/examples/release-checklist/) |
 | Python | [`yieldskill`](https://github.com/operatorstack/yield/tree/main/sdk/python/) | [`env-doctor`](https://github.com/operatorstack/yield/tree/main/examples/env-doctor/) |
-| Go | [`sdk/yield`](https://github.com/operatorstack/yield/tree/main/sdk/yield/) | [`investigate`](https://github.com/operatorstack/yield/tree/main/examples/investigate/) |
+| Go | [`github.com/operatorstack/yield/sdk/yield`](https://pkg.go.dev/github.com/operatorstack/yield/sdk/yield) | [`investigate`](https://github.com/operatorstack/yield/tree/main/examples/investigate/) |
 | Rust | [`yieldskill`](https://github.com/operatorstack/yield/tree/main/sdk/rust/) | [`data-migration`](https://github.com/operatorstack/yield/tree/main/examples/data-migration/) |
 
 Cursor, Codex, and Claude Code are verified integrations. Yield also includes

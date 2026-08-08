@@ -5,6 +5,7 @@
 // Judgment — forming and assessing hypotheses — stays with the model.
 package main
 
+// README_EXAMPLE_START
 import (
 	"encoding/json"
 	"fmt"
@@ -97,3 +98,5 @@ func main() {
 			fmt.Sprintf("frontier reached: %d hypotheses refuted with %d failed attempts and none surviving — new evidence is needed, not more guessing", len(hs.Hypotheses), failures))
 	})
 }
+
+// README_EXAMPLE_END

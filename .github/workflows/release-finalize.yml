@@ -78,6 +78,10 @@ jobs:
           node-version: "24"
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: false
       - name: Require matching successful publisher receipts
         env:
           GH_TOKEN: ${{ github.token }}
@@ -111,6 +115,11 @@ jobs:
           node packaging/crates-release.mjs verify \
             --version "$version" \
             --archives "$RUNNER_TEMP/crates-receipt" \
+            --attempts 3 \
+            --delay-ms 10000
+          node packaging/go-release.mjs \
+            --version "$version" \
+            --source-sha "$SOURCE_SHA" \
             --attempts 3 \
             --delay-ms 10000
           test "$(git rev-list -n 1 "$TAG")" = "$SOURCE_SHA"
