@@ -253,8 +253,16 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
     "automatic finalization must ignore canary publisher runs",
   )
   expect(
-    raw["release-finalize.yml"].includes('select(.event == "workflow_dispatch")'),
-    "finalization must select only stable publisher receipts",
+    raw["release-finalize.yml"].includes(
+      'select(.event == "workflow_dispatch" and .conclusion == "success")',
+    ),
+    "finalization must select only successful stable publisher receipts",
+  )
+  expect(
+    raw["release-finalize.yml"].includes("artifacts?per_page=100") &&
+      raw["release-finalize.yml"].includes('grep -Fqx "$package_receipt"') &&
+      raw["release-finalize.yml"].includes('grep -Fqx "$crates_receipt"'),
+    "finalization must select the publisher receipt by its exact source-bound artifact names",
   )
   expect(
     raw["release-finalize.yml"].includes("--draft=false"),
@@ -290,7 +298,8 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
     "Go finalization must bind the module to the release source",
   )
   expect(
-    raw["release-finalize.yml"].includes('--name "crates-${version}-${SOURCE_SHA}"'),
+    raw["release-finalize.yml"].includes('crates_receipt="crates-${version}-${SOURCE_SHA}"') &&
+      raw["release-finalize.yml"].includes('--name "$crates_receipt"'),
     "finalization must consume the publisher-produced crates receipt",
   )
   expect(
