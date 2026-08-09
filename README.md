@@ -240,7 +240,7 @@ helper:
 | Language   | Command                                                                                                             |
 | ---------- | ------------------------------------------------------------------------------------------------------------------- |
 | TypeScript | `npm exec -- yskill helper install --language typescript`                                                           |
-| Python     | `uvx --from yieldskill yskill helper install --language python`                                                     |
+| Python     | `python -m yieldskill helper install --language python`                                                             |
 | Rust       | `cargo install yieldskill --root .yield --locked`, then `.yield/bin/yskill helper install --root . --language rust` |
 | Go         | `go run github.com/operatorstack/yield/cmd/yskill@latest helper install --root . --language go`                     |
 

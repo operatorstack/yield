@@ -74,7 +74,7 @@ After learning the manual flow, install guided assistance explicitly:
 npm exec -- yskill helper install --language typescript
 
 # Python
-uvx --from yieldskill yskill helper install --language python
+python -m yieldskill helper install --language python
 
 # Rust
 .yield/bin/yskill helper install --root . --language rust

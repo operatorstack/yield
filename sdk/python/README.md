@@ -229,7 +229,7 @@ Installing `yieldskill` does not create skills or coding-agent adapters. After
 learning the manual workflow above, install guided assistance explicitly:
 
 ```bash
-uvx --from yieldskill yskill helper install --language python
+python -m yieldskill helper install --language python
 ```
 
 Review the plan and restart the coding agent after installation. The helper

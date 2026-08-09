@@ -27,15 +27,28 @@ type bootstrapProfile struct {
 }
 
 type bootstrapPlan struct {
-	Root       string
-	Language   string
-	SkillDir   string
-	Profile    bootstrapProfile
-	Agents     []agentConfig
-	Files      map[string]string
-	Adapters   []string
-	Dependency string
+	Root     string
+	Language string
+	SkillDir string
+	Profile  bootstrapProfile
+	Agents   []agentConfig
+	Files    map[string]string
+	Adapters []string
 }
+
+type bootstrapOperation struct {
+	kind   string
+	dir    string
+	name   string
+	args   []string
+	agents []string
+}
+
+const (
+	bootstrapOperationCommand  = "command"
+	bootstrapOperationDoctor   = "doctor"
+	bootstrapOperationRegister = "register"
+)
 
 var bootstrapInput io.Reader = os.Stdin
 var bootstrapCommand = func(dir, name string, args ...string) error {
@@ -83,22 +96,8 @@ func cmdBootstrap(args []string) error {
 	if err := applyBootstrapPlan(plan); err != nil {
 		return err
 	}
-	ids := make([]string, 0, len(plan.Agents))
-	for _, agent := range plan.Agents {
-		ids = append(ids, agent.ID)
-	}
-	if err := bootstrapDoctor(plan.SkillDir, plan.Root, nil); err != nil {
-		return fmt.Errorf("verify workflow builder: %w", err)
-	}
-	registrations, err := registerSkill(plan.SkillDir, plan.Root, ids)
-	if err != nil {
-		return fmt.Errorf("register workflow builder: %w", err)
-	}
-	for _, item := range registrations {
-		fmt.Printf("registered: %-22s %s\n", item.AgentID, item.Path)
-	}
-	if err := bootstrapDoctor(plan.SkillDir, plan.Root, ids); err != nil {
-		return fmt.Errorf("verify workflow builder adapters: %w", err)
+	if err := runBootstrapOperations(plan, bootstrapOperations(plan)); err != nil {
+		return err
 	}
 	fmt.Println("helper: Yield developer helper is ready")
 	fmt.Println("next: restart your coding agent, then ask it to create or convert a skill workflow")
@@ -149,7 +148,7 @@ func makeBootstrapPlan(rootArg, language string, requested []string) (bootstrapP
 		Version: 1, YieldVersion: packageVersion(), Language: language, Agents: ids,
 		LauncherProfile: map[string]string{"typescript": "typescript-npm", "python": "python-uvx", "go": "repository-runtime", "rust": "repository-runtime"}[language],
 	}
-	files, dependency, err := renderBootstrapSkill(language, profile)
+	files, _, err := renderBootstrapSkill(language, profile)
 	if err != nil {
 		return bootstrapPlan{}, err
 	}
@@ -186,7 +185,7 @@ func makeBootstrapPlan(rootArg, language string, requested []string) (bootstrapP
 			return bootstrapPlan{}, err
 		}
 	}
-	return bootstrapPlan{Root: root, Language: language, SkillDir: skillDir, Profile: profile, Agents: agents, Files: files, Adapters: adapters, Dependency: dependency}, nil
+	return bootstrapPlan{Root: root, Language: language, SkillDir: skillDir, Profile: profile, Agents: agents, Files: files, Adapters: adapters}, nil
 }
 
 func preflightBootstrapPath(root, path string, ownedSkill bool) error {
@@ -246,15 +245,90 @@ func printBootstrapPlan(plan bootstrapPlan) {
 		rel, _ := filepath.Rel(plan.Root, path)
 		fmt.Printf("  write %s\n", filepath.ToSlash(rel))
 	}
-	if plan.Dependency != "" {
-		fmt.Printf("  run   %s\n", plan.Dependency)
+	for _, operation := range bootstrapOperations(plan) {
+		fmt.Printf("  run   %s\n", renderBootstrapOperation(plan, operation))
+	}
+}
+
+func bootstrapOperations(plan bootstrapPlan) []bootstrapOperation {
+	ids := make([]string, 0, len(plan.Agents))
+	for _, agent := range plan.Agents {
+		ids = append(ids, agent.ID)
+	}
+	operations := make([]bootstrapOperation, 0, 4)
+	switch plan.Language {
+	case "typescript":
+		operations = append(operations, bootstrapOperation{kind: bootstrapOperationCommand, dir: plan.SkillDir, name: "npm", args: []string{"install", "--ignore-scripts", "--no-audit", "--no-fund"}})
+	case "go":
+		operations = append(operations, bootstrapOperation{kind: bootstrapOperationCommand, dir: plan.SkillDir, name: "go", args: []string{"mod", "tidy"}})
+	}
+	operations = append(operations,
+		bootstrapOperation{kind: bootstrapOperationDoctor},
+		bootstrapOperation{kind: bootstrapOperationRegister, agents: append([]string(nil), ids...)},
+		bootstrapOperation{kind: bootstrapOperationDoctor, agents: append([]string(nil), ids...)},
+	)
+	return operations
+}
+
+func renderBootstrapOperation(plan bootstrapPlan, operation bootstrapOperation) string {
+	if operation.kind == bootstrapOperationCommand {
+		parts := []string{"cd", shellQuoteForPlatform(operation.dir, runtime.GOOS), "&&", operation.name}
+		for _, arg := range operation.args {
+			parts = append(parts, shellQuoteForPlatform(arg, runtime.GOOS))
+		}
+		return strings.Join(parts, " ")
 	}
 	launcher := "yskill"
 	if plan.Language == "go" || plan.Language == "rust" {
-		launcher = repositoryRuntimeLauncher(filepath.ToSlash(filepath.Join(".yield", "bin", "yskill")), runtime.GOOS)
+		launcher = repositoryRuntimeLauncher(filepath.Join(".yield", "bin", "yskill"), runtime.GOOS)
 	}
-	fmt.Printf("  run   %s doctor skills/yield-workflow-builder --root . --test\n", launcher)
-	fmt.Printf("  run   %s register skills/yield-workflow-builder --root .\n", launcher)
+	args := []string{launcher}
+	switch operation.kind {
+	case bootstrapOperationDoctor:
+		args = append(args, "doctor", plan.SkillDir, "--root", plan.Root)
+		for _, agent := range operation.agents {
+			args = append(args, "--agent", agent)
+		}
+		args = append(args, "--test")
+	case bootstrapOperationRegister:
+		args = append(args, "register", plan.SkillDir, "--root", plan.Root)
+		for _, agent := range operation.agents {
+			args = append(args, "--agent", agent)
+		}
+	}
+	for index := 1; index < len(args); index++ {
+		args[index] = shellQuoteForPlatform(args[index], runtime.GOOS)
+	}
+	return strings.Join(args, " ")
+}
+
+func runBootstrapOperations(plan bootstrapPlan, operations []bootstrapOperation) error {
+	for _, operation := range operations {
+		switch operation.kind {
+		case bootstrapOperationCommand:
+			if err := bootstrapCommand(operation.dir, operation.name, operation.args...); err != nil {
+				return fmt.Errorf("prepare workflow-builder dependencies: %w", err)
+			}
+		case bootstrapOperationDoctor:
+			if err := bootstrapDoctor(plan.SkillDir, plan.Root, operation.agents); err != nil {
+				if len(operation.agents) == 0 {
+					return fmt.Errorf("verify workflow builder: %w", err)
+				}
+				return fmt.Errorf("verify workflow builder adapters: %w", err)
+			}
+		case bootstrapOperationRegister:
+			registrations, err := registerSkill(plan.SkillDir, plan.Root, operation.agents)
+			if err != nil {
+				return fmt.Errorf("register workflow builder: %w", err)
+			}
+			for _, item := range registrations {
+				fmt.Printf("registered: %-22s %s\n", item.AgentID, item.Path)
+			}
+		default:
+			return fmt.Errorf("unknown helper install operation %q", operation.kind)
+		}
+	}
+	return nil
 }
 
 func detectBootstrapLanguage(root string) (string, error) {
@@ -286,7 +360,7 @@ func detectBootstrapLanguage(root string) (string, error) {
 }
 
 func confirmBootstrap(input io.Reader) bool {
-	fmt.Print("Apply this bootstrap plan? [y/N] ")
+	fmt.Print("Apply this helper install plan? [y/N] ")
 	scanner := bufio.NewScanner(input)
 	if !scanner.Scan() {
 		return false
@@ -325,16 +399,6 @@ func applyBootstrapPlan(plan bootstrapPlan) error {
 	if plan.Language == "go" || plan.Language == "rust" {
 		if err := pinRuntimeAtRoot(plan.Root); err != nil {
 			return err
-		}
-	}
-	switch plan.Language {
-	case "typescript":
-		if err := bootstrapCommand(plan.SkillDir, "npm", "install", "--ignore-scripts", "--no-audit", "--no-fund"); err != nil {
-			return fmt.Errorf("install workflow-builder dependencies: %w", err)
-		}
-	case "go":
-		if err := bootstrapCommand(plan.SkillDir, "go", "mod", "tidy"); err != nil {
-			return fmt.Errorf("prepare workflow-builder dependencies: %w", err)
 		}
 	}
 	return nil

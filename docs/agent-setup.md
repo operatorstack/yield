@@ -79,7 +79,7 @@ manual workflow, install the guided helper explicitly from the repository root:
 npm exec -- yskill helper install --language typescript
 
 # Python
-uvx --from yieldskill yskill helper install --language python
+python -m yieldskill helper install --language python
 
 # Rust
 cargo install yieldskill --root .yield --locked
