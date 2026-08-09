@@ -75,6 +75,7 @@ log. It is not a generated destination file.
 		files["skill.json"] = fmt.Sprintf("{\"version\":1,\"yield_version\":%q,\"language\":\"go\",\"run\":[\"go\",\"run\",\"-mod=readonly\",\".\"]}\n", version)
 		dependency = "go mod tidy (inside skills/yield-workflow-builder)"
 	case "rust":
+		files[".gitignore"] = rustSkillGitignore
 		files["src/main.rs"] = bootstrapRust
 		files["Cargo.toml"] = fmt.Sprintf("[package]\nname = \"yield-workflow-builder\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nyieldskill = { version = \"=%s\" }\nserde_json = \"1\"\n", version)
 		files["skill.json"] = fmt.Sprintf("{\"version\":1,\"yield_version\":%q,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\"]}\n", version)

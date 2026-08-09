@@ -311,6 +311,12 @@ func applyBootstrapPlan(plan bootstrapPlan) error {
 	}
 	sort.Strings(keys)
 	for _, rel := range keys {
+		if rel == ".gitignore" {
+			if err := writeBootstrapFileIfAbsent(filepath.Join(plan.SkillDir, filepath.FromSlash(rel)), plan.Files[rel]); err != nil {
+				return err
+			}
+			continue
+		}
 		if err := writeBootstrapFile(filepath.Join(plan.SkillDir, filepath.FromSlash(rel)), plan.Files[rel]); err != nil {
 			return err
 		}
@@ -357,6 +363,24 @@ func writeBootstrapFile(path, content string) error {
 		return err
 	}
 	return os.Rename(temporaryPath, path)
+}
+
+func writeBootstrapFileIfAbsent(path, content string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if errors.Is(err, fs.ErrExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := file.WriteString(content); err != nil {
+		file.Close()
+		return err
+	}
+	return file.Close()
 }
 
 func readBootstrapProfile(repoRoot string) (bootstrapProfile, error) {
