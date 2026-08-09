@@ -413,3 +413,11 @@ test("root README links survive npm package rendering", async () => {
   assert.doesNotMatch(readme, /\]\((?!https?:\/\/|#|mailto:)[^)]+\)/)
   assert.doesNotMatch(readme, /href="(?!https?:\/\/|#|mailto:)[^"]+"/)
 })
+
+test("skills index explains canonical interactive workflows", async () => {
+  const skills = await text("skills/README.md")
+  assert.match(skills, /canonical Yield workflows/)
+  assert.match(skills, /A skill is executable workflow source, not a copied prompt\./)
+  assert.match(skills, /yskill run skills\/<skill-name>/)
+  assert.match(skills, /release-yield.*protected full-train Yield/s)
+})

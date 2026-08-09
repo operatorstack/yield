@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url"
 const repository = "operatorstack/yield"
 const root = resolve(import.meta.dirname, "../../..")
 const bumps = new Set(["auto", "patch", "minor", "major"])
+const noteSources = new Set(["changesets", "git-history"])
 const active = new Set(["queued", "in_progress", "pending", "waiting", "requested"])
 const npmPackages = [
   "@operatorstack/yield",
@@ -109,6 +110,11 @@ function requireBump(value) {
   return value
 }
 
+function requireNotesSource(value) {
+  if (!noteSources.has(value)) throw new Failed(`invalid release note source ${value ?? "missing"}`)
+  return value
+}
+
 function normalizeRemote(value) {
   return value.replace(/^git@github\.com:/, "https://github.com/").replace(/\.git$/, "")
 }
@@ -203,6 +209,7 @@ async function preflight(values) {
 
 async function dispatch(values) {
   const bump = requireBump(values.bump)
+  const notesSource = requireNotesSource(values["notes-source"])
   if (values["dry-run"] !== "true" && values["dry-run"] !== "false")
     throw new Failed("--dry-run must be true or false")
   const sourceSha = git("rev-parse", "HEAD")
@@ -231,6 +238,8 @@ async function dispatch(values) {
       `bump=${bump}`,
       "-f",
       `dry_run=${values["dry-run"]}`,
+      "-f",
+      `notes_source=${notesSource}`,
     )
   } catch {
     throw new Blocked("GitHub refused the release workflow dispatch")
@@ -248,14 +257,27 @@ async function dispatch(values) {
   }
 }
 
+async function inspect() {
+  return JSON.parse(run("node", ["scripts/release-plan.mjs", "--inspect", "true"]))
+}
+
 async function plan(values) {
   const bump = requireBump(values.bump)
-  const value = JSON.parse(run("node", ["scripts/release-plan.mjs", "--bump", bump]))
+  const notesSource = requireNotesSource(values["notes-source"])
+  const value = JSON.parse(
+    run("node", ["scripts/release-plan.mjs", "--bump", bump, "--notes-source", notesSource]),
+  )
   return {
     version: value.version,
     tag: `v${value.version}`,
     source_sha: value.sourceSha,
     changesets: value.changesets,
+    release_basis: value.basis,
+    notes_source: value.notesSource,
+    base_tag: value.baseTag,
+    commit_range: value.commitRange,
+    commit_count: value.commits.length,
+    target_contract: value.targetContract,
   }
 }
 
@@ -358,6 +380,7 @@ async function verify(values) {
 
 export async function execute(action, values) {
   if (action === "preflight") return preflight(values)
+  if (action === "inspect") return inspect()
   if (action === "dispatch") return dispatch(values)
   if (action === "wait") {
     const info = await waitRun(values["run-id"])

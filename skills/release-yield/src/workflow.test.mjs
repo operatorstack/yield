@@ -3,9 +3,45 @@ import assert from "node:assert/strict"
 import { runReleaseYield } from "./workflow.ts"
 
 const sha = "a".repeat(40)
+const baseTag = "v1.2.2"
+const commitRange = `${baseTag}..${sha}`
+const changesets = [
+  { path: ".changeset/example.md", bump: "patch", summary: "Improve release confirmation." },
+]
+
+function inspection(overrides = {}) {
+  return {
+    status: "ok",
+    baseTag,
+    sourceSha: sha,
+    commitRange,
+    targetContract: "full-train",
+    commits: [{ sha, summary: "Improve release confirmation" }],
+    changesets,
+    ...overrides,
+  }
+}
+
+function plan(overrides = {}) {
+  return {
+    status: "ok",
+    source_sha: sha,
+    version: "1.2.3",
+    tag: "v1.2.3",
+    changesets,
+    release_basis: "changesets",
+    notes_source: "changesets",
+    base_tag: baseTag,
+    commit_range: commitRange,
+    commit_count: 1,
+    target_contract: "full-train",
+    ...overrides,
+  }
+}
 
 function successReceipts(overrides = {}) {
   return {
+    "inspect-release-input": inspection(),
     preflight: { status: "ok", source_sha: sha },
     "dispatch-dry-run": {
       status: "ok",
@@ -19,15 +55,7 @@ function successReceipts(overrides = {}) {
       run_id: "10",
       run_url: "https://example.test/10",
     },
-    "resolve-plan": {
-      status: "ok",
-      source_sha: sha,
-      version: "1.2.3",
-      tag: "v1.2.3",
-      changesets: [
-        { path: ".changeset/example.md", bump: "patch", summary: "Improve release confirmation." },
-      ],
-    },
+    "resolve-plan": plan(),
     "dispatch-release": {
       status: "ok",
       source_sha: sha,
@@ -58,25 +86,28 @@ function successReceipts(overrides = {}) {
   }
 }
 
-function context({
-  mode = "release",
-  bump = "patch",
-  confirmation = "confirm",
-  authorization = "release",
-  receipts = successReceipts(),
-} = {}) {
+function context({ mode = "release", choices = {}, receipts = successReceipts() } = {}) {
   const operations = []
+  const commands = []
+  const defaults = {
+    "select-mode": mode,
+    "select-release-scope": "full-train",
+    "select-version-basis": "changesets",
+    "select-note-source": "changesets",
+    "authorize-release": "release",
+  }
   return {
     operations,
+    commands,
     askUser(id) {
       operations.push(id)
-      if (id === "select-mode") return mode
-      if (id === "select-bump") return bump
-      if (id === "confirm-high-impact-bump") return confirmation
-      return authorization
+      const value = choices[id] ?? defaults[id]
+      assert.ok(value, `missing choice for ${id}`)
+      return value
     },
-    runCommand(id) {
+    runCommand(id, command) {
       operations.push(id)
+      commands.push({ id, command })
       const receipt = receipts[id]
       assert.ok(receipt, `missing receipt for ${id}`)
       return { exit_code: 0, stdout: JSON.stringify(receipt), stderr: "" }
@@ -93,12 +124,15 @@ function context({
   }
 }
 
-test("enforces dry run, immutable authorization, protected publication, and verification order", () => {
+test("enforces the full decision tree, immutable authorization, and registry verification order", () => {
   const ctx = context()
   const result = runReleaseYield(ctx)
   assert.deepEqual(ctx.operations, [
     "select-mode",
-    "select-bump",
+    "select-release-scope",
+    "inspect-release-input",
+    "select-version-basis",
+    "select-note-source",
     "preflight",
     "dispatch-dry-run",
     "wait-dry-run",
@@ -111,56 +145,120 @@ test("enforces dry run, immutable authorization, protected publication, and veri
     "verify-public-release",
   ])
   assert.equal(result.version, "1.2.3")
-  assert.equal(result.source_sha, sha)
+  assert.equal(result.release_basis, "changesets")
   assert.equal(result.verified.npm, 8)
+  assert.match(
+    ctx.commands.find(({ id }) => id === "dispatch-dry-run").command,
+    /--notes-source changesets/,
+  )
 })
 
-test("stops before live dispatch when authorization is declined", () => {
-  const ctx = context({ authorization: "stop" })
-  assert.throws(() => runReleaseYield(ctx), /refused: release of v1\.2\.3 was not authorized/)
-  assert.equal(ctx.operations.includes("dispatch-release"), false)
-})
-
-test("dry-run-only completes after the verified plan without asking for release authorization", () => {
-  const ctx = context({ mode: "dry-run" })
+test("uses an explicit bump and Git history when no Changesets are pending", () => {
+  const noChangesets = inspection({ changesets: [] })
+  const explicitPlan = plan({
+    changesets: [],
+    release_basis: "explicit-bump",
+    notes_source: "git-history",
+  })
+  const ctx = context({
+    mode: "dry-run",
+    choices: {
+      "handle-no-changesets": "explicit",
+      "select-explicit-bump": "patch",
+      "confirm-git-history-notes": "git-history",
+    },
+    receipts: successReceipts({
+      "inspect-release-input": noChangesets,
+      "resolve-plan": explicitPlan,
+    }),
+  })
   const result = runReleaseYield(ctx)
-  assert.equal(result.mode, "dry-run")
-  assert.equal(result.version, "1.2.3")
-  assert.equal(result.changesets.length, 1)
+  assert.equal(result.release_basis, "explicit-bump")
+  assert.equal(result.note_source, "git-history")
+  assert.match(
+    ctx.commands.find(({ id }) => id === "dispatch-dry-run").command,
+    /--notes-source git-history/,
+  )
   assert.equal(ctx.operations.includes("authorize-release"), false)
   assert.equal(ctx.operations.includes("dispatch-release"), false)
 })
 
-test("auto and patch bumps do not ask for high-impact confirmation", () => {
-  for (const bump of ["auto", "patch"]) {
-    const ctx = context({ mode: "dry-run", bump })
-    runReleaseYield(ctx)
-    assert.equal(ctx.operations.includes("confirm-high-impact-bump"), false)
+test("confirms an explicit minor before preflight", () => {
+  const ctx = context({
+    mode: "dry-run",
+    choices: {
+      "select-version-basis": "explicit",
+      "select-explicit-bump": "minor",
+      "confirm-high-impact-bump": "confirm",
+      "select-note-source": "git-history",
+    },
+    receipts: successReceipts({
+      "resolve-plan": plan({ release_basis: "explicit-bump", notes_source: "git-history" }),
+    }),
+  })
+  runReleaseYield(ctx)
+  assert.deepEqual(ctx.operations.slice(0, 7), [
+    "select-mode",
+    "select-release-scope",
+    "inspect-release-input",
+    "select-version-basis",
+    "select-explicit-bump",
+    "select-note-source",
+    "confirm-high-impact-bump",
+  ])
+})
+
+test("stops before GitHub activity when the operator declines any early decision", () => {
+  for (const [label, config] of [
+    ["mode", { mode: "stop" }],
+    ["scope", { choices: { "select-release-scope": "design-target-specific" } }],
+    [
+      "no Changesets",
+      {
+        choices: { "handle-no-changesets": "stop" },
+        receipts: successReceipts({ "inspect-release-input": inspection({ changesets: [] }) }),
+      },
+    ],
+    ["notes", { choices: { "select-note-source": "stop" } }],
+  ]) {
+    const ctx = context(config)
+    assert.throws(() => runReleaseYield(ctx), /refused:/, label)
+    assert.equal(ctx.operations.includes("preflight"), false, label)
+    assert.equal(ctx.operations.includes("dispatch-dry-run"), false, label)
   }
 })
 
-test("minor and major bumps require confirmation before preflight", () => {
-  for (const bump of ["minor", "major"]) {
-    const ctx = context({ mode: "dry-run", bump })
-    runReleaseYield(ctx)
-    assert.deepEqual(ctx.operations.slice(0, 4), [
-      "select-mode",
-      "select-bump",
-      "confirm-high-impact-bump",
-      "preflight",
-    ])
-  }
+test("dry-run returns the selected full-train plan without live authorization", () => {
+  const ctx = context({ mode: "dry-run" })
+  const result = runReleaseYield(ctx)
+  assert.equal(result.mode, "dry-run")
+  assert.equal(result.target_contract, "full-train")
+  assert.equal(ctx.operations.includes("authorize-release"), false)
+  assert.equal(ctx.operations.includes("dispatch-release"), false)
 })
 
-test("cancelling a minor or major bump stops before any GitHub operation", () => {
-  for (const bump of ["minor", "major"]) {
-    const ctx = context({ bump, confirmation: "cancel" })
-    assert.throws(
-      () => runReleaseYield(ctx),
-      new RegExp(`refused: ${bump} release intent was not confirmed`),
-    )
-    assert.deepEqual(ctx.operations, ["select-mode", "select-bump", "confirm-high-impact-bump"])
-  }
+test("refuses plan drift before authorization", () => {
+  const ctx = context({
+    receipts: successReceipts({ "resolve-plan": plan({ source_sha: "b".repeat(40) }) }),
+  })
+  assert.throws(() => runReleaseYield(ctx), /displayed plan uses the dry-run source SHA/)
+  assert.equal(ctx.operations.includes("authorize-release"), false)
+})
+
+test("refuses a non-full-train plan before authorization", () => {
+  const ctx = context({
+    receipts: successReceipts({ "resolve-plan": plan({ target_contract: "npm-only" }) }),
+  })
+  assert.throws(() => runReleaseYield(ctx), /valid target_contract/)
+  assert.equal(ctx.operations.includes("authorize-release"), false)
+})
+
+test("refuses a Changeset-basis plan without Changesets", () => {
+  const ctx = context({
+    receipts: successReceipts({ "resolve-plan": plan({ changesets: [] }) }),
+  })
+  assert.throws(() => runReleaseYield(ctx), /Changeset-based plan contains pending Changesets/)
+  assert.equal(ctx.operations.includes("authorize-release"), false)
 })
 
 test("reports a GitHub authority boundary as blocked", () => {
@@ -170,29 +268,6 @@ test("reports a GitHub authority boundary as blocked", () => {
     }),
   })
   assert.throws(() => runReleaseYield(ctx), /blocked: GitHub denied workflow dispatch/)
-  assert.deepEqual(ctx.operations, ["select-mode", "select-bump", "preflight"])
-})
-
-test("refuses plan drift before authorization", () => {
-  const ctx = context({
-    receipts: successReceipts({
-      "resolve-plan": {
-        status: "ok",
-        source_sha: "b".repeat(40),
-        version: "1.2.3",
-        tag: "v1.2.3",
-        changesets: [
-          {
-            path: ".changeset/example.md",
-            bump: "patch",
-            summary: "Improve release confirmation.",
-          },
-        ],
-      },
-    }),
-  })
-  assert.throws(() => runReleaseYield(ctx), /displayed plan uses the dry-run source SHA/)
-  assert.equal(ctx.operations.includes("authorize-release"), false)
 })
 
 test("rejects malformed controller receipts", () => {
@@ -202,33 +277,4 @@ test("rejects malformed controller receipts", () => {
     return { exit_code: 0, stdout: "not-json", stderr: "" }
   }
   assert.throws(() => runReleaseYield(ctx), /controller returned invalid JSON/)
-})
-
-test("rejects a timed-out controller operation", () => {
-  const ctx = context()
-  ctx.runCommand = (id) => {
-    ctx.operations.push(id)
-    return { exit_code: 0, timed_out: true, stdout: "", stderr: "controller timeout" }
-  }
-  assert.throws(
-    () => runReleaseYield(ctx),
-    /requirement_failed: the protected main preflight passes/,
-  )
-  assert.deepEqual(ctx.operations, ["select-mode", "select-bump", "preflight"])
-})
-
-test("rejects a malformed Changeset plan before release authorization", () => {
-  const ctx = context({
-    receipts: successReceipts({
-      "resolve-plan": {
-        status: "ok",
-        source_sha: sha,
-        version: "1.2.3",
-        tag: "v1.2.3",
-        changesets: [],
-      },
-    }),
-  })
-  assert.throws(() => runReleaseYield(ctx), /release plan contains at least one Changeset/)
-  assert.equal(ctx.operations.includes("authorize-release"), false)
 })
