@@ -372,7 +372,7 @@ test("README and quickstart use the public documentation and package registries"
   )
   const helperCommands = [
     "npm exec -- yskill helper install --language typescript",
-    "uvx --from yieldskill yskill helper install --language python",
+    "python -m yieldskill helper install --language python",
     ".yield/bin/yskill helper install --root . --language rust",
     "go run github.com/operatorstack/yield/cmd/yskill@latest helper install --root . --language go",
   ]
@@ -391,6 +391,9 @@ test("README and quickstart use the public documentation and package registries"
     )
   }
   assert.match(readme, /Package installation does not create skills or coding-agent adapters/)
+  assert.match(readme, /one ordered plan with resolved paths, dependency\s+preparation/)
+  assert.match(readme, /Apply this helper install plan\? \[y\/N\]/)
+  assert.match(readme, /summary, relevant primitives, exact files, and exact\s+commands/)
   assert.match(
     quickstart,
     /Package installation alone never\s+creates a skill or coding-agent adapter/,

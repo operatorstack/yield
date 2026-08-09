@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/operatorstack/yield/internal/protocol"
 )
 
 func withBootstrapTestState(t *testing.T) {
@@ -31,8 +33,34 @@ func withBootstrapTestState(t *testing.T) {
 func TestBootstrapDryRunDoesNotWrite(t *testing.T) {
 	withBootstrapTestState(t)
 	root := t.TempDir()
-	if err := cmdBootstrap([]string{"--root", root, "--language", "typescript", "--agent", "codex", "--dry-run"}); err != nil {
+	var runErr error
+	output := captureStdout(t, func() {
+		runErr = cmdBootstrap([]string{"--root", root, "--language", "typescript", "--agent", "codex", "--dry-run"})
+	})
+	if runErr != nil {
+		t.Fatal(runErr)
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
 		t.Fatal(err)
+	}
+	for _, required := range []string{
+		"helper install plan: language=typescript root=" + resolvedRoot,
+		filepath.Join(resolvedRoot, "skills", bootstrapSkillName),
+		"npm 'install' '--ignore-scripts' '--no-audit' '--no-fund'",
+		"yskill 'register'",
+		"'--agent' 'codex'",
+		"helper: dry run complete; no files changed",
+	} {
+		if !strings.Contains(output, required) {
+			t.Errorf("dry-run output is missing %q:\n%s", required, output)
+		}
+	}
+	if strings.Count(output, "yskill 'doctor'") != 2 || strings.Index(output, "yskill 'register'") > strings.LastIndex(output, "yskill 'doctor'") {
+		t.Errorf("dry-run operations do not match execution order:\n%s", output)
+	}
+	if strings.Contains(output, "Apply this bootstrap plan") {
+		t.Errorf("dry-run uses obsolete bootstrap wording:\n%s", output)
 	}
 	if _, err := os.Stat(filepath.Join(root, "skills")); !os.IsNotExist(err) {
 		t.Fatalf("dry run wrote skills directory: %v", err)
@@ -57,8 +85,18 @@ func TestBootstrapCancellationDoesNotWrite(t *testing.T) {
 	withBootstrapTestState(t)
 	bootstrapInput = bytes.NewBufferString("no\n")
 	root := t.TempDir()
-	if err := cmdBootstrap([]string{"--root", root, "--language", "python", "--agent", "codex"}); err != nil {
-		t.Fatal(err)
+	var runErr error
+	output := captureStdout(t, func() {
+		runErr = cmdBootstrap([]string{"--root", root, "--language", "python", "--agent", "codex"})
+	})
+	if runErr != nil {
+		t.Fatal(runErr)
+	}
+	if !strings.Contains(output, "Apply this helper install plan? [y/N]") || strings.Contains(output, "Apply this bootstrap plan") {
+		t.Fatalf("cancellation prompt is not helper-specific:\n%s", output)
+	}
+	if !strings.Contains(output, "helper: cancelled; no files changed") {
+		t.Fatalf("cancellation result is missing:\n%s", output)
 	}
 	if _, err := os.Stat(filepath.Join(root, "skills")); !os.IsNotExist(err) {
 		t.Fatalf("cancelled bootstrap wrote skills directory: %v", err)
@@ -134,7 +172,7 @@ func TestBootstrapRefusesAdapterSymlinkEscape(t *testing.T) {
 
 func TestBuilderTemplatesExposeEquivalentOperations(t *testing.T) {
 	profile := bootstrapProfile{YieldVersion: "1.2.3", Agents: []string{"codex"}}
-	want := []string{"learn", "create", "convert", "check", "repair", "upgrade", "register", "select-mode", "teach-yield", "collect-specification", "check-destination", "project-semantics", "extract-flow", "teach-and-plan", "approve-change", "write-workflow", "verify-workflow", "repair-workflow-", "register-workflow", "verify-adapters", "yskill helper install"}
+	want := []string{"learn", "create", "convert", "check", "repair", "upgrade", "register", "select-mode", "teach-yield", "collect-specification", "source skill directory under skills/, not the SKILL.md file", "check-destination", "project-semantics", "extract-flow", "teach-and-plan", "approve-change", "write-workflow", "verify-workflow", "repair-workflow-", "register-workflow", "verify-adapters", "yskill helper install"}
 	projectionContract := []string{"source_clause", "disposition", "destinations", "reason", "control", "guidance", "both", "excluded", "ready", "unresolved"}
 	repairLimit := map[string]string{"typescript": "attempt<=2", "python": "range(1, 3)", "go": "attempt<=2", "rust": "1..=2"}
 	for _, language := range []string{"typescript", "python", "go", "rust"} {
@@ -396,7 +434,20 @@ func TestBuilderModeFixturesAcrossLanguages(t *testing.T) {
 					t.Fatalf("%s %s fixture did not complete: %v", language, mode, err)
 				}
 			}
-			writeBuilderResponses(t, dir, builderModeResponses(t, "repair", "stop"))
+			declinedResponses := builderModeResponses(t, "repair", "stop")
+			question := builderApprovalQuestion(t, dir, declinedResponses)
+			for _, expected := range []string{
+				"Apply the fixture plan.",
+				"Primitives:\n- Require binds completion to evidence.",
+				"Files:\n- skills/yield-workflow-builder-fixture/SKILL.md",
+				"Commands:\n- yskill doctor --test",
+				"Apply this plan?",
+			} {
+				if !strings.Contains(question, expected) {
+					t.Errorf("%s approval question is missing %q:\n%s", language, expected, question)
+				}
+			}
+			writeBuilderResponses(t, dir, declinedResponses)
 			if err := cmdDoctor([]string{dir, "--root", root, "--test"}); err == nil || !strings.Contains(err.Error(), "terminal status refused") {
 				t.Fatalf("%s declined mutation returned %v", language, err)
 			}
@@ -491,6 +542,48 @@ func marshalBuilderResponses(t *testing.T, responses map[string]any) string {
 		t.Fatal(err)
 	}
 	return string(b) + "\n"
+}
+
+func builderApprovalQuestion(t *testing.T, dir, responses string) string {
+	t.Helper()
+	var script map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(responses), &script); err != nil {
+		t.Fatal(err)
+	}
+	e, err := newEngineWithRunsDir(dir, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := e.StartRun(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for p.Terminal == nil {
+		if p.Envelope.Request.ID == "approve-change" {
+			var payload protocol.AskUserPayload
+			if err := json.Unmarshal(p.Envelope.Request.Payload, &payload); err != nil {
+				t.Fatal(err)
+			}
+			return payload.Question
+		}
+		result, ok := script[p.Envelope.Request.ID]
+		if !ok {
+			t.Fatalf("no scripted response before approval for %q", p.Envelope.Request.ID)
+		}
+		response, err := json.Marshal(protocol.ResponseEnvelope{
+			RunID: p.RunID, Sequence: p.Envelope.Sequence, RequestID: p.Envelope.Request.ID,
+			Status: "completed", Result: result,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err = e.Resume(p.RunID, response, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Fatal("workflow completed before requesting mutation approval")
+	return ""
 }
 
 func runTestCommand(t *testing.T, dir, name string, args ...string) {
