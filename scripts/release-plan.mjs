@@ -8,6 +8,8 @@ import { parse as parseYaml } from "yaml"
 
 const PACKAGE = "@operatorstack/yield"
 const levels = { patch: 0, minor: 1, major: 2 }
+const noteSources = new Set(["changesets", "git-history"])
+const targetContract = "full-train"
 
 function parseArgs(argv) {
   const result = {}
@@ -49,24 +51,61 @@ export function bumpVersion(version, bump) {
   throw new Error(`invalid bump ${bump}`)
 }
 
-export function planRelease({ baseVersion, changesets, requestedBump = "auto" }) {
-  if (!changesets.length) throw new Error("stable releases require at least one pending Changeset")
+export function planRelease({
+  baseVersion,
+  changesets,
+  requestedBump = "auto",
+  notesSource,
+  commits = [],
+}) {
   if (requestedBump !== "auto" && !(requestedBump in levels))
     throw new Error(`invalid requested bump ${requestedBump}`)
   const declaredBump = changesets.map(({ bump }) => bump).sort((a, b) => levels[b] - levels[a])[0]
-  if (requestedBump !== "auto" && levels[requestedBump] < levels[declaredBump]) {
+  if (requestedBump === "auto" && !declaredBump)
+    throw new Error("automatic releases require at least one pending Changeset")
+  if (requestedBump !== "auto" && declaredBump && levels[requestedBump] < levels[declaredBump]) {
     throw new Error(`requested ${requestedBump} cannot lower declared ${declaredBump}`)
   }
+  if (requestedBump !== "auto" && !commits.length)
+    throw new Error("explicit stable releases require at least one commit after the base tag")
   const bump = requestedBump === "auto" ? declaredBump : requestedBump
-  return { baseVersion, bump, version: bumpVersion(baseVersion, bump), changesets }
+  const basis = requestedBump === "auto" ? "changesets" : "explicit-bump"
+  const resolvedNotesSource = notesSource ?? (changesets.length ? "changesets" : "git-history")
+  if (!noteSources.has(resolvedNotesSource))
+    throw new Error(`invalid release note source ${resolvedNotesSource ?? "missing"}`)
+  if (resolvedNotesSource === "changesets" && !changesets.length)
+    throw new Error("Changeset notes require at least one pending Changeset")
+  return {
+    baseVersion,
+    bump,
+    version: bumpVersion(baseVersion, bump),
+    basis,
+    notesSource: resolvedNotesSource,
+    changesets,
+    commits,
+  }
 }
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2))
-  const requestedBump = args.bump ?? "auto"
-  const baseTag = args.base ?? git(["tag", "--list", "v[0-9]*", "--sort=-v:refname"]).split("\n")[0]
-  if (!/^v\d+\.\d+\.\d+$/.test(baseTag)) throw new Error("no valid stable base tag found")
-  git(["rev-parse", "--verify", `refs/tags/${baseTag}`])
+export function releaseNotes(plan, baseTag) {
+  const heading = `# Yield ${plan.version}`
+  if (plan.notesSource === "changesets") {
+    return (
+      [heading, "", ...plan.changesets.flatMap(({ summary }) => [`- ${summary}`, ""])]
+        .join("\n")
+        .trimEnd() + "\n"
+    )
+  }
+  return [
+    heading,
+    "",
+    `## Changes since ${baseTag}`,
+    "",
+    ...plan.commits.map(({ sha, summary }) => `- ${summary} (${sha.slice(0, 12)})`),
+    "",
+  ].join("\n")
+}
+
+async function collectReleaseInput(baseTag) {
   const paths = git([
     "diff",
     "--name-only",
@@ -79,16 +118,45 @@ async function main() {
     .filter((path) => path && path !== ".changeset/README.md")
   const changesets = []
   for (const path of paths) changesets.push(parseChangeset(await readFile(path, "utf8"), path))
-  const plan = planRelease({ baseVersion: baseTag.slice(1), changesets, requestedBump })
   const sourceSha = git(["rev-parse", "HEAD"])
-  const notes =
-    [
-      `# Yield ${plan.version}`,
-      "",
-      ...plan.changesets.flatMap(({ summary }) => [`- ${summary}`, ""]),
-    ]
-      .join("\n")
-      .trimEnd() + "\n"
+  const commits = git(["log", "--format=%H%x09%s", `${baseTag}..HEAD`])
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [sha, summary] = line.split("\t", 2)
+      if (!/^[0-9a-f]{40}$/.test(sha) || !summary) throw new Error("invalid release history")
+      return { sha, summary }
+    })
+  return {
+    baseTag,
+    sourceSha,
+    changesets,
+    commits,
+    commitRange: `${baseTag}..${sourceSha}`,
+    targetContract,
+  }
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2))
+  const requestedBump = args.bump ?? "auto"
+  const baseTag = args.base ?? git(["tag", "--list", "v[0-9]*", "--sort=-v:refname"]).split("\n")[0]
+  if (!/^v\d+\.\d+\.\d+$/.test(baseTag)) throw new Error("no valid stable base tag found")
+  git(["rev-parse", "--verify", `refs/tags/${baseTag}`])
+  const input = await collectReleaseInput(baseTag)
+  if (args.inspect === "true") {
+    process.stdout.write(`${JSON.stringify(input, null, 2)}\n`)
+    return
+  }
+  const plan = planRelease({
+    baseVersion: baseTag.slice(1),
+    changesets: input.changesets,
+    requestedBump,
+    notesSource: args["notes-source"],
+    commits: input.commits,
+  })
+  const notes = releaseNotes(plan, baseTag)
+  const output = { ...plan, ...input }
   if (args.notes) await writeFile(args.notes, notes)
   if (args.output) {
     await writeFile(
@@ -98,14 +166,18 @@ async function main() {
         `bump=${plan.bump}`,
         `version=${plan.version}`,
         `tag=v${plan.version}`,
-        `source_sha=${sourceSha}`,
+        `source_sha=${input.sourceSha}`,
         `changeset_count=${plan.changesets.length}`,
+        `release_basis=${plan.basis}`,
+        `notes_source=${plan.notesSource}`,
+        `commit_range=${input.commitRange}`,
+        `target_contract=${input.targetContract}`,
         "",
       ].join("\n"),
       { flag: "a" },
     )
   }
-  process.stdout.write(`${JSON.stringify({ ...plan, baseTag, sourceSha }, null, 2)}\n`)
+  process.stdout.write(`${JSON.stringify(output, null, 2)}\n`)
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

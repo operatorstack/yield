@@ -1,7 +1,8 @@
 import type { CommandResult, Context } from "@operatorstack/yield"
 
 export type ReleaseBump = "auto" | "patch" | "minor" | "major"
-export type ReleaseMode = "dry-run" | "release"
+export type ReleaseMode = "dry-run" | "release" | "stop"
+export type NoteSource = "changesets" | "git-history"
 
 type Changeset = {
   bump: "patch" | "minor" | "major"
@@ -18,6 +19,7 @@ type Receipt = {
 type ReleaseContext = Pick<Context, "askUser" | "runCommand" | "require" | "blocked" | "refused">
 
 const controller = "node src/release-controller.mjs"
+const fullTrain = "full-train"
 
 function parseReceipt(ctx: ReleaseContext, claim: string, result: CommandResult): Receipt {
   ctx.require(result.exit_code === 0 && !result.timed_out, claim, result)
@@ -64,13 +66,19 @@ function matchingField(
   return value
 }
 
-function changesetsField(ctx: ReleaseContext, receipt: Receipt): Changeset[] {
-  const value = receipt.changesets
+function countField(ctx: ReleaseContext, receipt: Receipt, field: string): number {
+  const value = receipt[field]
   ctx.require(
-    Array.isArray(value) && value.length > 0,
-    "the release plan contains at least one Changeset",
+    Number.isInteger(value) && (value as number) >= 0,
+    `controller receipt contains a non-negative ${field}`,
     receipt,
   )
+  return value as number
+}
+
+function changesetsField(ctx: ReleaseContext, receipt: Receipt): Changeset[] {
+  const value = receipt.changesets
+  ctx.require(Array.isArray(value), "controller receipt contains a Changeset list", receipt)
   for (const item of value as unknown[]) {
     const candidate = item as Partial<Changeset>
     ctx.require(
@@ -79,38 +87,125 @@ function changesetsField(ctx: ReleaseContext, receipt: Receipt): Changeset[] {
         typeof candidate.summary === "string" &&
         candidate.summary.length > 0 &&
         ["patch", "minor", "major"].includes(candidate.bump ?? ""),
-      "every planned Changeset has a path, bump, and summary",
+      "every listed Changeset has a path, bump, and summary",
       receipt,
     )
   }
   return value as Changeset[]
 }
 
+function explicitBump(ctx: ReleaseContext): Exclude<ReleaseBump, "auto"> {
+  const choice = ctx.askUser("select-explicit-bump", "Choose the explicit Yield release bump.", [
+    { value: "patch", label: "Patch" },
+    { value: "minor", label: "Minor" },
+    { value: "major", label: "Major" },
+    { value: "stop", label: "Stop" },
+  ])
+  if (choice === "stop") ctx.refused("release was stopped before preflight")
+  ctx.require(["patch", "minor", "major"].includes(choice), "an explicit release bump is selected")
+  return choice as Exclude<ReleaseBump, "auto">
+}
+
+function confirmHighImpactBump(ctx: ReleaseContext, bump: ReleaseBump) {
+  if (bump !== "minor" && bump !== "major") return
+  const confirmation = ctx.askUser(
+    "confirm-high-impact-bump",
+    `Confirm the ${bump} release intent before GitHub performs the protected dry run.`,
+    [
+      { value: "confirm", label: `Confirm ${bump}` },
+      { value: "cancel", label: "Cancel" },
+    ],
+  )
+  if (confirmation !== "confirm") ctx.refused(`${bump} release intent was not confirmed`)
+}
+
 export function runReleaseYield(ctx: ReleaseContext) {
   const mode = ctx.askUser("select-mode", "Choose how far this Yield release run may proceed.", [
     { value: "dry-run", label: "Dry run only" },
     { value: "release", label: "Prepare release" },
+    { value: "stop", label: "Stop" },
   ]) as ReleaseMode
+  if (mode === "stop") ctx.refused("release was not started")
 
-  const bump = ctx.askUser("select-bump", "Choose the Yield release bump.", [
-    { value: "auto", label: "Use Changesets" },
-    { value: "patch", label: "Patch" },
-    { value: "minor", label: "Minor" },
-    { value: "major", label: "Major" },
-  ]) as ReleaseBump
+  const scope = ctx.askUser(
+    "select-release-scope",
+    "Stable releases currently publish one verified Yield version to every public target.",
+    [
+      { value: fullTrain, label: "Release the full Yield train" },
+      { value: "design-target-specific", label: "Stop and design target-specific releases" },
+      { value: "stop", label: "Stop" },
+    ],
+  )
+  if (scope === "design-target-specific")
+    ctx.refused(
+      "target-specific stable releases need a compatibility manifest and verification path",
+    )
+  if (scope === "stop") ctx.refused("release was stopped before input inspection")
+  ctx.require(scope === fullTrain, "the selected stable release scope is the full Yield train")
 
-  if (bump === "minor" || bump === "major") {
-    const confirmation = ctx.askUser(
-      "confirm-high-impact-bump",
-      `Confirm the ${bump} release intent before GitHub performs the protected dry run.`,
+  const input = command(
+    ctx,
+    "inspect-release-input",
+    "inspect",
+    "the release input is inspected before a decision",
+  )
+  const inputChangesets = changesetsField(ctx, input)
+
+  let bump: ReleaseBump
+  let notesSource: NoteSource
+  if (inputChangesets.length) {
+    const basis = ctx.askUser(
+      "select-version-basis",
+      `Found ${inputChangesets.length} pending Changeset(s). Choose how to set the release version.`,
       [
-        { value: "confirm", label: `Confirm ${bump}` },
-        { value: "cancel", label: "Cancel" },
+        { value: "changesets", label: "Use the Changeset bump" },
+        { value: "explicit", label: "Select an explicit bump" },
+        { value: "stop", label: "Stop" },
       ],
     )
-    if (confirmation !== "confirm") ctx.refused(`${bump} release intent was not confirmed`)
+    if (basis === "stop") ctx.refused("release was stopped before bump selection")
+    bump = basis === "changesets" ? "auto" : explicitBump(ctx)
+    const noteChoice = ctx.askUser(
+      "select-note-source",
+      "Choose the source for immutable GitHub release notes.",
+      [
+        { value: "changesets", label: "Use Changeset summaries" },
+        { value: "git-history", label: "Use Git history" },
+        { value: "stop", label: "Stop" },
+      ],
+    )
+    if (noteChoice === "stop") ctx.refused("release was stopped before note selection")
+    ctx.require(
+      noteChoice === "changesets" || noteChoice === "git-history",
+      "a release note source is selected",
+    )
+    notesSource = noteChoice as NoteSource
+  } else {
+    const noChangesets = ctx.askUser(
+      "handle-no-changesets",
+      "No pending Changesets were found. Select an explicit bump to release from the exact Git history, or stop.",
+      [
+        { value: "explicit", label: "Select an explicit bump" },
+        { value: "stop", label: "Stop" },
+      ],
+    )
+    if (noChangesets !== "explicit")
+      ctx.refused("release was stopped because no Changeset was selected")
+    bump = explicitBump(ctx)
+    const historyNotes = ctx.askUser(
+      "confirm-git-history-notes",
+      "Generate immutable release notes from the exact base-tag-to-HEAD Git history?",
+      [
+        { value: "git-history", label: "Generate Git-history notes" },
+        { value: "stop", label: "Stop" },
+      ],
+    )
+    if (historyNotes !== "git-history")
+      ctx.refused("release was stopped before Git-history notes were selected")
+    notesSource = "git-history"
   }
 
+  confirmHighImpactBump(ctx, bump)
   const preflight = command(
     ctx,
     "preflight",
@@ -122,7 +217,7 @@ export function runReleaseYield(ctx: ReleaseContext) {
   const dry = command(
     ctx,
     "dispatch-dry-run",
-    `dispatch --bump ${bump} --dry-run true`,
+    `dispatch --bump ${bump} --notes-source ${notesSource} --dry-run true`,
     "the dry-run workflow is dispatched",
   )
   const dryRunID = matchingField(ctx, dry, "run_id", /^\d+$/)
@@ -142,23 +237,53 @@ export function runReleaseYield(ctx: ReleaseContext) {
   const plan = command(
     ctx,
     "resolve-plan",
-    `plan --bump ${bump}`,
+    `plan --bump ${bump} --notes-source ${notesSource}`,
     "the local deterministic release plan resolves",
   )
   const version = matchingField(ctx, plan, "version", /^\d+\.\d+\.\d+$/)
   const tag = matchingField(ctx, plan, "tag", /^v\d+\.\d+\.\d+$/)
   const changesets = changesetsField(ctx, plan)
+  const releaseBasis = matchingField(ctx, plan, "release_basis", /^(changesets|explicit-bump)$/)
+  const baseTag = matchingField(ctx, plan, "base_tag", /^v\d+\.\d+\.\d+$/)
+  const commitRange = stringField(ctx, plan, "commit_range")
+  const commitCount = countField(ctx, plan, "commit_count")
+  const planNotesSource = matchingField(ctx, plan, "notes_source", /^(changesets|git-history)$/)
+  const targetContract = matchingField(ctx, plan, "target_contract", /^full-train$/)
   ctx.require(tag === `v${version}`, "the release tag matches the planned version", plan)
   ctx.require(
     stringField(ctx, plan, "source_sha") === sourceSha,
     "the displayed plan uses the dry-run source SHA",
     plan,
   )
+  ctx.require(
+    planNotesSource === notesSource,
+    "the displayed plan uses the selected note source",
+    plan,
+  )
+  ctx.require(targetContract === fullTrain, "the displayed plan keeps the full Yield train", plan)
+  ctx.require(
+    commitRange === `${baseTag}..${sourceSha}`,
+    "the plan binds the exact Git history range",
+    plan,
+  )
+  if (releaseBasis === "changesets")
+    ctx.require(changesets.length > 0, "a Changeset-based plan contains pending Changesets", plan)
+  if (releaseBasis === "explicit-bump")
+    ctx.require(commitCount > 0, "an explicit release contains commits after the base tag", plan)
 
+  const releaseSummary =
+    planNotesSource === "changesets"
+      ? `${changesets.length} Changeset(s)`
+      : `Git history ${commitRange} (${commitCount} commits)`
   if (mode === "dry-run") {
     return {
       mode,
       bump,
+      release_basis: releaseBasis,
+      note_source: planNotesSource,
+      base_tag: baseTag,
+      commit_range: commitRange,
+      target_contract: targetContract,
       version,
       tag,
       source_sha: sourceSha,
@@ -167,12 +292,9 @@ export function runReleaseYield(ctx: ReleaseContext) {
     }
   }
 
-  const changesetSummary = changesets
-    .map((item) => `${item.path} (${item.bump}): ${item.summary}`)
-    .join("; ")
   const authorization = ctx.askUser(
     "authorize-release",
-    `Dry run passed for ${tag} from ${sourceSha}. Changesets: ${changesetSummary}. Continue with the protected release?`,
+    `Dry run passed for ${tag} from ${sourceSha}. Basis: ${releaseBasis}; notes: ${releaseSummary}; targets: full Yield train. Continue with the protected release?`,
     [
       { value: "release", label: `Release ${tag}` },
       { value: "stop", label: "Stop" },
@@ -183,7 +305,7 @@ export function runReleaseYield(ctx: ReleaseContext) {
   const live = command(
     ctx,
     "dispatch-release",
-    `dispatch --bump ${bump} --dry-run false`,
+    `dispatch --bump ${bump} --notes-source ${notesSource} --dry-run false`,
     "the protected release workflow is dispatched",
   )
   ctx.require(
@@ -242,6 +364,11 @@ export function runReleaseYield(ctx: ReleaseContext) {
   return {
     mode: "release",
     bump,
+    release_basis: releaseBasis,
+    note_source: planNotesSource,
+    base_tag: baseTag,
+    commit_range: commitRange,
+    target_contract: targetContract,
     version,
     tag,
     source_sha: sourceSha,
