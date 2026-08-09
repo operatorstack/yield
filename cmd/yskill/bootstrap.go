@@ -65,7 +65,7 @@ func cmdBootstrap(args []string) error {
 		return err
 	}
 	if fs.NArg() != 0 {
-		return fmt.Errorf("bootstrap takes no positional arguments")
+		return fmt.Errorf("helper install takes no positional arguments")
 	}
 	plan, err := makeBootstrapPlan(*root, *language, requested)
 	if err != nil {
@@ -73,11 +73,11 @@ func cmdBootstrap(args []string) error {
 	}
 	printBootstrapPlan(plan)
 	if *dryRun {
-		fmt.Println("bootstrap: dry run complete; no files changed")
+		fmt.Println("helper: dry run complete; no files changed")
 		return nil
 	}
 	if !*yes && !confirmBootstrap(bootstrapInput) {
-		fmt.Println("bootstrap: cancelled; no files changed")
+		fmt.Println("helper: cancelled; no files changed")
 		return nil
 	}
 	if err := applyBootstrapPlan(plan); err != nil {
@@ -100,8 +100,9 @@ func cmdBootstrap(args []string) error {
 	if err := bootstrapDoctor(plan.SkillDir, plan.Root, ids); err != nil {
 		return fmt.Errorf("verify workflow builder adapters: %w", err)
 	}
-	fmt.Println("bootstrap: workflow builder is ready")
+	fmt.Println("helper: Yield developer helper is ready")
 	fmt.Println("next: restart your coding agent, then ask it to create or convert a skill workflow")
+	fmt.Println("learn: Use Yield to explain how coded skill workflows work.")
 	fmt.Println("create: Use Yield to create a tested skill workflow for releasing my package.")
 	fmt.Println("convert: Use Yield to convert my existing release SKILL.md into a tested skill workflow.")
 	return nil
@@ -220,7 +221,7 @@ func preflightBootstrapAdapter(root, path string) error {
 }
 
 func printBootstrapPlan(plan bootstrapPlan) {
-	fmt.Printf("bootstrap plan: language=%s root=%s\n", plan.Language, plan.Root)
+	fmt.Printf("helper install plan: language=%s root=%s\n", plan.Language, plan.Root)
 	paths := make([]string, 0, len(plan.Files)+len(plan.Adapters)+1)
 	for rel := range plan.Files {
 		paths = append(paths, filepath.Join(plan.SkillDir, filepath.FromSlash(rel)))

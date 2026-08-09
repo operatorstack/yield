@@ -3,19 +3,20 @@
 The workflow builder can convert an existing `SKILL.md` into a tested skill
 workflow. The source and destination must stay inside the repository.
 
-## 1. Install the builder
+## 1. Install the optional helper
 
-Run the bootstrap command for the project language. For example:
+Package installation does not add the helper. Install it explicitly for the
+project language. For example:
 
 ```bash
-npm create @operatorstack/yield@latest
+npm exec -- yskill helper install --language typescript
 ```
 
 See the [quickstart](quickstart.md) for Python, Rust, and Go commands.
 
 ## 2. Restart the coding agent
 
-Restart the session after bootstrap registers the adapter.
+Restart the session after the installer registers the adapter.
 
 ## 3. Request the conversion
 

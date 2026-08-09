@@ -3,10 +3,10 @@
 `yskill` runs and resumes skill workflows. It owns run logs, validates responses, executes
 commands, and starts the skill workflow. It comes with each language package.
 
-## `bootstrap`
+## `helper install`
 
 ```bash
-yskill bootstrap
+yskill helper install
   [--language typescript|python|rust|go]
   [--agent auto|cursor,codex,claude-code]
   [--root repository]
@@ -14,16 +14,18 @@ yskill bootstrap
   [--yes]
 ```
 
-Detects the repository, language, and installed coding agents. It shows every
+Explicitly installs the optional developer helper. Package installation alone
+does not create skills or adapters. The command detects the repository,
+language, and installed coding agents. It shows every
 proposed change before it writes. It asks for confirmation unless `--yes` is
 set. It installs and tests `skills/yield-workflow-builder`, registers the
 selected adapters, and verifies them.
 
-Bootstrap stores local state under ignored `.yield/`. It refuses paths outside
+The installer stores local state under ignored `.yield/`. It refuses paths outside
 the repository, symlink escapes, existing destinations, and user-owned adapter
 files. Use `--root` for a directory that is not a Git repository.
 
-Bootstrap can change only these repository locations:
+The installer can change only these repository locations:
 
 - `.yield/.gitignore` and `.yield/bootstrap.json`
 - `.yield/bin/yskill` for Go and Rust
@@ -31,8 +33,11 @@ Bootstrap can change only these repository locations:
 - selected generated agent adapter paths
 
 The TypeScript dependency install also creates ignored `node_modules/` content.
-Bootstrap runs only the dependency preparation command shown in the plan,
+The installer runs only the dependency preparation command shown in the plan,
 `doctor --test`, and adapter registration. It does not use install hooks.
+
+`yskill bootstrap` is a compatibility alias. The
+`npm create @operatorstack/yield@latest` initializer calls the same installer.
 
 ## `init`
 

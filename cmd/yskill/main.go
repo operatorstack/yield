@@ -27,9 +27,10 @@ import (
 const usage = `yskill — run and resume skill workflows
 
 Usage:
-  yskill bootstrap                           install the governed workflow builder
+  yskill helper install                      install the optional Yield developer helper
          [--language typescript|python|go|rust] [--agent cursor,codex,...|auto]
          [--root repo] [--dry-run] [--yes]
+  yskill bootstrap                           compatibility alias for helper install
   yskill init <dir>                          scaffold a skill workflow (or wrap an existing prose skill)
          [--language typescript|python|go|rust] [--description text]
   yskill register <skill-dir>                expose one skill workflow to coding agents
@@ -91,6 +92,8 @@ func main() {
 	}
 	var err error
 	switch os.Args[1] {
+	case "helper":
+		err = cmdHelper(os.Args[2:])
 	case "bootstrap":
 		err = cmdBootstrap(os.Args[2:])
 	case "init":
@@ -128,6 +131,18 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "yskill: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+func cmdHelper(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("helper requires a subcommand; use 'yskill helper install'")
+	}
+	switch args[0] {
+	case "install":
+		return cmdBootstrap(args[1:])
+	default:
+		return fmt.Errorf("unknown helper subcommand %q; use 'yskill helper install'", args[0])
 	}
 }
 

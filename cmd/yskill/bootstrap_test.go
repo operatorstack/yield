@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,6 +36,20 @@ func TestBootstrapDryRunDoesNotWrite(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "skills")); !os.IsNotExist(err) {
 		t.Fatalf("dry run wrote skills directory: %v", err)
+	}
+}
+
+func TestHelperInstallUsesBootstrapContract(t *testing.T) {
+	withBootstrapTestState(t)
+	root := t.TempDir()
+	if err := cmdHelper([]string{"install", "--root", root, "--language", "typescript", "--agent", "codex", "--dry-run"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "skills")); !os.IsNotExist(err) {
+		t.Fatalf("helper dry run wrote skills directory: %v", err)
+	}
+	if err := cmdHelper(nil); err == nil || !strings.Contains(err.Error(), "requires a subcommand") {
+		t.Fatalf("missing helper subcommand returned %v", err)
 	}
 }
 
@@ -119,8 +134,9 @@ func TestBootstrapRefusesAdapterSymlinkEscape(t *testing.T) {
 
 func TestBuilderTemplatesExposeEquivalentOperations(t *testing.T) {
 	profile := bootstrapProfile{YieldVersion: "1.2.3", Agents: []string{"codex"}}
-	want := []string{"select-mode", "collect-specification", "check-destination", "project-semantics", "extract-flow", "write-workflow", "verify-generated", "repair-generated-", "register-generated", "verify-adapters"}
+	want := []string{"learn", "create", "convert", "check", "repair", "upgrade", "register", "select-mode", "teach-yield", "collect-specification", "check-destination", "project-semantics", "extract-flow", "teach-and-plan", "approve-change", "write-workflow", "verify-workflow", "repair-workflow-", "register-workflow", "verify-adapters", "yskill helper install"}
 	projectionContract := []string{"source_clause", "disposition", "destinations", "reason", "control", "guidance", "both", "excluded", "ready", "unresolved"}
+	repairLimit := map[string]string{"typescript": "attempt<=2", "python": "range(1, 3)", "go": "attempt<=2", "rust": "1..=2"}
 	for _, language := range []string{"typescript", "python", "go", "rust"} {
 		files, _, err := renderBootstrapSkill(language, profile)
 		if err != nil {
@@ -141,6 +157,17 @@ func TestBuilderTemplatesExposeEquivalentOperations(t *testing.T) {
 			if !strings.Contains(program, field) {
 				t.Errorf("%s builder projection is missing %s", language, field)
 			}
+		}
+		if !strings.Contains(program, repairLimit[language]) || strings.Contains(program, "repair-workflow-3") {
+			t.Errorf("%s builder does not enforce the two-attempt repair limit", language)
+		}
+		skill := files["SKILL.md"]
+		parts := strings.SplitN(skill, "---", 3)
+		if len(parts) != 3 || strings.Count(parts[1], "\n") != 3 || !strings.Contains(parts[1], "\nname: yield-workflow-builder\n") || !strings.Contains(parts[1], "\ndescription: ") {
+			t.Errorf("%s generated SKILL.md frontmatter is invalid: %q", language, parts[1])
+		}
+		if strings.Count(skill, "\n") >= 500 {
+			t.Errorf("%s generated SKILL.md exceeds the concise skill limit", language)
 		}
 		for _, downstream := range []string{"source,projection", `"source":source,"projection":projection`} {
 			if strings.Contains(program, downstream) {
@@ -274,7 +301,7 @@ func TestBuilderTemplatesCompile(t *testing.T) {
 	}
 }
 
-func TestBuilderFixturesReachCompletedAcrossLanguages(t *testing.T) {
+func TestBuilderModeFixturesAcrossLanguages(t *testing.T) {
 	oldVersion := version
 	version = "0.1.0"
 	t.Cleanup(func() { version = oldVersion })
@@ -342,11 +369,128 @@ func TestBuilderFixturesReachCompletedAcrossLanguages(t *testing.T) {
 				}
 				runTestCommand(t, repoRoot, "go", "build", "-ldflags", "-X main.version=0.1.0", "-o", runtimePath, "./cmd/yskill")
 			}
-			if err := cmdDoctor([]string{dir, "--root", root, "--test"}); err != nil {
-				t.Fatalf("%s builder fixture did not complete: %v", language, err)
+			source := filepath.Join(root, "skills", "source-fixture")
+			if err := os.MkdirAll(source, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(source, "SKILL.md"), []byte("---\nname: source-fixture\ndescription: Test then ask before publishing.\n---\n\nRun tests. Ask before publishing.\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			for _, mode := range []string{"learn", "create", "convert"} {
+				writeBuilderResponses(t, dir, builderModeResponses(t, mode, "apply"))
+				if err := cmdDoctor([]string{dir, "--root", root, "--test"}); err != nil {
+					t.Fatalf("%s %s fixture did not complete: %v", language, mode, err)
+				}
+			}
+			target := filepath.Join(root, "skills", "yield-workflow-builder-fixture")
+			if err := os.MkdirAll(target, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			marker := filepath.Join(target, "SKILL.md")
+			if err := os.WriteFile(marker, []byte("fixture-owned\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			for _, mode := range []string{"check", "repair", "upgrade", "register"} {
+				writeBuilderResponses(t, dir, builderModeResponses(t, mode, "apply"))
+				if err := cmdDoctor([]string{dir, "--root", root, "--test"}); err != nil {
+					t.Fatalf("%s %s fixture did not complete: %v", language, mode, err)
+				}
+			}
+			writeBuilderResponses(t, dir, builderModeResponses(t, "repair", "stop"))
+			if err := cmdDoctor([]string{dir, "--root", root, "--test"}); err == nil || !strings.Contains(err.Error(), "terminal status refused") {
+				t.Fatalf("%s declined mutation returned %v", language, err)
+			}
+			if got := readTestFile(t, marker); got != "fixture-owned\n" {
+				t.Fatalf("%s declined mutation changed the target: %q", language, got)
+			}
+			unsupported := strings.Replace(builderModeResponses(t, "upgrade", "apply"), `"requested_version": "0.1.0"`, `"requested_version": "9.9.9"`, 1)
+			writeBuilderResponses(t, dir, unsupported)
+			if err := cmdDoctor([]string{dir, "--root", root, "--test"}); err == nil || !strings.Contains(err.Error(), "unsupported Yield version change") {
+				t.Fatalf("%s unsupported upgrade returned %v", language, err)
+			}
+			selfUpgrade := strings.Replace(builderModeResponses(t, "upgrade", "apply"), `"target_path": "skills/yield-workflow-builder-fixture"`, `"target_path": "skills/yield-workflow-builder"`, 1)
+			writeBuilderResponses(t, dir, selfUpgrade)
+			if err := cmdDoctor([]string{dir, "--root", root, "--test"}); err == nil || !strings.Contains(err.Error(), "cannot upgrade itself") {
+				t.Fatalf("%s self-upgrade returned %v", language, err)
+			}
+			escape := strings.Replace(builderModeResponses(t, "check", "apply"), `"target_path": "skills/yield-workflow-builder-fixture"`, `"target_path": "../outside"`, 1)
+			writeBuilderResponses(t, dir, escape)
+			if err := cmdDoctor([]string{dir, "--root", root, "--test"}); err == nil || !strings.Contains(err.Error(), "existing path under skills") {
+				t.Fatalf("%s path escape returned %v", language, err)
+			}
+			writeBuilderResponses(t, dir, builderModeResponses(t, "create", "apply"))
+			if err := cmdDoctor([]string{dir, "--root", root, "--test"}); err == nil || !strings.Contains(err.Error(), "new path under skills") {
+				t.Fatalf("%s existing destination returned %v", language, err)
 			}
 		})
 	}
+}
+
+func writeBuilderResponses(t *testing.T, dir, responses string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(dir, "fixtures", "responses.json"), []byte(responses), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func builderModeResponses(t *testing.T, mode, approval string) string {
+	t.Helper()
+	responses := map[string]any{"select-mode": map[string]string{"value": mode}}
+	if mode == "learn" {
+		responses["teach-yield"] = map[string]any{
+			"summary": "Keep control flow in code.", "primitives": []string{"runCommand"},
+			"manual_steps": []string{"init", "write fixtures", "doctor --test", "register"}, "docs": []string{"docs/quickstart.md"},
+		}
+		return marshalBuilderResponses(t, responses)
+	}
+	spec := map[string]any{
+		"name": "", "description": "", "language": "go", "destination": "", "source_path": "",
+		"target_path": "skills/yield-workflow-builder-fixture", "requested_version": "",
+	}
+	if mode == "create" || mode == "convert" {
+		spec["name"] = "yield-workflow-builder-fixture"
+		spec["description"] = "Create a harmless fixture workflow."
+		spec["destination"] = "skills/yield-workflow-builder-fixture"
+		if mode == "convert" {
+			spec["source_path"] = "skills/source-fixture"
+			responses["project-semantics"] = map[string]any{
+				"clauses": []any{map[string]any{"source_clause": "Run tests.", "disposition": "control", "destinations": []any{map[string]string{"kind": "code", "target": "main"}}, "reason": "Executable gate."}},
+				"ready":   true, "unresolved": []string{},
+			}
+		}
+		responses["extract-flow"] = map[string]any{
+			"summary": "Check then complete.", "steps": []any{map[string]string{"id": "check", "kind": "run_command", "description": "Run a check."}},
+		}
+	}
+	if mode == "upgrade" {
+		spec["requested_version"] = "0.1.0"
+	}
+	responses["collect-specification"] = spec
+	if mode == "check" {
+		return marshalBuilderResponses(t, responses)
+	}
+	responses["teach-and-plan"] = map[string]any{
+		"summary": "Apply the fixture plan.", "primitives": []string{"Require binds completion to evidence."},
+		"files": []string{"skills/yield-workflow-builder-fixture/SKILL.md"}, "commands": []string{"yskill doctor --test"},
+	}
+	responses["approve-change"] = map[string]string{"value": approval}
+	if approval == "apply" && mode != "register" {
+		task := mode + "-workflow"
+		if mode == "create" || mode == "convert" {
+			task = "write-workflow"
+		}
+		responses[task] = map[string]any{"files": []string{"skills/yield-workflow-builder-fixture/SKILL.md"}}
+	}
+	return marshalBuilderResponses(t, responses)
+}
+
+func marshalBuilderResponses(t *testing.T, responses map[string]any) string {
+	t.Helper()
+	b, err := json.MarshalIndent(responses, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b) + "\n"
 }
 
 func runTestCommand(t *testing.T, dir, name string, args ...string) {

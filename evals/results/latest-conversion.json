@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "methodology_version": "semantic-disposition-v1",
-  "generated_at": "2026-08-09T09:21:44.116Z",
-  "source_hash": "b87e914bc9406c400e82b8dd35c8e2b35df38664cfcf375ea6eba1884fc1adb3",
+  "generated_at": "2026-08-09T11:11:00.278Z",
+  "source_hash": "e5f48a27c174816531e8dbb36d6987f54fe091a071ce5b5adf9fe19d747232e1",
   "fixture_source_hash": "9ab03fffe6716da8298b461f79c9eebae7c7bb01151328686ec51ed9c0b77fe5",
   "status": "passed",
   "model": {
@@ -13,10 +13,10 @@
   },
   "sessions": 2,
   "token_usage": {
-    "input_tokens": 795134,
-    "cached_input_tokens": 732165,
-    "output_tokens": 10401,
-    "reasoning_output_tokens": 2874
+    "input_tokens": 648932,
+    "cached_input_tokens": 588148,
+    "output_tokens": 9945,
+    "reasoning_output_tokens": 2646
   },
   "clause_counts": {
     "total": 4,

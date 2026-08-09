@@ -28,8 +28,8 @@ and start it.
 
 ## Start here
 
-1. [Bootstrap the workflow builder](quickstart.md) — install, test, and
-   register it for your coding agent.
+1. [Create your first workflow](quickstart.md) — install the runtime, write a
+   workflow and fixture, test it, and register it.
 2. [Understand skill workflows](skill-workflows.md) — the canonical workflow,
    generated adapter, and execution boundary.
 3. [Read the public guide](https://yield.operatorstack.systems/docs/) — the

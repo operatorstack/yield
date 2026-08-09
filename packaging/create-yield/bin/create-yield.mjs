@@ -9,7 +9,7 @@ const sdkEntry = require.resolve("@operatorstack/yield")
 const cli = resolve(dirname(sdkEntry), "../bin/yskill.mjs")
 const result = spawnSync(
   process.execPath,
-  [cli, "bootstrap", "--language", "typescript", ...process.argv.slice(2)],
+  [cli, "helper", "install", "--language", "typescript", ...process.argv.slice(2)],
   {
     stdio: "inherit",
   },

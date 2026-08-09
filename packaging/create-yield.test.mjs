@@ -5,7 +5,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 
-test("npm initializer forwards bootstrap and user arguments to the matching CLI", async (t) => {
+test("npm initializer forwards helper installation and user arguments to the matching CLI", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "create-yield-"))
   t.after(() => rm(root, { recursive: true, force: true }))
   const initializer = join(root, "node_modules/@operatorstack/create-yield")
@@ -40,7 +40,8 @@ test("npm initializer forwards bootstrap and user arguments to the matching CLI"
     },
   )
   assert.deepEqual(JSON.parse(await readFile(receipt, "utf8")), [
-    "bootstrap",
+    "helper",
+    "install",
     "--language",
     "typescript",
     "--root",

@@ -46,37 +46,6 @@ coding-agent judgment, then continue with structured data in normal code.
 Verified with Cursor, Codex, and Claude Code. Registry-backed project paths are
 available for 73 more coding agents.
 
-## Start with your coding agent
-
-Run the command for your project:
-
-| Language   | Command                                                                                                        |
-| ---------- | -------------------------------------------------------------------------------------------------------------- |
-| TypeScript | `npm create @operatorstack/yield@latest`                                                                       |
-| Python     | `uvx --from yieldskill yskill bootstrap --language python`                                                     |
-| Rust       | `cargo install yieldskill --root .yield --locked`, then `.yield/bin/yskill bootstrap --root . --language rust` |
-| Go         | `go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --root . --language go`                     |
-
-Yield detects the repository, language, and installed coding agents. It shows
-every proposed file and dependency change. It asks before it writes. It then
-installs, tests, and registers the `yield-workflow-builder` skill workflow.
-
-Restart your coding agent. To create a new skill workflow, ask:
-
-```text
-Use Yield to create a tested skill workflow for releasing my package.
-```
-
-To convert an existing `SKILL.md`, ask:
-
-```text
-Use Yield to convert my existing release SKILL.md into a tested skill workflow.
-```
-
-The builder can create a skill workflow from a description. It can also
-convert an existing `SKILL.md`. Yield does not use install hooks to change the
-repository.
-
 ## Move repeated instructions into code
 
 A release skill often starts as prose:
@@ -167,7 +136,7 @@ lane. Stable release execution remains pinned to an exact public version.
 
 <!-- npm-exclude:end -->
 
-## Advanced: build manually
+## Create a workflow
 
 ### 1. Install Yield
 
@@ -261,6 +230,27 @@ Use the release skill to publish this package.
 
 The agent follows the generated adapter, runs the canonical workflow in
 `skills/release`, and asks for each required agent or user response.
+
+## Optional: install the developer helper
+
+Package installation does not create skills or coding-agent adapters. After
+you understand the manual flow above, you can explicitly install the guided
+helper:
+
+| Language   | Command                                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| TypeScript | `npm exec -- yskill helper install --language typescript`                                                           |
+| Python     | `uvx --from yieldskill yskill helper install --language python`                                                     |
+| Rust       | `cargo install yieldskill --root .yield --locked`, then `.yield/bin/yskill helper install --root . --language rust` |
+| Go         | `go run github.com/operatorstack/yield/cmd/yskill@latest helper install --root . --language go`                     |
+
+The helper is installed as `skills/yield-workflow-builder`. It can explain,
+create, convert, check, repair, upgrade, and register skill workflows. It shows
+the relevant primitive, exact files, and commands before any mutation and asks
+for approval. Restart your coding agent after installation.
+
+`yskill bootstrap` and `npm create @operatorstack/yield@latest` remain
+compatibility aliases for `yskill helper install`.
 
 ## How Yield runs and resumes
 
