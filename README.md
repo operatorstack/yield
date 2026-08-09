@@ -244,10 +244,15 @@ helper:
 | Rust       | `cargo install yieldskill --root .yield --locked`, then `.yield/bin/yskill helper install --root . --language rust` |
 | Go         | `go run github.com/operatorstack/yield/cmd/yskill@latest helper install --root . --language go`                     |
 
+The installer first prints one ordered plan with resolved paths, dependency
+preparation, workflow testing, registration for the selected agents, and final
+adapter verification. Review it before answering
+`Apply this helper install plan? [y/N]`.
+
 The helper is installed as `skills/yield-workflow-builder`. It can explain,
-create, convert, check, repair, upgrade, and register skill workflows. It shows
-the relevant primitive, exact files, and commands before any mutation and asks
-for approval. Restart your coding agent after installation.
+create, convert, check, repair, upgrade, and register skill workflows. Before a
+mutation it shows the summary, relevant primitives, exact files, and exact
+commands, then asks for approval. Restart your coding agent after installation.
 
 `yskill bootstrap` and `npm create @operatorstack/yield@latest` remain
 compatibility aliases for `yskill helper install`.
