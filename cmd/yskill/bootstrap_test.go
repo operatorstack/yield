@@ -152,6 +152,49 @@ func TestBuilderTemplatesExposeEquivalentOperations(t *testing.T) {
 	}
 }
 
+func TestBootstrapRustTemplateAddsAndPreservesSkillGitignore(t *testing.T) {
+	profile := bootstrapProfile{YieldVersion: "1.2.3", Agents: []string{"codex"}}
+	files, _, err := renderBootstrapSkill("rust", profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := files[".gitignore"]; got != rustSkillGitignore {
+		t.Fatalf("Rust bootstrap .gitignore = %q, want %q", got, rustSkillGitignore)
+	}
+	for _, language := range []string{"typescript", "python", "go"} {
+		files, _, err := renderBootstrapSkill(language, profile)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, found := files[".gitignore"]; found {
+			t.Fatalf("%s bootstrap template created Rust-specific .gitignore", language)
+		}
+	}
+
+	root := t.TempDir()
+	skillDir := filepath.Join(root, "skills", bootstrapSkillName)
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const existing = "user-owned-rule/\n"
+	if err := os.WriteFile(filepath.Join(skillDir, ".gitignore"), []byte(existing), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	plan := bootstrapPlan{
+		Root:     root,
+		Language: "python",
+		SkillDir: skillDir,
+		Profile:  bootstrapProfile{Version: 1, YieldVersion: "1.2.3", Language: "python"},
+		Files:    map[string]string{".gitignore": rustSkillGitignore},
+	}
+	if err := applyBootstrapPlan(plan); err != nil {
+		t.Fatal(err)
+	}
+	if got := readTestFile(t, filepath.Join(skillDir, ".gitignore")); got != existing {
+		t.Fatalf("existing bootstrap .gitignore changed: %q", got)
+	}
+}
+
 func TestBuilderCreateFixtureDoesNotRequireProjection(t *testing.T) {
 	if strings.Contains(bootstrapFixtureResponses, `"project-semantics"`) {
 		t.Fatal("create mode fixture must remain unchanged by conversion projection")

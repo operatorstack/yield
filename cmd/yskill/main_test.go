@@ -186,11 +186,12 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 		files    []string
 		command  string
 		pin      string
+		ignore   string
 	}{
-		{"typescript", []string{"main.ts", "package.json", "skill.json"}, "npm exec -- yskill run .", `"@operatorstack/yield": "0.1.9"`},
-		{"python", []string{"main.py", "requirements.txt", "skill.json"}, "python -m yieldskill run .", "yieldskill==0.1.9"},
-		{"go", []string{"main.go", "go.mod", "skill.json"}, "yskill run .", "github.com/operatorstack/yield v0.1.9"},
-		{"rust", []string{"src/main.rs", "Cargo.toml", "skill.json"}, "yskill run .", `version = "=0.1.9"`},
+		{"typescript", []string{"main.ts", "package.json", "skill.json"}, "npm exec -- yskill run .", `"@operatorstack/yield": "0.1.9"`, ""},
+		{"python", []string{"main.py", "requirements.txt", "skill.json"}, "python -m yieldskill run .", "yieldskill==0.1.9", ""},
+		{"go", []string{"main.go", "go.mod", "skill.json"}, "yskill run .", "github.com/operatorstack/yield v0.1.9", ""},
+		{"rust", []string{"src/main.rs", "Cargo.toml", "skill.json", ".gitignore"}, "yskill run .", `version = "=0.1.9"`, rustSkillGitignore},
 	}
 	for _, tt := range tests {
 		t.Run(tt.language, func(t *testing.T) {
@@ -246,10 +247,33 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 			if tt.language == "rust" && strings.Contains(manifest, "registry =") {
 				t.Fatalf("public Rust scaffold contains a private package registry:\n%s", manifest)
 			}
+			ignorePath := filepath.Join(dir, ".gitignore")
+			if tt.ignore == "" {
+				if _, err := os.Stat(ignorePath); !os.IsNotExist(err) {
+					t.Fatalf("%s scaffold created Rust-specific .gitignore: %v", tt.language, err)
+				}
+			} else if got := readTestFile(t, ignorePath); got != tt.ignore {
+				t.Fatalf(".gitignore = %q, want %q", got, tt.ignore)
+			}
 		})
 	}
 	if tidyCalls != 1 {
 		t.Fatalf("go mod tidy calls = %d, want 1", tidyCalls)
+	}
+}
+
+func TestRustScaffoldPreservesExistingGitignore(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "safe-change")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const existing = "user-owned-rule/\n"
+	writeTestFile(t, filepath.Join(dir, ".gitignore"), existing)
+	if err := scaffoldSkill(dir, "rust", "", "Check a safe change before applying it."); err != nil {
+		t.Fatal(err)
+	}
+	if got := readTestFile(t, filepath.Join(dir, ".gitignore")); got != existing {
+		t.Fatalf("existing .gitignore changed: %q", got)
 	}
 }
 
@@ -455,6 +479,44 @@ func TestRustScaffoldPinsTheInvokedRuntimeWithoutPrivateRegistryConfig(t *testin
 	launcher := repositoryRuntimeLauncher(filepath.Join(".yield", "bin", filepath.Base(localRuntimePath(repo))), runtime.GOOS)
 	if !strings.Contains(skill, launcher+" run") {
 		t.Fatalf("SKILL.md does not use pinned runtime %q:\n%s", launcher, skill)
+	}
+}
+
+func TestCmdInitRustScaffoldIsDoctorValid(t *testing.T) {
+	if _, err := exec.LookPath("cargo"); err != nil {
+		t.Skip("cargo is unavailable")
+	}
+	previousVersion := version
+	previousExecutable := currentExecutable
+	previousInspect := inspectRuntimeVersion
+	version = "0.1.37"
+	t.Cleanup(func() {
+		version = previousVersion
+		currentExecutable = previousExecutable
+		inspectRuntimeVersion = previousInspect
+	})
+
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, ".git"), "gitdir: fixture\n")
+	writeTestFile(t, localRuntimePath(root), "packaged runtime")
+	currentExecutable = func() (string, error) { return localRuntimePath(root), nil }
+	inspectRuntimeVersion = func(path string) (string, error) {
+		resolved, err := filepath.EvalSymlinks(localRuntimePath(root))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if path != localRuntimePath(root) && path != resolved {
+			t.Fatalf("inspected unexpected runtime %s", path)
+		}
+		return "0.1.37", nil
+	}
+
+	dir := filepath.Join(root, "skills", "safe-change")
+	if err := cmdInit([]string{"--language", "rust", "--description", "Check a safe change before applying it.", dir}); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmdDoctor([]string{dir, "--root", root}); err != nil {
+		t.Fatalf("doctor rejected Rust scaffold: %v", err)
 	}
 }
 

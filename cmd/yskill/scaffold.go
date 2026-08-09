@@ -12,6 +12,9 @@ import (
 )
 
 var releaseVersionPattern = regexp.MustCompile(`^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$`)
+
+const rustSkillGitignore = "target/\n.yield/\n"
+
 var tidyGoModule = func(dir string) error {
 	cmd := exec.Command("go", "mod", "tidy")
 	cmd.Dir = dir
@@ -256,6 +259,7 @@ func scaffoldFiles(name, language, sdkPath string) map[string]string {
 		}
 	case "rust":
 		return map[string]string{
+			".gitignore":  rustSkillGitignore,
 			"Cargo.toml":  fmt.Sprintf("[package]\nname = %q\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nyieldskill = { version = \"=%s\" }\nserde_json = \"1\"\n", name, v),
 			"src/main.rs": mainRust,
 			"skill.json":  fmt.Sprintf("{\"version\":1,\"yield_version\":%q,\"language\":\"rust\",\"run\":[\"cargo\",\"run\",\"--quiet\",\"--bin\",%q]}\n", v, name),
