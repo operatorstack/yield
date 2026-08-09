@@ -1,67 +1,91 @@
 # Create your first skill workflow
 
-Bootstrap installs a tested workflow builder for your coding agent. Run one
-command from the repository root.
+Start with the runtime and manual workflow. Package installation alone never
+creates a skill or coding-agent adapter.
 
-## 1. Run bootstrap
+## 1. Install Yield
 
-Choose the command for the project language:
+Choose the package for your project:
 
 ```bash
 # TypeScript
-npm create @operatorstack/yield@latest
+npm install --save-exact @operatorstack/yield
 
 # Python
-uvx --from yieldskill yskill bootstrap --language python
+python -m pip install yieldskill
 
 # Rust
 cargo install yieldskill --root .yield --locked
-.yield/bin/yskill bootstrap --root . --language rust
 
 # Go
-go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --root . --language go
+mkdir -p .yield/bin
+GOBIN="$PWD/.yield/bin" go install github.com/operatorstack/yield/cmd/yskill@latest
 ```
 
-Bootstrap detects installed Codex, Claude Code, and Cursor project adapters.
-Use `--agent codex,claude-code,cursor` to select them explicitly.
+Use `npm exec -- yskill`, `python -m yieldskill`, or `.yield/bin/yskill` as the
+launcher in the following steps. The examples below use TypeScript; substitute
+your launcher and language when using another SDK.
 
-## 2. Review the plan
+## 2. Create the workflow and fixture
 
-Yield prints every file, dependency, and command that it will change. Confirm
-the plan to continue. Use `--dry-run` to stop after the plan. Use `--yes` only
-when another trusted process already approved the changes.
+```bash
+npm exec -- yskill init skills/release \
+  --language typescript \
+  --description "Test, review, approve, publish, and verify a package."
+```
 
-Yield writes the builder under `skills/yield-workflow-builder`. It stores local
-bootstrap state under ignored `.yield/`. It does not use an install hook.
+Edit the generated program under `skills/release/`. Keep deterministic command
+execution, approval, gates, and finish rules in code. Put fixture answers for
+agent and user operations in `skills/release/fixtures/responses.json`.
 
-## 3. Restart the coding agent
+## 3. Test it
 
-Restart the coding-agent session after registration. This lets the agent find
-the new adapter.
+```bash
+npm exec -- yskill doctor skills/release --test
+```
 
-## 4. Ask for the skill workflow
+This runs the fixture to a terminal outcome without leaving a run journal.
 
-To create a new skill workflow, ask:
+## 4. Register it
+
+```bash
+npm exec -- yskill register skills/release
+npm exec -- yskill doctor skills/release --agent codex,cursor,claude-code --test
+```
+
+Registration creates only small discovery adapters. The canonical workflow,
+dependencies, and fixtures remain under `skills/release/`. Restart the coding
+agent after registration.
+
+## 5. Run it
+
+Ask the coding agent to use the registered skill:
 
 ```text
-Use Yield to create a tested skill workflow for releasing my package.
+Use the release skill to publish this package.
 ```
 
-To convert an existing `SKILL.md`, ask:
+## Optional: install the developer helper
 
-```text
-Use Yield to convert my existing release SKILL.md into a tested skill workflow.
+After learning the manual flow, install guided assistance explicitly:
+
+```bash
+# TypeScript
+npm exec -- yskill helper install --language typescript
+
+# Python
+uvx --from yieldskill yskill helper install --language python
+
+# Rust
+.yield/bin/yskill helper install --root . --language rust
+
+# Go
+go run github.com/operatorstack/yield/cmd/yskill@latest helper install --root . --language go
 ```
 
-The builder can start from a description. It can also convert an existing
-`SKILL.md`. It writes the workflow, runs `doctor --test`, allows two repair
-attempts, registers adapters, and verifies them.
+Review the printed files and commands, approve the plan, then restart the
+coding agent. The optional `yield-workflow-builder` can teach the primitives
+and guide create, convert, check, repair, upgrade, and register operations.
 
-The workflow remains under `skills/`. Generated agent adapters contain only
-the commands that start and resume it.
-
-## Advanced: build manually
-
-Use [`yskill init`](reference/cli.md#init) when you want to write the program
-and fixtures yourself. See the [primitive guides](primitives/README.md) and
-[working examples](examples.md).
+`yskill bootstrap` and `npm create @operatorstack/yield@latest` remain
+compatibility aliases.

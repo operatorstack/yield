@@ -41,13 +41,14 @@ Yield does not replace skills. It gives repeatable skill behavior an
 executable boundary that can be tested, paused, resumed, and exposed to more
 than one coding agent.
 
-## Build one with a coding agent
+## Optional developer helper
 
-`yskill bootstrap` installs the `yield-workflow-builder` skill workflow. The
-builder accepts a description or an existing `SKILL.md`. It extracts the
-control flow, writes one language implementation, runs its fixture, repairs at
-most twice, and verifies the generated adapters. It refuses success when any
-verification step is missing.
+After learning the manual workflow, run `yskill helper install` to add the
+optional `yield-workflow-builder`. Package installation alone does not add it.
+The helper can teach the primitives and guide create, convert, check, repair,
+upgrade, and register operations. It previews mutations and requests approval,
+repairs at most twice, and requires workflow and adapter verification before
+success.
 
 Next: [create your first skill workflow](quickstart.md) or [register an
 existing one](agent-setup.md).

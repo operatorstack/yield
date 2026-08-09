@@ -30,27 +30,7 @@
 The crate and library names are both `yieldskill`. The installed command is
 `yskill`.
 
-## Start with your coding agent
-
-```bash
-cargo install yieldskill --root .yield --locked
-.yield/bin/yskill bootstrap --root . --language rust
-```
-
-Review and confirm the plan. Restart your coding agent. Then ask it to create
-a new skill workflow:
-
-```text
-Use Yield to create a tested skill workflow for releasing my package.
-```
-
-To convert an existing `SKILL.md`, ask:
-
-```text
-Use Yield to convert my existing release SKILL.md into a tested skill workflow.
-```
-
-## Advanced: build manually
+## Create a workflow
 
 ### 1. Install Yield
 
@@ -251,6 +231,19 @@ operation. Cross those boundaries through a Yield operation instead.
 
 Yield is not a daemon, hosted runtime, workflow DSL, marketplace, coding-agent
 loop, multi-agent orchestrator, or security sandbox.
+
+## Optional developer helper
+
+Installing `yieldskill` does not create skills or coding-agent adapters. After
+learning the manual workflow above, install guided assistance explicitly:
+
+```bash
+.yield/bin/yskill helper install --root . --language rust
+```
+
+Review the plan and restart the coding agent after installation. The helper
+can teach, create, convert, check, repair, upgrade, and register workflows.
+`yskill bootstrap` remains a compatibility alias.
 
 ## Coding agents and source
 

@@ -29,26 +29,7 @@
 The Go module is `github.com/operatorstack/yield`. Import the SDK as
 `github.com/operatorstack/yield/sdk/yield`. The installed command is `yskill`.
 
-## Start with your coding agent
-
-```bash
-go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --root . --language go
-```
-
-Review and confirm the plan. Restart your coding agent. Then ask it to create
-a new skill workflow:
-
-```text
-Use Yield to create a tested skill workflow for releasing my package.
-```
-
-To convert an existing `SKILL.md`, ask:
-
-```text
-Use Yield to convert my existing release SKILL.md into a tested skill workflow.
-```
-
-## Advanced: build manually
+## Create a workflow
 
 ### 1. Install Yield
 
@@ -322,6 +303,19 @@ operation. Cross those boundaries through a Yield operation instead.
 Yield is not a daemon, hosted runtime, workflow DSL, marketplace, coding-agent
 replacement, or permission sandbox. Your operating system, repository, and
 coding-agent permissions remain the security boundary.
+
+## Optional developer helper
+
+Installing the Go runtime does not create skills or coding-agent adapters.
+After learning the manual workflow above, install guided assistance explicitly:
+
+```bash
+.yield/bin/yskill helper install --root . --language go
+```
+
+Review the plan and restart the coding agent after installation. The helper
+can teach, create, convert, check, repair, upgrade, and register workflows.
+`yskill bootstrap` remains a compatibility alias.
 
 ## Coding-agent support
 

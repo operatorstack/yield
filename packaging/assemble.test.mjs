@@ -49,10 +49,12 @@ test("assembles two public npm packages and six matching npm and Python runtimes
   assert.equal(initializer.version, "1.2.3")
   assert.equal(initializer.dependencies["@operatorstack/yield"], "1.2.3")
   assert.equal(initializer.publishConfig.provenance, true)
+  assert.equal(main.scripts?.postinstall, undefined)
+  assert.equal(initializer.scripts?.postinstall, undefined)
   assert.match(await readFile(join(output, "npm/create-yield/LICENSE"), "utf8"), /MIT License/)
   assert.match(
     await readFile(join(output, "npm/create-yield/bin/create-yield.mjs"), "utf8"),
-    /bootstrap/,
+    /helper", "install/,
   )
   const initializerPack = JSON.parse(
     execFileSync("npm", ["pack", "--dry-run", "--json"], {
@@ -77,6 +79,9 @@ test("assembles two public npm packages and six matching npm and Python runtimes
   assert.match(assembledReadme, /<h1 align="center">Yield<\/h1>/)
   assert.match(await readFile(join(output, "npm/yield/LICENSE"), "utf8"), /MIT License/)
   await assert.rejects(access(join(output, "npm/yield/skills/release-yield")), { code: "ENOENT" })
+  await assert.rejects(access(join(output, "npm/yield/skills/yield-workflow-builder")), {
+    code: "ENOENT",
+  })
   await assert.rejects(access(join(output, "npm/yield/.agents")), { code: "ENOENT" })
   await assert.rejects(access(join(output, "npm/yield/.cursor")), { code: "ENOENT" })
   await assert.rejects(access(join(output, "npm/yield/.claude")), { code: "ENOENT" })
@@ -110,6 +115,9 @@ test("assembles two public npm packages and six matching npm and Python runtimes
     assert.match(await readFile(join(pythonRoot, "pyproject.toml"), "utf8"), /version = "1\.2\.3"/)
     assert.match(await readFile(join(pythonRoot, "setup.py"), "utf8"), new RegExp(target.pythonTag))
     assert.match(await readFile(join(pythonRoot, "LICENSE"), "utf8"), /MIT License/)
+    await assert.rejects(access(join(pythonRoot, "skills/yield-workflow-builder")), {
+      code: "ENOENT",
+    })
     const pythonRuntime = target.goos === "windows" ? "yskill.exe" : "yskill"
     assert.equal(
       await readFile(join(pythonRoot, "yieldskill/_runtime", pythonRuntime), "utf8"),
@@ -127,6 +135,9 @@ test("assembles two public npm packages and six matching npm and Python runtimes
       /installed automatically by `yieldskill`/,
     )
     assert.match(await readFile(join(rustRoot, "LICENSE"), "utf8"), /MIT License/)
+    await assert.rejects(access(join(rustRoot, "skills/yield-workflow-builder")), {
+      code: "ENOENT",
+    })
     const rustRuntime = target.goos === "windows" ? "yskill.exe" : "yskill"
     assert.equal((await stat(join(rustRoot, "runtime", rustRuntime))).mode & 0o111, 0)
   }

@@ -370,32 +370,32 @@ test("README and quickstart use the public documentation and package registries"
     docsIndex,
     /\[public documentation\]\(https:\/\/yield\.operatorstack\.systems\/docs\/\)/,
   )
-  const commands = [
-    "npm create @operatorstack/yield@latest",
-    "uvx --from yieldskill yskill bootstrap --language python",
-    ".yield/bin/yskill bootstrap --root . --language rust",
-    "go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --root . --language go",
+  const helperCommands = [
+    "npm exec -- yskill helper install --language typescript",
+    "uvx --from yieldskill yskill helper install --language python",
+    ".yield/bin/yskill helper install --root . --language rust",
+    "go run github.com/operatorstack/yield/cmd/yskill@latest helper install --root . --language go",
   ]
-  for (const command of commands) {
+  for (const command of helperCommands) {
     assert.ok(readme.includes(command), `README is missing ${command}`)
     assert.ok(quickstart.includes(command), `quickstart is missing ${command}`)
     assert.ok(agentSetup.includes(command), `agent setup is missing ${command}`)
   }
   assert.doesNotMatch(quickstart, /get\.operatorstack\.systems\/npm|@operatorstack\/yield@0\./)
-  const createRequest = "Use Yield to create a tested skill workflow for releasing my package."
-  const convertRequest =
-    "Use Yield to convert my existing release SKILL.md into a tested skill workflow."
-  for (const document of [readme, quickstart, agentSetup, pythonReadme, rustReadme, goReadme]) {
+  for (const document of [readme, quickstart, pythonReadme, rustReadme, goReadme]) {
     assert.ok(
-      document.includes(createRequest),
-      "agent-first documentation is missing the create request",
-    )
-    assert.ok(
-      document.includes(convertRequest),
-      "agent-first documentation is missing the convert request",
+      document.indexOf("Install Yield") < document.indexOf("Optional developer helper") ||
+        document.indexOf("Install Yield") <
+          document.indexOf("Optional: install the developer helper"),
+      "documentation must teach the manual workflow before the optional helper",
     )
   }
-  assert.match(quickstart, /^## Advanced: build manually$/m)
+  assert.match(readme, /Package installation does not create skills or coding-agent adapters/)
+  assert.match(
+    quickstart,
+    /Package installation alone never\s+creates a skill or coding-agent adapter/,
+  )
+  assert.match(quickstart, /^## Optional: install the developer helper$/m)
   assert.match(agentSetup, /^## Run the registered skill$/m)
 })
 

@@ -69,26 +69,27 @@ Use the review skill to check the current branch.
 The host owns how the request is presented. The generated adapter starts the
 canonical workflow under `skills/review`; it does not contain a second copy.
 
-## Set up the workflow builder
+## Optional: set up the developer helper
 
-Run the native bootstrap command from the repository root:
+Package installation does not create skills or adapters. After using the
+manual workflow, install the guided helper explicitly from the repository root:
 
 ```bash
 # TypeScript
-npm create @operatorstack/yield@latest
+npm exec -- yskill helper install --language typescript
 
 # Python
-uvx --from yieldskill yskill bootstrap --language python
+uvx --from yieldskill yskill helper install --language python
 
 # Rust
 cargo install yieldskill --root .yield --locked
-.yield/bin/yskill bootstrap --root . --language rust
+.yield/bin/yskill helper install --root . --language rust
 
 # Go
-go run github.com/operatorstack/yield/cmd/yskill@latest bootstrap --root . --language go
+go run github.com/operatorstack/yield/cmd/yskill@latest helper install --root . --language go
 ```
 
-Bootstrap shows every proposed change. Confirm the plan. Restart the coding
+The installer shows every proposed change. Confirm the plan. Restart the coding
 agent after registration. To create a new skill workflow, ask:
 
 ```text
@@ -101,8 +102,13 @@ To convert an existing `SKILL.md`, ask:
 Use Yield to convert my existing release SKILL.md into a tested skill workflow.
 ```
 
-The builder collects the specification, writes the skill workflow, runs its
-fixture, allows two repair attempts, registers adapters, and verifies them.
+The helper can teach, create, convert, check, repair, upgrade, and register.
+Before a mutation it explains the primitive, previews exact files and commands,
+and asks for approval. It allows two repair attempts and verifies the workflow
+and adapters.
+
+`yskill bootstrap` and `npm create @operatorstack/yield@latest` remain
+compatibility aliases.
 
 ## Questions and agent results
 
