@@ -59,7 +59,7 @@ const runtimeCases = [
     "changed source is refused until the user accepts the change",
   ],
 ]
-const workflowRuntimeVersion = "0.3.0"
+const workflowRuntimeVersion = "0.5.0"
 const excludedDirectories = new Set([
   ".git",
   ".yield",
