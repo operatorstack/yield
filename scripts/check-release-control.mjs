@@ -86,8 +86,10 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   )
   expect(
     verify.jobs?.examples?.name === "Example workflows" &&
-      raw["verify.yml"].includes('version="${base_tag#v}"'),
-    "example verification must stay pinned to the latest released Yield version",
+      raw["verify.yml"].includes("find examples -name skill.json") &&
+      raw["verify.yml"].includes('version="$required"') &&
+      !raw["verify.yml"].includes("base_tag="),
+    "example verification must use the version declared by the frozen fixtures",
   )
   expect(
     !raw["verify.yml"].includes("evals/scripts/run.mjs") &&

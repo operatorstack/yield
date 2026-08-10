@@ -168,9 +168,16 @@ jobs:
       - run: npm ci --ignore-scripts
       - name: Run every example fixture
         run: |
-          base_tag="$(git tag --merged HEAD --list 'v[0-9]*' --sort=-v:refname | head -n1)"
-          test -n "$base_tag"
-          version="${base_tag#v}"
+          version=""
+          while IFS= read -r manifest; do
+            required="$(jq -er '.yield_version | select(type == "string" and length > 0)' "$manifest")"
+            if [[ -z "$version" ]]; then
+              version="$required"
+            else
+              test "$required" = "$version"
+            fi
+          done < <(find examples -name skill.json -type f -print | sort)
+          test -n "$version"
           go build -ldflags "-X main.version=$version" -o "$RUNNER_TEMP/yskill" ./cmd/yskill
           "$RUNNER_TEMP/yskill" test examples/investigate
           "$RUNNER_TEMP/yskill" test examples/release-checklist
