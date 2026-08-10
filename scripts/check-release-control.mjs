@@ -222,6 +222,12 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
     "npm publisher must publish the verified archive, not a directory",
   )
   expect(
+    raw["npm-publish.yml"].includes(
+      'npm publish "dist/release-unit/npm/${file}" --registry="$AR_NPM_URL" --provenance=false',
+    ),
+    "private npm mirroring must disable public-registry provenance",
+  )
+  expect(
     raw["npm-publish.yml"].indexOf("Publish SDK and CLI") <
       raw["npm-publish.yml"].indexOf("Publish npm initializer"),
     "the SDK package must publish before the initializer",
@@ -355,31 +361,8 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
     "crates.io publishing must not use a bootstrap token",
   )
   for (const [name, text] of Object.entries(raw)) {
-    let credentialSurface = text
-    if (name === "npm-publish.yml") {
-      const initializerStart = text.indexOf("      - name: Publish npm initializer")
-      const initializerEnd = text.indexOf("      - name: Verify complete npm release unit")
-      expect(
-        initializerStart >= 0 && initializerEnd > initializerStart,
-        "npm bootstrap credential must be confined to the initializer step",
-      )
-      const initializer = text.slice(initializerStart, initializerEnd)
-      expect(
-        initializer.includes("NPM_TOKEN: ${{ secrets.NPM_TOKEN }}"),
-        "the initializer bootstrap credential must be explicitly scoped",
-      )
-      expect(
-        initializer.includes(
-          'NODE_AUTH_TOKEN="$NPM_TOKEN" npm publish "dist/release-unit/npm/${file}"',
-        ),
-        "the bootstrap credential must authenticate only the verified initializer archive",
-      )
-      credentialSurface = text.slice(0, initializerStart) + text.slice(initializerEnd)
-    }
     expect(
-      !/NPM_TOKEN|NODE_AUTH_TOKEN|PYPI_TOKEN|secrets\.(npm|pypi)|password:/i.test(
-        credentialSurface,
-      ),
+      !/NPM_TOKEN|NODE_AUTH_TOKEN|PYPI_TOKEN|secrets\.(npm|pypi)|password:/i.test(text),
       `${name}: long-lived registry credentials are forbidden`,
     )
   }

@@ -209,7 +209,6 @@ jobs:
         env:
           DIST_TAG: ${{ needs.resolve.outputs.dist_tag }}
           VERSION: ${{ needs.resolve.outputs.version }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
@@ -217,11 +216,7 @@ jobs:
             echo "@operatorstack/create-yield@${VERSION} already exists"
           else
             file="$(jq -r '.archives[] | select(.name == "@operatorstack/create-yield") | .file' dist/release-unit/npm/npm-release.json)"
-            if [[ -n "${NPM_TOKEN:-}" ]]; then
-              NODE_AUTH_TOKEN="$NPM_TOKEN" npm publish "dist/release-unit/npm/${file}" --tag "$DIST_TAG"
-            else
-              npm publish "dist/release-unit/npm/${file}" --tag "$DIST_TAG"
-            fi
+            npm publish "dist/release-unit/npm/${file}" --tag "$DIST_TAG"
           fi
       - name: Verify complete npm release unit
         env:
@@ -462,7 +457,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -r '.missing.npm[].file' "$RUNNER_TEMP/private-mirror-status.json" | while read -r file; do
-            npm publish "dist/release-unit/npm/${file}" --registry="$AR_NPM_URL"
+            npm publish "dist/release-unit/npm/${file}" --registry="$AR_NPM_URL" --provenance=false
           done
       - name: Mirror exact Python wheels
         if: steps.remote.outputs.python_state != 'matched'
