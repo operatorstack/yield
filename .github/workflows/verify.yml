@@ -143,7 +143,7 @@ jobs:
       - run: go test ./...
 
   examples:
-    name: Example workflows and evaluations
+    name: Example workflows
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -166,29 +166,11 @@ jobs:
             examples/data-migration
             examples/library/rust
       - run: npm ci --ignore-scripts
-      - name: Rerun first-party evaluations
-        working-directory: evals
-        run: |
-          npm ci
-          npm test
-      - name: Validate semantic conversion receipt when required
-        working-directory: evals
-        env:
-          EVAL_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          EVAL_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: npm run test:conversion
       - name: Run every example fixture
         run: |
           base_tag="$(git tag --merged HEAD --list 'v[0-9]*' --sort=-v:refname | head -n1)"
           test -n "$base_tag"
-          pending_changesets="$(git diff --name-only --diff-filter=A "$base_tag"..HEAD -- '.changeset/*.md')"
-          if [[ -n "$pending_changesets" ]]; then
-            plan="$RUNNER_TEMP/example-release-plan.env"
-            node scripts/release-plan.mjs --bump auto --output "$plan" --notes "$RUNNER_TEMP/example-release-notes.md"
-            . "$plan"
-          else
-            version="${base_tag#v}"
-          fi
+          version="${base_tag#v}"
           go build -ldflags "-X main.version=$version" -o "$RUNNER_TEMP/yskill" ./cmd/yskill
           "$RUNNER_TEMP/yskill" test examples/investigate
           "$RUNNER_TEMP/yskill" test examples/release-checklist

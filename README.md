@@ -192,13 +192,13 @@ Registration is the discovery step. This command detects installed verified
 agents and writes a small adapter for each one:
 
 ```bash
-npm exec -- yskill register skills/release
+npm exec -- yskill register skills/release --root .
 ```
 
 Select verified agents explicitly when you do not want automatic detection:
 
 ```bash
-npm exec -- yskill register skills/release \
+npm exec -- yskill register skills/release --root . \
   --agent cursor,codex,claude-code
 ```
 
@@ -239,8 +239,8 @@ helper:
 
 | Language   | Command                                                                                                             |
 | ---------- | ------------------------------------------------------------------------------------------------------------------- |
-| TypeScript | `npm exec -- yskill helper install --language typescript`                                                           |
-| Python     | `python -m yieldskill helper install --language python`                                                             |
+| TypeScript | `npm exec -- yskill helper install --root . --language typescript`                                                  |
+| Python     | `python -m yieldskill helper install --root . --language python`                                                    |
 | Rust       | `cargo install yieldskill --root .yield --locked`, then `.yield/bin/yskill helper install --root . --language rust` |
 | Go         | `go run github.com/operatorstack/yield/cmd/yskill@latest helper install --root . --language go`                     |
 

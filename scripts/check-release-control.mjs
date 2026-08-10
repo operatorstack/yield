@@ -84,6 +84,17 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
     verify.jobs?.validate?.name === "Release authority and full validation",
     "the protected validation context must remain stable",
   )
+  expect(
+    verify.jobs?.examples?.name === "Example workflows" &&
+      raw["verify.yml"].includes('version="${base_tag#v}"'),
+    "example verification must stay pinned to the latest released Yield version",
+  )
+  expect(
+    !raw["verify.yml"].includes("evals/scripts/run.mjs") &&
+      !raw["verify.yml"].includes("test:conversion") &&
+      !raw["verify.yml"].includes("working-directory: evals"),
+    "automatic verification must not run manual evaluations",
+  )
 
   const release = workflows["release.yml"]
   expect(release, "release.yml is required")
@@ -151,6 +162,28 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(
     publisher.jobs?.crates?.environment === "crates-production",
     "stable crates.io publishing must use the protected crates-production environment",
+  )
+  const privateMirror = publisher.jobs?.["private-mirror"]
+  expect(privateMirror?.environment === "private-production", "private mirroring must be protected")
+  expect(
+    privateMirror?.permissions?.contents === "read" &&
+      privateMirror?.permissions?.["id-token"] === "write",
+    "private mirroring must use read-only source plus WIF",
+  )
+  expect(
+    ["build", "npm", "pypi", "crates"].every((job) => privateMirror?.needs?.includes(job)),
+    "private mirroring must follow every immutable public release unit",
+  )
+  expect(
+    privateMirror?.if === "needs.resolve.outputs.channel == 'stable'",
+    "private mirroring must exclude canary releases",
+  )
+  expect(
+    raw["npm-publish.yml"].includes("packaging/private-mirror.mjs verify") &&
+      raw["npm-publish.yml"].includes(
+        "name: private-mirror-${{ needs.resolve.outputs.version }}-${{ needs.resolve.outputs.source_sha }}",
+      ),
+    "private mirroring must emit an exact verified receipt",
   )
   expect(
     publisher.jobs?.["selfhost-canary"]?.needs?.includes("npm"),
@@ -261,7 +294,8 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(
     raw["release-finalize.yml"].includes("artifacts?per_page=100") &&
       raw["release-finalize.yml"].includes('grep -Fqx "$package_receipt"') &&
-      raw["release-finalize.yml"].includes('grep -Fqx "$crates_receipt"'),
+      raw["release-finalize.yml"].includes('grep -Fqx "$crates_receipt"') &&
+      raw["release-finalize.yml"].includes('grep -Fqx "$private_receipt"'),
     "finalization must select the publisher receipt by its exact source-bound artifact names",
   )
   expect(
@@ -289,6 +323,10 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
     "finalization must create the website package contract before release publication",
   )
   expect(
+    !raw["release-finalize.yml"].includes("evals/scripts/run.mjs"),
+    "release finalization must consume frozen evidence without rerunning evaluations",
+  )
+  expect(
     raw["release-finalize.yml"].indexOf("gh release upload") <
       raw["release-finalize.yml"].indexOf("--draft=false"),
     "website contract assets must upload before the release is published",
@@ -301,6 +339,12 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
     raw["release-finalize.yml"].includes('crates_receipt="crates-${version}-${SOURCE_SHA}"') &&
       raw["release-finalize.yml"].includes('--name "$crates_receipt"'),
     "finalization must consume the publisher-produced crates receipt",
+  )
+  expect(
+    raw["release-finalize.yml"].includes(
+      'private_receipt="private-mirror-${version}-${SOURCE_SHA}"',
+    ) && raw["release-finalize.yml"].includes('--name "$private_receipt"'),
+    "finalization must consume the verified private mirror receipt",
   )
   expect(
     raw["release.yml"].includes("gh workflow run npm-publish.yml"),

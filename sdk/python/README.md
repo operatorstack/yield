@@ -143,14 +143,14 @@ fixture. A successful test reaches `completed` without leaving a run journal.
 Registration lets installed coding agents discover the workflow:
 
 ```bash
-python -m yieldskill register skills/env-doctor
+python -m yieldskill register skills/env-doctor --root .
 ```
 
 Select the verified agents explicitly when you do not want automatic
 detection:
 
 ```bash
-python -m yieldskill register skills/env-doctor \
+python -m yieldskill register skills/env-doctor --root . \
   --agent cursor,codex,claude-code
 ```
 
@@ -229,7 +229,7 @@ Installing `yieldskill` does not create skills or coding-agent adapters. After
 learning the manual workflow above, install guided assistance explicitly:
 
 ```bash
-python -m yieldskill helper install --language python
+python -m yieldskill helper install --root . --language python
 ```
 
 Review the plan and restart the coding agent after installation. The helper

@@ -27,5 +27,5 @@ The command pins third-party formatter versions. Go and Rust use the repository
 toolchain versions. GitHub Actions runs the check and does not rewrite files.
 
 The formatter skips generated files. It also skips evaluation sources whose
-exact bytes belong to a committed receipt. Run the relevant generator or
-evaluation when you change those sources.
+exact bytes belong to a committed receipt. Evaluation receipts remain frozen
+until an evaluation is intentionally run and reviewed.

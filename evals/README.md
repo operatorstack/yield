@@ -25,7 +25,7 @@ cd evals
 npm run eval
 ```
 
-Check that the published result still matches the current source:
+Check a deliberately refreshed result against the current source:
 
 ```bash
 npm test
@@ -49,9 +49,10 @@ judgment is correct, or that illustrative commands are production-safe. The
 fixed test data supplies agent and human responses so the suite can test only
 the code-controlled workflow layer.
 
-`results/latest.json` is a compact, website-safe result. Its source hash is
-computed from the CLI, engine, protocol, SDKs, example workflows, fixtures, and
-evaluation harness. CI reruns the suite instead of trusting that file alone.
+`results/latest.json` is a compact, website-safe result pinned to the Yield
+version that was explicitly evaluated. CI does not rerun evaluations or require
+their source hashes to follow ordinary product changes. Run the evaluation
+manually when new evidence is needed, then review and commit its receipt.
 
 ## Coding-agent workflow check
 

@@ -205,7 +205,7 @@ func cmdRegisterAll(args []string) error {
 		if launcherErr != nil {
 			return launcherErr
 		}
-		content := renderAdapter(metadata, sourceRel, digest, launcher)
+		content := renderAdapter(metadata, sourceRel, digest, launcher, manifest.Language)
 		for _, agent := range selectedAgents {
 			path := filepath.Join(repoRoot, filepath.FromSlash(agent.ProjectDir), metadata.Name, "SKILL.md")
 			plan := plansByPath[path]
@@ -345,7 +345,7 @@ func registerSkill(skillArg, rootArg string, requested []string) ([]registration
 			return nil, err
 		}
 	}
-	content := renderAdapter(metadata, sourceRel, digest, launcher)
+	content := renderAdapter(metadata, sourceRel, digest, launcher, manifest.Language)
 	byDestination := map[string][]string{}
 	for _, agent := range selected {
 		destination := filepath.Join(repoRoot, filepath.FromSlash(agent.ProjectDir), metadata.Name, "SKILL.md")
@@ -687,12 +687,16 @@ func verifyLocalRuntime(path, expected, language string) error {
 }
 
 func localRuntimeInstallCommand(language, expected string) string {
+	return localRuntimeInstallCommandFor(language, expected, runtime.GOOS)
+}
+
+func localRuntimeInstallCommandFor(language, expected, goos string) string {
 	switch language {
 	case "go":
-		if runtime.GOOS == "windows" {
-			return fmt.Sprintf(`New-Item -ItemType Directory -Force .yield\bin | Out-Null; $env:GOBIN="$PWD\.yield\bin"; $env:GOPROXY="https://get.operatorstack.systems/go,direct"; go install github.com/operatorstack/yield/cmd/yskill@v%s`, expected)
+		if goos == "windows" {
+			return fmt.Sprintf(`New-Item -ItemType Directory -Force .yield\bin | Out-Null; $env:GOBIN="$PWD\.yield\bin"; $env:GOPROXY="https://proxy.golang.org,direct"; go install github.com/operatorstack/yield/cmd/yskill@v%s`, expected)
 		}
-		return fmt.Sprintf(`mkdir -p .yield/bin && GOBIN="$PWD/.yield/bin" GOPROXY=https://get.operatorstack.systems/go,direct go install github.com/operatorstack/yield/cmd/yskill@v%s`, expected)
+		return fmt.Sprintf(`mkdir -p .yield/bin && GOBIN="$PWD/.yield/bin" GOPROXY=https://proxy.golang.org,direct go install github.com/operatorstack/yield/cmd/yskill@v%s`, expected)
 	case "rust":
 		return fmt.Sprintf(`cargo install yieldskill@%s --root .yield --locked`, expected)
 	default:
@@ -799,8 +803,52 @@ func shellQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'"
 }
 
-func renderAdapter(metadata skillMetadata, sourceRel, digest, launcher string) string {
+func renderAdapter(metadata skillMetadata, sourceRel, digest, launcher, language string) string {
 	path := shellQuote(sourceRel)
+	if language == "go" || language == "rust" {
+		posixInstall := localRuntimeInstallCommandFor(language, runtimeVersion(), "linux")
+		windowsInstall := localRuntimeInstallCommandFor(language, runtimeVersion(), "windows")
+		return fmt.Sprintf(`---
+name: %s
+description: %s
+---
+
+%s%s; digest: %s; version: %s -->
+
+This adapter exposes the canonical Yield workflow at %s.
+Read its SKILL.md, then run from the repository root.
+
+On macOS or Linux, if .yield/bin/yskill is missing, run:
+
+    %s
+
+Then start or resume the workflow with .yield/bin/yskill.
+
+On Windows PowerShell, if .yield\bin\yskill.exe is missing, run:
+
+    %s
+
+Then start or resume the workflow with .\.yield\bin\yskill.exe.
+
+Start the workflow:
+
+    .yield/bin/yskill run %s
+
+On Windows PowerShell use:
+
+    .\.yield\bin\yskill.exe run %s
+
+If installation was required, retry the matching run command above.
+Follow each returned operation exactly. Answer each operation directly with
+the same launcher:
+
+    <launcher> respond <run-id> --value <answer> --skill %s
+
+For structured agent results, use --result-json instead of --value.
+
+Do not skip an operation or invent its response.
+`, metadata.Name, yamlString(metadata.Description), generatedAdapterPrefix, sourceRel, digest, runtimeVersion(), "`"+sourceRel+"`", posixInstall, windowsInstall, path, path, path)
+	}
 	return fmt.Sprintf(`---
 name: %s
 description: %s

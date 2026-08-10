@@ -26,6 +26,16 @@ var tidyGoModule = func(dir string) error {
 	return nil
 }
 
+var generateRustLockfile = func(dir string) error {
+	cmd := exec.Command("cargo", "generate-lockfile", "--manifest-path", filepath.Join(dir, "Cargo.toml"))
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("prepare Rust scaffold dependencies: %w", err)
+	}
+	return nil
+}
+
 func defaultLanguage() string {
 	if language := strings.TrimSpace(os.Getenv("YIELD_LANGUAGE")); language != "" {
 		return language
@@ -143,6 +153,16 @@ func scaffoldSkill(dir, language, sdkPath, description string) error {
 	}
 	if language == "go" {
 		if err := tidyGoModule(dir); err != nil {
+			return err
+		}
+	}
+	if language == "rust" {
+		lockfile := filepath.Join(dir, "Cargo.lock")
+		if _, err := os.Stat(lockfile); os.IsNotExist(err) {
+			if err := generateRustLockfile(dir); err != nil {
+				return err
+			}
+		} else if err != nil {
 			return err
 		}
 	}

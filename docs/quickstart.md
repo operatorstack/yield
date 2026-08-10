@@ -49,8 +49,8 @@ This runs the fixture to a terminal outcome without leaving a run journal.
 ## 4. Register it
 
 ```bash
-npm exec -- yskill register skills/release
-npm exec -- yskill doctor skills/release --agent codex,cursor,claude-code --test
+npm exec -- yskill register skills/release --root .
+npm exec -- yskill doctor skills/release --root . --agent codex,cursor,claude-code --test
 ```
 
 Registration creates only small discovery adapters. The canonical workflow,
@@ -71,10 +71,10 @@ After learning the manual flow, install guided assistance explicitly:
 
 ```bash
 # TypeScript
-npm exec -- yskill helper install --language typescript
+npm exec -- yskill helper install --root . --language typescript
 
 # Python
-python -m yieldskill helper install --language python
+python -m yieldskill helper install --root . --language python
 
 # Rust
 .yield/bin/yskill helper install --root . --language rust

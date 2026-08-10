@@ -414,6 +414,45 @@ func TestRepositoryRuntimeRejectsMissingAndWrongVersions(t *testing.T) {
 	}
 }
 
+func TestLocalRuntimeRecoveryUsesPublicRegistries(t *testing.T) {
+	goUnix := localRuntimeInstallCommandFor("go", "0.5.1", "linux")
+	goWindows := localRuntimeInstallCommandFor("go", "0.5.1", "windows")
+	for _, command := range []string{goUnix, goWindows} {
+		if !strings.Contains(command, "https://proxy.golang.org,direct") || !strings.Contains(command, "@v0.5.1") {
+			t.Fatalf("Go recovery is not public and exact: %s", command)
+		}
+		if strings.Contains(command, "get.operatorstack.systems") {
+			t.Fatalf("Go recovery still uses the private mirror: %s", command)
+		}
+	}
+	if got := localRuntimeInstallCommandFor("rust", "0.5.1", "windows"); got != "cargo install yieldskill@0.5.1 --root .yield --locked" {
+		t.Fatalf("Rust recovery = %q", got)
+	}
+}
+
+func TestGeneratedLocalRuntimeAdapterIsPortableAndActionable(t *testing.T) {
+	previousVersion := version
+	version = "0.5.1"
+	t.Cleanup(func() { version = previousVersion })
+	adapter := renderAdapter(
+		skillMetadata{Name: "safe-change", Description: "Check a safe change."},
+		"skills/safe-change",
+		"sha256:test",
+		".yield/bin/yskill",
+		"rust",
+	)
+	for _, want := range []string{
+		"cargo install yieldskill@0.5.1 --root .yield --locked",
+		".yield/bin/yskill run 'skills/safe-change'",
+		`.\.yield\bin\yskill.exe run 'skills/safe-change'`,
+		"If installation was required, retry",
+	} {
+		if !strings.Contains(adapter, want) {
+			t.Fatalf("adapter missing %q:\n%s", want, adapter)
+		}
+	}
+}
+
 func TestLocalStateIgnoreFileCoversRuntimeAndRuns(t *testing.T) {
 	repo := t.TempDir()
 	if err := ensureLocalStateIgnored(repo); err != nil {
