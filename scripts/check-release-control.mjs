@@ -84,6 +84,17 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
     verify.jobs?.validate?.name === "Release authority and full validation",
     "the protected validation context must remain stable",
   )
+  expect(
+    verify.jobs?.examples?.name === "Example workflows" &&
+      raw["verify.yml"].includes('version="${base_tag#v}"'),
+    "example verification must stay pinned to the latest released Yield version",
+  )
+  expect(
+    !raw["verify.yml"].includes("evals/scripts/run.mjs") &&
+      !raw["verify.yml"].includes("test:conversion") &&
+      !raw["verify.yml"].includes("working-directory: evals"),
+    "automatic verification must not run manual evaluations",
+  )
 
   const release = workflows["release.yml"]
   expect(release, "release.yml is required")
@@ -310,6 +321,10 @@ export async function checkReleaseControl(root = resolve(import.meta.dirname, ".
   expect(
     raw["release-finalize.yml"].includes("package-contract.mjs"),
     "finalization must create the website package contract before release publication",
+  )
+  expect(
+    !raw["release-finalize.yml"].includes("evals/scripts/run.mjs"),
+    "release finalization must consume frozen evidence without rerunning evaluations",
   )
   expect(
     raw["release-finalize.yml"].indexOf("gh release upload") <

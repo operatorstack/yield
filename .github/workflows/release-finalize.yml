@@ -146,7 +146,6 @@ jobs:
             --source-sha "$SOURCE_SHA" \
             --attempts 3 \
             --delay-ms 10000
-          node evals/scripts/run.mjs --check
           test "$(git rev-list -n 1 "$TAG")" = "$SOURCE_SHA"
           assets="$RUNNER_TEMP/release-assets"
           mkdir -p "$assets"
