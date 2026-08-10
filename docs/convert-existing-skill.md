@@ -9,7 +9,7 @@ Package installation does not add the helper. Install it explicitly for the
 project language. For example:
 
 ```bash
-npm exec -- yskill helper install --language typescript
+npm exec -- yskill helper install --root . --language typescript
 ```
 
 See the [quickstart](quickstart.md) for Python, Rust, and Go commands.

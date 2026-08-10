@@ -93,11 +93,14 @@ jobs:
           version="${TAG#v}"
           package_receipt="packages-${version}-${SOURCE_SHA}"
           crates_receipt="crates-${version}-${SOURCE_SHA}"
+          private_receipt="private-mirror-${version}-${SOURCE_SHA}"
           run_id=""
           while read -r candidate; do
             test -n "$candidate" || continue
             artifact_names="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/runs/${candidate}/artifacts?per_page=100" --jq '.artifacts[].name')"
-            if grep -Fqx "$package_receipt" <<< "$artifact_names" && grep -Fqx "$crates_receipt" <<< "$artifact_names"; then
+            if grep -Fqx "$package_receipt" <<< "$artifact_names" && \
+               grep -Fqx "$crates_receipt" <<< "$artifact_names" && \
+               grep -Fqx "$private_receipt" <<< "$artifact_names"; then
               run_id="$candidate"
               break
             fi
@@ -108,6 +111,18 @@ jobs:
             --name "$package_receipt" --dir "$RUNNER_TEMP/release-unit"
           gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
             --name "$crates_receipt" --dir "$RUNNER_TEMP/crates-receipt"
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
+            --name "$private_receipt" --dir "$RUNNER_TEMP/private-mirror"
+          jq -e \
+            --arg version "$version" --arg source_sha "$SOURCE_SHA" \
+            '.schema_version == 1 and .version == $version and .source_sha == $source_sha and
+             (.targets | length == 6) and
+             (.packages.npm | length == 8) and (.packages.python | length == 6) and
+             (.packages.go | length == 1) and (.packages.rust | length == 7) and
+             ([.states[]] | all(. == "matched")) and
+             ([.endpoints.npm, .endpoints.python, .endpoints.go,
+               .endpoints.rust_index, .endpoints.rust_download] | all(type == "string"))' \
+            "$RUNNER_TEMP/private-mirror/private-mirror.json"
           for package in \
             @operatorstack/yield \
             @operatorstack/create-yield \

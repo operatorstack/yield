@@ -76,10 +76,10 @@ manual workflow, install the guided helper explicitly from the repository root:
 
 ```bash
 # TypeScript
-npm exec -- yskill helper install --language typescript
+npm exec -- yskill helper install --root . --language typescript
 
 # Python
-python -m yieldskill helper install --language python
+python -m yieldskill helper install --root . --language python
 
 # Rust
 cargo install yieldskill --root .yield --locked

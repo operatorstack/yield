@@ -300,7 +300,7 @@ async function monitorController(values) {
 async function monitorPublisher(values) {
   const info = await waitRun(
     values["run-id"],
-    new Set(["npm-production", "pypi-production", "crates-production"]),
+    new Set(["npm-production", "pypi-production", "crates-production", "private-production"]),
   )
   return { run_id: String(info.databaseId), run_url: info.url, environments: info.environments }
 }

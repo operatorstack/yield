@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"io"
 	"os"
@@ -17,6 +18,16 @@ import (
 	"github.com/operatorstack/yield/internal/protocol"
 	"github.com/operatorstack/yield/internal/runlog"
 )
+
+func stubRustLockfile(t *testing.T) {
+	t.Helper()
+	previous := generateRustLockfile
+	generateRustLockfile = func(dir string) error {
+		writeTestFile(t, filepath.Join(dir, "Cargo.lock"), "version = 4\n")
+		return nil
+	}
+	t.Cleanup(func() { generateRustLockfile = previous })
+}
 
 func TestPrintProgressKeepsCompleteStructuredResult(t *testing.T) {
 	result := `{"summary":"` + strings.Repeat("x", 300) + `","count":42}`
@@ -168,6 +179,7 @@ func TestParseOnePositionalKeepsFlagFirstOrder(t *testing.T) {
 }
 
 func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
+	stubRustLockfile(t)
 	previousVersion := version
 	previousTidyGoModule := tidyGoModule
 	version = "0.1.9"
@@ -191,7 +203,7 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 		{"typescript", []string{"main.ts", "package.json", "skill.json"}, "npm exec -- yskill run .", `"@operatorstack/yield": "0.1.9"`, ""},
 		{"python", []string{"main.py", "requirements.txt", "skill.json"}, "python -m yieldskill run .", "yieldskill==0.1.9", ""},
 		{"go", []string{"main.go", "go.mod", "skill.json"}, "yskill run .", "github.com/operatorstack/yield v0.1.9", ""},
-		{"rust", []string{"src/main.rs", "Cargo.toml", "skill.json", ".gitignore"}, "yskill run .", `version = "=0.1.9"`, rustSkillGitignore},
+		{"rust", []string{"src/main.rs", "Cargo.toml", "Cargo.lock", "skill.json", ".gitignore"}, "yskill run .", `version = "=0.1.9"`, rustSkillGitignore},
 	}
 	for _, tt := range tests {
 		t.Run(tt.language, func(t *testing.T) {
@@ -263,6 +275,7 @@ func TestScaffoldSkillWritesLanguageSpecificEntrypoints(t *testing.T) {
 }
 
 func TestRustScaffoldPreservesExistingGitignore(t *testing.T) {
+	stubRustLockfile(t)
 	dir := filepath.Join(t.TempDir(), "safe-change")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -341,6 +354,7 @@ func TestShellQuoteForPlatform(t *testing.T) {
 }
 
 func TestRustScaffoldNamesPrimaryBinary(t *testing.T) {
+	stubRustLockfile(t)
 	previousVersion := version
 	version = "0.1.28"
 	t.Cleanup(func() { version = previousVersion })
@@ -358,6 +372,7 @@ func TestRustScaffoldRunsPrimaryBinaryWhenFixtureAddsAnotherBinary(t *testing.T)
 	if _, err := exec.LookPath("cargo"); err != nil {
 		t.Skip("cargo is not installed")
 	}
+	stubRustLockfile(t)
 	dir := filepath.Join(t.TempDir(), "safe-change")
 	if err := scaffoldSkill(dir, "rust", "", "Check a safe change before applying it."); err != nil {
 		t.Fatal(err)
@@ -400,6 +415,7 @@ func TestGoScaffoldCanResolveItsPinnedModuleOnFirstRun(t *testing.T) {
 }
 
 func TestLocalGoAndRustScaffoldsKeepTheInvokedRuntime(t *testing.T) {
+	stubRustLockfile(t)
 	previousVersion := version
 	previousTidyGoModule := tidyGoModule
 	previousExecutable := currentExecutable
@@ -435,6 +451,7 @@ func TestLocalGoAndRustScaffoldsKeepTheInvokedRuntime(t *testing.T) {
 }
 
 func TestRustScaffoldPinsTheInvokedRuntimeWithoutPrivateRegistryConfig(t *testing.T) {
+	stubRustLockfile(t)
 	previousVersion := version
 	previousExecutable := currentExecutable
 	previousInspect := inspectRuntimeVersion
@@ -515,8 +532,29 @@ func TestCmdInitRustScaffoldIsDoctorValid(t *testing.T) {
 	if err := cmdInit([]string{"--language", "rust", "--description", "Check a safe change before applying it.", dir}); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := os.Stat(filepath.Join(dir, "Cargo.lock")); err != nil {
+		t.Fatalf("Rust scaffold lockfile: %v", err)
+	}
 	if err := cmdDoctor([]string{dir, "--root", root}); err != nil {
 		t.Fatalf("doctor rejected Rust scaffold: %v", err)
+	}
+}
+
+func TestRustScaffoldPreservesExistingCargoLock(t *testing.T) {
+	previous := generateRustLockfile
+	generateRustLockfile = func(string) error {
+		return errors.New("lockfile generation must not run")
+	}
+	t.Cleanup(func() { generateRustLockfile = previous })
+
+	dir := filepath.Join(t.TempDir(), "safe-change")
+	const existing = "user-owned-lockfile\n"
+	writeTestFile(t, filepath.Join(dir, "Cargo.lock"), existing)
+	if err := scaffoldSkill(dir, "rust", "", "Check a safe change before applying it."); err != nil {
+		t.Fatal(err)
+	}
+	if got := readTestFile(t, filepath.Join(dir, "Cargo.lock")); got != existing {
+		t.Fatalf("existing Cargo.lock changed: %q", got)
 	}
 }
 
