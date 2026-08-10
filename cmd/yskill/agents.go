@@ -861,12 +861,11 @@ Read its SKILL.md, then run from the repository root:
 
     %s run %s
 
+	Follow each returned operation exactly. Answer each operation directly:
 
-Follow each returned operation exactly. Answer each operation directly:
+	    %s respond <run-id> --value <answer> --skill %s
 
-    %s respond <run-id> --value <answer> --skill %s
-
-For structured agent results, use --result-json instead of --value.
+	For structured agent results, use --result-json instead of --value.
 
 Do not skip an operation or invent its response.
 `, metadata.Name, yamlString(metadata.Description), generatedAdapterPrefix, sourceRel, digest, runtimeVersion(), "`"+sourceRel+"`", launcher, path, launcher, path)
