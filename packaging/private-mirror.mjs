@@ -170,12 +170,21 @@ async function remoteGo(manifest, base, fetchImpl) {
   if (response.status === 404) return []
   expect(response.ok, `private Go proxy returned HTTP ${response.status}`)
   const privateDigest = await responseSHA256(response)
-  const publicResponse = await fetchImpl(
-    `https://proxy.golang.org/github.com/operatorstack/yield/@v/v${manifest.version}.zip`,
-    { cache: "no-store" },
+  const modulePath = `github.com/operatorstack/yield/@v/v${manifest.version}.mod`
+  const [privateModule, publicModule] = await Promise.all([
+    fetchImpl(`${base}/go/${modulePath}`, { cache: "no-store" }),
+    fetchImpl(`https://proxy.golang.org/${modulePath}`, { cache: "no-store" }),
+  ])
+  expect(privateModule.ok, `private Go module metadata returned HTTP ${privateModule.status}`)
+  expect(publicModule.ok, `public Go module metadata returned HTTP ${publicModule.status}`)
+  const [privateModuleBytes, publicModuleBytes] = await Promise.all([
+    privateModule.arrayBuffer(),
+    publicModule.arrayBuffer(),
+  ])
+  expect(
+    Buffer.from(privateModuleBytes).equals(Buffer.from(publicModuleBytes)),
+    "private Go module metadata differs from the public module",
   )
-  const publicDigest = await responseSHA256(publicResponse)
-  expect(privateDigest === publicDigest, "private Go module zip differs from the public module")
   return [{ name: manifest.go.module, sha256: privateDigest }]
 }
 
