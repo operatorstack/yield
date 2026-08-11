@@ -81,6 +81,55 @@ func TestHelperInstallUsesBootstrapContract(t *testing.T) {
 	}
 }
 
+func TestHelperInfersCurrentDirectoryForTypeScriptAndPython(t *testing.T) {
+	for _, language := range []string{"typescript", "python"} {
+		t.Run(language, func(t *testing.T) {
+			withBootstrapTestState(t)
+			root := t.TempDir()
+			t.Chdir(root)
+			if err := cmdHelper([]string{"install", "--language", language, "--agent", "codex", "--dry-run"}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := os.Stat(filepath.Join(root, "skills")); !os.IsNotExist(err) {
+				t.Fatalf("helper dry run wrote skills directory: %v", err)
+			}
+			if err := cmdHelper([]string{"install", "--language", language, "--agent", "codex", "--yes"}); err != nil {
+				t.Fatal(err)
+			}
+			for _, path := range []string{
+				"skills/yield-workflow-builder/SKILL.md",
+				".agents/skills/yield-workflow-builder/SKILL.md",
+			} {
+				if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(path))); err != nil {
+					t.Fatalf("missing %s after helper install: %v", path, err)
+				}
+			}
+		})
+	}
+}
+
+func TestHelperAutoDetectsSupportedCurrentDirectoryAndRefusesAmbiguity(t *testing.T) {
+	withBootstrapTestState(t)
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "pyproject.toml"), "[project]\nname = 'example'\n")
+	t.Chdir(root)
+	plan, err := makeBootstrapPlan("", "", []string{"codex"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Root != resolvedRoot || plan.Language != "python" {
+		t.Fatalf("auto-detected plan = root %q language %q", plan.Root, plan.Language)
+	}
+	writeTestFile(t, filepath.Join(root, "package.json"), "{}\n")
+	if _, err := makeBootstrapPlan("", "", []string{"codex"}); err == nil || !strings.Contains(err.Error(), "multiple project languages") {
+		t.Fatalf("ambiguous current directory error = %v", err)
+	}
+}
+
 func TestBootstrapCancellationDoesNotWrite(t *testing.T) {
 	withBootstrapTestState(t)
 	bootstrapInput = bytes.NewBufferString("no\n")

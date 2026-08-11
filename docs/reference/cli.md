@@ -22,8 +22,10 @@ set. It installs and tests `skills/yield-workflow-builder`, registers the
 selected adapters, and verifies them.
 
 The installer stores local state under ignored `.yield/`. It refuses paths outside
-the repository, symlink escapes, existing destinations, and user-owned adapter
-files. Use `--root` for a directory that is not a Git repository.
+the project root, symlink escapes, existing destinations, and user-owned adapter
+files. TypeScript and Python use the current directory when no Git or local-runtime
+root exists. Go and Rust require their project-local runtime. `--root` overrides
+inference.
 
 The installer can change only these repository locations:
 
@@ -67,6 +69,8 @@ and run state remain in the canonical skill directory.
 Registration updates only adapters previously generated from the same source.
 It refuses user-owned files, workflows outside the repository, and canonical
 workflows stored inside a selected agent's discovery directory.
+For TypeScript and Python outside Git, the current directory is the project root
+and the workflow must be contained within it. `--root` overrides inference.
 
 ## `agents`
 
@@ -88,6 +92,8 @@ Checks the canonical skill workflow and package launcher. `--test` also runs the
 workflow against `fixtures/responses.json` without leaving a run journal.
 Adapter checks run only when `--agent` is supplied, and all adapter problems
 are reported together.
+For TypeScript and Python outside Git, adapter checks use the current directory
+when the workflow is contained within it.
 
 ## `version`
 
@@ -142,7 +148,8 @@ yskill register-all <skills-directory> --agent cursor,codex
 
 Registers every immediate skill workflow in one directory. It checks all names and
 destinations before writing. `--prune` removes only obsolete adapters generated
-from that workflow directory. Agent-facing names must be unique.
+from that workflow directory. Agent-facing names must be unique, and every workflow
+must resolve to the same project root.
 
 ## `inspect`
 

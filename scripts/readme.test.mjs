@@ -251,7 +251,7 @@ test("Python README presents a public five-step workflow", async () => {
   assert.match(readme, /python -m pip install yieldskill/)
   assert.match(readme, /python -m yieldskill init skills\/env-doctor/)
   assert.match(readme, /python -m yieldskill doctor skills\/env-doctor --test/)
-  assert.match(readme, /python -m yieldskill register skills\/env-doctor --root \./)
+  assert.match(readme, /python -m yieldskill register skills\/env-doctor/)
   assert.match(readme, /^\/env-doctor$/m)
   assert.match(
     readme,
@@ -371,8 +371,8 @@ test("README and quickstart use the public documentation and package registries"
     /\[public documentation\]\(https:\/\/yield\.operatorstack\.systems\/docs\/\)/,
   )
   const helperCommands = [
-    "npm exec -- yskill helper install --root . --language typescript",
-    "python -m yieldskill helper install --root . --language python",
+    "npm exec -- yskill helper install --language typescript",
+    "python -m yieldskill helper install --language python",
     ".yield/bin/yskill helper install --root . --language rust",
     "go run github.com/operatorstack/yield/cmd/yskill@latest helper install --root . --language go",
   ]

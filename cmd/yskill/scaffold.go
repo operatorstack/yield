@@ -172,13 +172,7 @@ func scaffoldSkill(dir, language, sdkPath, description string) error {
 	fmt.Printf("init: %s skill %q scaffolded in %s\n", language, name, dir)
 	fmt.Println("next: replace the starter program and fixtures with the described workflow")
 	fmt.Printf("test: %s doctor %s --test\n", launcher, workflow)
-	rootFlag := ""
-	if language == "typescript" || language == "python" {
-		if _, err := findRepoRoot(dir, ""); err != nil {
-			rootFlag = " --root ."
-		}
-	}
-	fmt.Printf("then: %s register %s%s\n", launcher, workflow, rootFlag)
+	fmt.Printf("then: %s register %s\n", launcher, workflow)
 	return nil
 }
 
