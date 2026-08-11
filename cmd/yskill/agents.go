@@ -116,7 +116,7 @@ func cmdRegister(args []string) error {
 	fs := flag.NewFlagSet("register", flag.ContinueOnError)
 	var agents agentListFlag
 	fs.Var(&agents, "agent", "agent id, comma-separated ids, or auto")
-	root := fs.String("root", "", "repository root (detected from .git by default)")
+	root := fs.String("root", "", "project root (inferred for supported layouts)")
 	if err := parseOnePositional(fs, args); err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func cmdRegisterAll(args []string) error {
 	fs := flag.NewFlagSet("register-all", flag.ContinueOnError)
 	var agents agentListFlag
 	fs.Var(&agents, "agent", "agent id, comma-separated ids, or auto")
-	root := fs.String("root", "", "repository root (detected from .git by default)")
+	root := fs.String("root", "", "project root (inferred for supported layouts)")
 	dryRun := fs.Bool("dry-run", false, "print the synchronization plan without writing")
 	prune := fs.Bool("prune", false, "remove obsolete generated adapters owned by this workflow directory")
 	if err := parseOnePositional(fs, args); err != nil {
@@ -195,6 +195,8 @@ func cmdRegisterAll(args []string) error {
 		if repoRoot == "" {
 			repoRoot, selected = resolvedRoot, selectedAgents
 			parentRel, _ = filepath.Rel(repoRoot, parent)
+		} else if resolvedRoot != repoRoot {
+			return fmt.Errorf("all workflows must resolve to the same project root: %s and %s", repoRoot, resolvedRoot)
 		}
 		usesLocalRuntime = usesLocalRuntime || manifest.Language == "go" || manifest.Language == "rust"
 		digest, digestErr := protocol.DigestSkillDir(skillDir)
@@ -377,17 +379,21 @@ func registrationInputs(skillArg, rootArg string, requested []string) (string, s
 	if err != nil {
 		return "", "", "", skillMetadata{}, skillManifest{}, agentRegistry{}, nil, err
 	}
-	repoRoot, err := findRepoRoot(skillDir, rootArg)
+	skillDir, err = filepath.EvalSymlinks(skillDir)
+	if err != nil {
+		return "", "", "", skillMetadata{}, skillManifest{}, agentRegistry{}, nil, fmt.Errorf("resolve skill directory: %w", err)
+	}
+	manifest, err := readSkillManifest(skillDir)
+	if err != nil {
+		return "", "", "", skillMetadata{}, skillManifest{}, agentRegistry{}, nil, err
+	}
+	repoRoot, err := findWorkflowRoot(skillDir, rootArg, manifest.Language)
 	if err != nil {
 		return "", "", "", skillMetadata{}, skillManifest{}, agentRegistry{}, nil, err
 	}
 	repoRoot, err = filepath.EvalSymlinks(repoRoot)
 	if err != nil {
 		return "", "", "", skillMetadata{}, skillManifest{}, agentRegistry{}, nil, fmt.Errorf("resolve repository root: %w", err)
-	}
-	skillDir, err = filepath.EvalSymlinks(skillDir)
-	if err != nil {
-		return "", "", "", skillMetadata{}, skillManifest{}, agentRegistry{}, nil, fmt.Errorf("resolve skill directory: %w", err)
 	}
 	sourceRel, err := filepath.Rel(repoRoot, skillDir)
 	if err != nil || sourceRel == ".." || strings.HasPrefix(sourceRel, ".."+string(filepath.Separator)) {
@@ -397,10 +403,6 @@ func registrationInputs(skillArg, rootArg string, requested []string) (string, s
 		return "", "", "", skillMetadata{}, skillManifest{}, agentRegistry{}, nil, fmt.Errorf("skill path contains characters that cannot be represented safely in an adapter marker")
 	}
 	metadata, err := readSkillMetadata(skillDir)
-	if err != nil {
-		return "", "", "", skillMetadata{}, skillManifest{}, agentRegistry{}, nil, err
-	}
-	manifest, err := readSkillManifest(skillDir)
 	if err != nil {
 		return "", "", "", skillMetadata{}, skillManifest{}, agentRegistry{}, nil, err
 	}
@@ -568,6 +570,29 @@ func findRepoRoot(skillDir, explicit string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("cannot find repository root from %s; pass --root", skillDir)
+}
+
+func findWorkflowRoot(skillDir, explicit, language string) (string, error) {
+	root, err := findRepoRoot(skillDir, explicit)
+	if err == nil || explicit != "" || (language != "typescript" && language != "python") {
+		return root, err
+	}
+	cwd, cwdErr := os.Getwd()
+	if cwdErr != nil {
+		return "", err
+	}
+	cwd, cwdErr = filepath.EvalSymlinks(cwd)
+	if cwdErr != nil {
+		return "", fmt.Errorf("resolve current directory: %w", cwdErr)
+	}
+	resolvedSkill, skillErr := filepath.EvalSymlinks(skillDir)
+	if skillErr != nil {
+		return "", fmt.Errorf("resolve skill directory: %w", skillErr)
+	}
+	if !within(cwd, resolvedSkill) {
+		return "", err
+	}
+	return filepath.Clean(cwd), nil
 }
 
 func within(parent, child string) bool {
@@ -926,7 +951,7 @@ func cmdDoctor(args []string) error {
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	var agents agentListFlag
 	fs.Var(&agents, "agent", "agent id, comma-separated ids, or auto")
-	root := fs.String("root", "", "repository root (detected from .git by default)")
+	root := fs.String("root", "", "project root (inferred for supported layouts)")
 	runTest := fs.Bool("test", false, "run the workflow fixture after static checks")
 	if err := parseOnePositional(fs, args); err != nil {
 		return err
@@ -950,7 +975,7 @@ func cmdDoctor(args []string) error {
 	if err != nil {
 		return err
 	}
-	packageBoundary, boundaryErr := findRepoRoot(skillDir, *root)
+	packageBoundary, boundaryErr := findWorkflowRoot(skillDir, *root, manifest.Language)
 	if boundaryErr != nil {
 		if manifest.Language == "go" || manifest.Language == "rust" {
 			return fmt.Errorf("%s workflow needs a repository root for .yield/bin; pass --root: %w", manifest.Language, boundaryErr)

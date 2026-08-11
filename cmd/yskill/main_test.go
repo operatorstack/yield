@@ -19,6 +19,13 @@ import (
 	"github.com/operatorstack/yield/internal/runlog"
 )
 
+func TestMain(m *testing.M) {
+	// Launcher-sensitive tests control this boundary explicitly. Do not let the
+	// runtime that invoked `go test` override their test-local launchers.
+	_ = os.Unsetenv("YIELD_LAUNCHER_PATH")
+	os.Exit(m.Run())
+}
+
 func stubRustLockfile(t *testing.T) {
 	t.Helper()
 	previous := generateRustLockfile
@@ -313,7 +320,7 @@ func TestPackageScaffoldsPrintCreatedWorkflowInNextCommands(t *testing.T) {
 			workflow := shellQuoteForPlatform(dir, runtime.GOOS)
 			for _, line := range []string{
 				"test: " + tt.launcher + " doctor " + workflow + " --test",
-				"then: " + tt.launcher + " register " + workflow + " --root .",
+				"then: " + tt.launcher + " register " + workflow,
 			} {
 				if !strings.Contains(output, line) {
 					t.Fatalf("init output does not contain %q:\n%s", line, output)

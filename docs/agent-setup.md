@@ -76,10 +76,10 @@ manual workflow, install the guided helper explicitly from the repository root:
 
 ```bash
 # TypeScript
-npm exec -- yskill helper install --root . --language typescript
+npm exec -- yskill helper install --language typescript
 
 # Python
-python -m yieldskill helper install --root . --language python
+python -m yieldskill helper install --language python
 
 # Rust
 cargo install yieldskill --root .yield --locked
@@ -119,10 +119,10 @@ answer, the adapter uses `yskill respond`; it does not create `response.json`.
 Use `--value` for a person’s answer and `--result-json` for structured agent
 work. The file-based `resume --response` command remains available for CI.
 
-Workflow-only `doctor` works without `.git`. A Go or Rust runtime under
-`.yield/bin` also identifies the project root for `init`, `doctor`, and
-registration. For other non-Git layouts, pass `--root` so Yield knows where
-agent adapters belong.
+Workflow-only `doctor` works without `.git`. TypeScript and Python commands
+use the current directory as the project root when the workflow is contained
+inside it. A Go or Rust runtime under `.yield/bin` identifies the project root
+for `init`, `doctor`, and registration. Pass `--root` to override inference.
 
 ```
 

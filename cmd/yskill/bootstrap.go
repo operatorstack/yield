@@ -115,7 +115,19 @@ func makeBootstrapPlan(rootArg, language string, requested []string) (bootstrapP
 	}
 	root, err := findRepoRoot(cwd, rootArg)
 	if err != nil {
-		return bootstrapPlan{}, err
+		if rootArg != "" {
+			return bootstrapPlan{}, err
+		}
+		if language == "" {
+			language, err = detectBootstrapLanguage(cwd)
+			if err != nil {
+				return bootstrapPlan{}, err
+			}
+		}
+		if language != "typescript" && language != "python" {
+			return bootstrapPlan{}, err
+		}
+		root = cwd
 	}
 	root, err = filepath.EvalSymlinks(root)
 	if err != nil {

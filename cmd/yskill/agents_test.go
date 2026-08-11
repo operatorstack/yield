@@ -218,6 +218,68 @@ func TestDoctorWorkflowOnlyDoesNotRequireRepository(t *testing.T) {
 	}
 }
 
+func TestTypeScriptAndPythonInferCurrentDirectoryOutsideGit(t *testing.T) {
+	for _, language := range []string{"typescript", "python"} {
+		t.Run(language, func(t *testing.T) {
+			root := t.TempDir()
+			var skill string
+			if language == "typescript" {
+				skill = createTypeScriptSkill(t, root, "review")
+			} else {
+				skill = createPythonSkill(t, root, "review")
+			}
+			t.Chdir(root)
+			if _, err := registerSkill(skill, "", []string{"codex"}); err != nil {
+				t.Fatalf("register without --root: %v", err)
+			}
+			if err := cmdDoctor([]string{skill, "--agent", "codex"}); err != nil {
+				t.Fatalf("doctor without --root: %v", err)
+			}
+			adapter := readTestFile(t, filepath.Join(root, ".agents", "skills", "review", "SKILL.md"))
+			if !strings.Contains(adapter, "source: skills/review;") {
+				t.Fatalf("adapter is not rooted at the invocation directory:\n%s", adapter)
+			}
+		})
+	}
+}
+
+func TestCurrentDirectoryFallbackRejectsOutsideAndSymlinkedWorkflows(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	outside := createTypeScriptSkill(t, t.TempDir(), "outside")
+	if _, err := registerSkill(outside, "", []string{"codex"}); err == nil || !strings.Contains(err.Error(), "cannot find repository root") {
+		t.Fatalf("outside current directory error = %v", err)
+	}
+	if runtime.GOOS == "windows" {
+		return
+	}
+	link := filepath.Join(root, "skills", "linked")
+	if err := os.MkdirAll(filepath.Dir(link), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, link); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := registerSkill(link, "", []string{"codex"}); err == nil || !strings.Contains(err.Error(), "cannot find repository root") {
+		t.Fatalf("symlinked workflow error = %v", err)
+	}
+}
+
+func TestGoAndRustWorkflowsDoNotUseCurrentDirectoryFallback(t *testing.T) {
+	for _, language := range []string{"go", "rust"} {
+		t.Run(language, func(t *testing.T) {
+			root := t.TempDir()
+			t.Chdir(root)
+			skill := filepath.Join(root, "skills", "review")
+			writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: review\ndescription: Review a change before it is merged.\n---\n")
+			writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"yield_version":"0.1.23","language":"`+language+`","run":["run"]}`)
+			if _, err := registerSkill(skill, "", []string{"codex"}); err == nil || !strings.Contains(err.Error(), "cannot find repository root") {
+				t.Fatalf("%s workflow used current directory fallback: %v", language, err)
+			}
+		})
+	}
+}
+
 func TestRegisterAllPreflightsAndWritesEveryWorkflow(t *testing.T) {
 	repo := t.TempDir()
 	writeTestFile(t, filepath.Join(repo, ".git"), "gitdir: fixture\n")
@@ -246,6 +308,58 @@ func TestRegisterAllPreflightsAndWritesEveryWorkflow(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(repo, ".agents", "skills", name, "SKILL.md")); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestRegisterAllInfersOneCurrentDirectoryRootOutsideGit(t *testing.T) {
+	for _, language := range []string{"typescript", "python"} {
+		t.Run(language, func(t *testing.T) {
+			repo := t.TempDir()
+			if language == "typescript" {
+				writeTestFile(t, filepath.Join(repo, "package.json"), `{"dependencies":{"@operatorstack/yield":"0.1.19"}}`)
+			}
+			for _, name := range []string{"review", "release"} {
+				skill := filepath.Join(repo, "skills", name)
+				writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: "+name+"\ndescription: Run "+name+" when the matching project workflow is requested.\n---\n")
+				writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"yield_version":"0.1.23","language":"`+language+`","run":["run"]}`)
+				if language == "typescript" {
+					writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
+				} else {
+					writeTestFile(t, filepath.Join(skill, "requirements.txt"), "yieldskill==0.1.23\n")
+					writeTestFile(t, filepath.Join(skill, "main.py"), "print('ok')\n")
+				}
+			}
+			t.Chdir(repo)
+			if err := cmdRegisterAll([]string{"skills", "--agent", "codex"}); err != nil {
+				t.Fatal(err)
+			}
+			for _, name := range []string{"review", "release"} {
+				if _, err := os.Stat(filepath.Join(repo, ".agents", "skills", name, "SKILL.md")); err != nil {
+					t.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func TestRegisterAllRefusesMixedResolvedRoots(t *testing.T) {
+	repo := t.TempDir()
+	writeTestFile(t, filepath.Join(repo, "package.json"), `{"dependencies":{"@operatorstack/yield":"0.1.19"}}`)
+	for _, name := range []string{"outer", "nested"} {
+		skill := filepath.Join(repo, "skills", name)
+		writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: "+name+"\ndescription: Run "+name+" when the matching project workflow is requested.\n---\n")
+		writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"yield_version":"0.1.23","language":"typescript","run":["node","main.ts"]}`)
+		writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
+	}
+	writeTestFile(t, filepath.Join(repo, "skills", "nested", ".git"), "gitdir: fixture\n")
+	writeTestFile(t, filepath.Join(repo, "skills", "nested", "package.json"), `{"dependencies":{"@operatorstack/yield":"0.1.19"}}`)
+	t.Chdir(repo)
+	err := cmdRegisterAll([]string{"skills", "--agent", "codex"})
+	if err == nil || !strings.Contains(err.Error(), "same project root") {
+		t.Fatalf("mixed roots error = %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(repo, ".agents")); !os.IsNotExist(statErr) {
+		t.Fatalf("mixed-root preflight wrote adapters: %v", statErr)
 	}
 }
 
@@ -532,6 +646,16 @@ func createTypeScriptSkill(t *testing.T, repo, name string) string {
 	writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: "+name+"\ndescription: Review the branch when the user wants code checked before shipping.\n---\n")
 	writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"yield_version":"0.1.23","language":"typescript","run":["node","main.ts"]}`)
 	writeTestFile(t, filepath.Join(skill, "main.ts"), "export {}\n")
+	return skill
+}
+
+func createPythonSkill(t *testing.T, repo, name string) string {
+	t.Helper()
+	skill := filepath.Join(repo, "skills", name)
+	writeTestFile(t, filepath.Join(skill, "SKILL.md"), "---\nname: "+name+"\ndescription: Review the branch when the user wants code checked before shipping.\n---\n")
+	writeTestFile(t, filepath.Join(skill, "skill.json"), `{"version":1,"yield_version":"0.1.23","language":"python","run":["python","main.py"]}`)
+	writeTestFile(t, filepath.Join(skill, "requirements.txt"), "yieldskill==0.1.23\n")
+	writeTestFile(t, filepath.Join(skill, "main.py"), "print('ok')\n")
 	return skill
 }
 
