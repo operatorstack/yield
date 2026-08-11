@@ -59,3 +59,49 @@ test("treats a missing private crate payload as recoverable", async () => {
   assert.equal(result.states.rust, "missing")
   assert.deepEqual(result.missing.rust, manifest.rust)
 })
+
+test("accepts a Go proxy repack while requiring identical module metadata", async () => {
+  const manifest = {
+    version: "0.5.2",
+    npm: [],
+    python: [],
+    go: { module: "github.com/operatorstack/yield", version: "v0.5.2" },
+    rust: [],
+  }
+  const fetchImpl = async (url) => {
+    const value = String(url)
+    if (value.includes("/pip/simple/")) return new Response("missing", { status: 404 })
+    if (value.endsWith(".mod")) return new Response("module github.com/operatorstack/yield\n")
+    if (value.includes("/go/") && value.endsWith(".zip"))
+      return new Response("artifact-registry-repacked-zip")
+    throw new Error(`unexpected request ${value}`)
+  }
+
+  const result = await inspectRemote(manifest, { base: "https://mirror.test", fetchImpl })
+  assert.equal(result.states.go, "matched")
+  assert.equal(result.remote.go[0].name, manifest.go.module)
+  assert.match(result.remote.go[0].sha256, /^[0-9a-f]{64}$/)
+})
+
+test("refuses Go proxy metadata drift", async () => {
+  const manifest = {
+    version: "0.5.2",
+    npm: [],
+    python: [],
+    go: { module: "github.com/operatorstack/yield", version: "v0.5.2" },
+    rust: [],
+  }
+  const fetchImpl = async (url) => {
+    const value = String(url)
+    if (value.includes("/pip/simple/")) return new Response("missing", { status: 404 })
+    if (value.endsWith(".zip")) return new Response("private-zip")
+    if (value.startsWith("https://proxy.golang.org/")) return new Response("module public\n")
+    if (value.endsWith(".mod")) return new Response("module private\n")
+    throw new Error(`unexpected request ${value}`)
+  }
+
+  await assert.rejects(
+    inspectRemote(manifest, { base: "https://mirror.test", fetchImpl }),
+    /private Go module metadata differs/,
+  )
+})
