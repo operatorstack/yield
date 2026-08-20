@@ -769,11 +769,6 @@ func (e *Engine) prepareRun() (protocol.SkillRef, string, error) {
 		default:
 			return protocol.SkillRef{}, "", fmt.Errorf("manifest_invalid: language is unsupported")
 		}
-		if manifest.Language == "rust" {
-			if _, err := os.Stat(filepath.Join(e.SkillDir, "Cargo.lock")); err != nil {
-				return protocol.SkillRef{}, "", fmt.Errorf("source_lockfile_missing")
-			}
-		}
 		if e.SupervisorVersion == "" {
 			return protocol.SkillRef{}, "", fmt.Errorf("runtime_version_missing")
 		}
@@ -801,7 +796,7 @@ func (e *Engine) currentDigest(profile string) (string, error) {
 
 func initializationCode(err error) string {
 	text := err.Error()
-	for _, code := range []string{"manifest_invalid", "manifest_read_failed", "runtime_version_missing", "runtime_incompatible", "runner_missing", "source_lockfile_missing", "source_digest_failed"} {
+	for _, code := range []string{"manifest_invalid", "manifest_read_failed", "runtime_version_missing", "runtime_incompatible", "runner_missing", "source_digest_failed"} {
 		if strings.HasPrefix(text, code) {
 			return code
 		}

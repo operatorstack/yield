@@ -689,7 +689,7 @@ func (receipt *RunReceipt) Validate() error {
 	}
 	validFailureCode := map[string]bool{
 		"manifest_invalid": true, "manifest_read_failed": true, "runtime_version_missing": true,
-		"runtime_incompatible": true, "runner_missing": true, "source_lockfile_missing": true,
+		"runtime_incompatible": true, "runner_missing": true,
 		"source_digest_failed": true, "initialization_failed": true, "invalid_program_output": true,
 		"execution_timeout": true, "subprocess_failed": true, "execution_failed": true,
 		"command_execution_failed": true,

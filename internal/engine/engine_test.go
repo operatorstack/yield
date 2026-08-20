@@ -94,28 +94,49 @@ func TestInitializationFailureHasRunIDJournalAndReceipt(t *testing.T) {
 	}
 }
 
-func TestRustRunWithoutLockfileFailsDuringInitialization(t *testing.T) {
-	skillDir := t.TempDir()
-	manifest := `{"version":1,"yield_version":"1.0.0","language":"rust","run":["cargo","run"]}`
-	if err := os.WriteFile(filepath.Join(skillDir, "skill.json"), []byte(manifest), 0o600); err != nil {
+func TestRustWorkspaceSkillWithoutLocalLockfileReachesExecution(t *testing.T) {
+	workspace := t.TempDir()
+	if err := os.WriteFile(filepath.Join(workspace, "Cargo.lock"), []byte("version = 4\n"), 0o600); err != nil {
 		t.Fatal(err)
+	}
+	skillDir := filepath.Join(workspace, "audit-security")
+	if err := os.MkdirAll(skillDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"main.rs": "fn main() {}\n",
+		"runner.go": `package main
+import "fmt"
+func main() { fmt.Println("{\"type\":\"terminal\",\"terminal\":{\"status\":\"completed\",\"result\":null}}") }
+`,
+		"skill.json": `{"version":1,"yield_version":"1.0.0","language":"rust","run":["go","run","runner.go"]}`,
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(skillDir, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(skillDir, "Cargo.lock")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("test skill unexpectedly has a local lockfile: %v", err)
 	}
 	runsDir := filepath.Join(t.TempDir(), "runs")
 	if err := os.MkdirAll(runsDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	e := &Engine{SkillDir: skillDir, RunsDir: runsDir, SupervisorVersion: "1.0.0", Stderr: os.Stderr}
-	_, err := e.StartRun(nil)
-	var runErr *RunError
-	if !errors.As(err, &runErr) {
-		t.Fatalf("expected run-bound initialization error, got %v", err)
+	progress, err := e.StartRun(nil)
+	if err != nil {
+		t.Fatal(err)
 	}
-	r, _, loadErr := receipt.StoreForRunsDir(runsDir).LoadRun(runErr.RunID)
+	if progress.Terminal == nil || progress.Terminal.Status != protocol.StatusCompleted {
+		t.Fatalf("workspace Rust skill did not reach completion: %+v", progress)
+	}
+	r, _, loadErr := receipt.StoreForRunsDir(runsDir).LoadRun(progress.RunID)
 	if loadErr != nil {
 		t.Fatal(loadErr)
 	}
-	if r.Outcome.FailureCode != "source_lockfile_missing" {
-		t.Fatalf("failure code = %q", r.Outcome.FailureCode)
+	if r.Outcome.Phase != "terminal" || r.Skill.SourceDigest == nil || r.Skill.SourceDigest.Profile != protocol.SkillSourceProfileV1 {
+		t.Fatalf("unexpected receipt: %+v", r)
 	}
 }
 

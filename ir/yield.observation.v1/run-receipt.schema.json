@@ -164,7 +164,6 @@
             "runtime_version_missing",
             "runtime_incompatible",
             "runner_missing",
-            "source_lockfile_missing",
             "source_digest_failed",
             "initialization_failed",
             "invalid_program_output",
