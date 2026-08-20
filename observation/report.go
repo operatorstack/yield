@@ -1,13 +1,12 @@
-package receipt
+package observation
 
 import (
 	"fmt"
 	"sort"
 	"time"
-
-	"github.com/operatorstack/yield/internal/protocol"
 )
 
+// ReportOptions bounds deterministic local receipt aggregation.
 type ReportOptions struct {
 	From             time.Time
 	To               time.Time
@@ -16,6 +15,7 @@ type ReportOptions struct {
 	ExperimentID     string
 }
 
+// LocalReport is a descriptive aggregation with no causal or activation claim.
 type LocalReport struct {
 	ReceiptCount           int                      `json:"receipt_count"`
 	Lifecycle              []NamedCount             `json:"lifecycle"`
@@ -30,19 +30,22 @@ type LocalReport struct {
 	OpenOlderThanThreshold int                      `json:"open_older_than_threshold,omitempty"`
 }
 
+// NamedCount is one stable, sorted report group.
 type NamedCount struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
 }
 
+// ReportOperationSummary aggregates timing and counts for an operation kind.
 type ReportOperationSummary struct {
-	Kind           protocol.OpKind `json:"kind"`
-	Requested      int             `json:"requested"`
-	Completed      int             `json:"completed"`
-	TotalElapsedMS int64           `json:"total_elapsed_ms"`
+	Kind           OperationKind `json:"kind"`
+	Requested      int           `json:"requested"`
+	Completed      int           `json:"completed"`
+	TotalElapsedMS int64         `json:"total_elapsed_ms"`
 }
 
-func BuildReport(receipts []*RunReceipt, options ReportOptions) (LocalReport, error) {
+// BuildReport deterministically aggregates an explicit receipt set and options.
+func BuildReport(receipts []RunReceipt, options ReportOptions) (LocalReport, error) {
 	report := LocalReport{
 		Lifecycle: []NamedCount{}, Terminal: []NamedCount{}, Operations: []ReportOperationSummary{},
 		ResponseRejections: []NamedCount{}, Requirements: []NamedCount{}, RuntimeGroups: []NamedCount{},
@@ -55,7 +58,7 @@ func BuildReport(receipts []*RunReceipt, options ReportOptions) (LocalReport, er
 	runtimes := map[string]int{}
 	sources := map[string]int{}
 	experiments := map[string]int{}
-	operations := map[protocol.OpKind]*ReportOperationSummary{}
+	operations := map[OperationKind]*ReportOperationSummary{}
 	for _, r := range receipts {
 		started, err := time.Parse(time.RFC3339Nano, r.Timing.StartedAt)
 		if err != nil {
@@ -115,7 +118,7 @@ func BuildReport(receipts []*RunReceipt, options ReportOptions) (LocalReport, er
 	report.RuntimeGroups = namedCounts(runtimes)
 	report.SourceGroups = namedCounts(sources)
 	report.ExperimentGroups = namedCounts(experiments)
-	for _, kind := range []protocol.OpKind{protocol.OpAskUser, protocol.OpAgentTask, protocol.OpRunCommand} {
+	for _, kind := range []OperationKind{OperationAskUser, OperationAgentTask, OperationRunCommand} {
 		if summary := operations[kind]; summary != nil {
 			report.Operations = append(report.Operations, *summary)
 		}

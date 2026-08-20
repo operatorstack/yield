@@ -12,6 +12,34 @@ operation kinds and timing, typed rejection and requirement outcomes,
 divergence digests, terminal disposition, and optional experiment identifiers.
 All four SDKs use the same supervisor projection.
 
+## Go API
+
+Go hosts can project, verify, store, and aggregate receipts without invoking
+the CLI. The public package is
+[`github.com/operatorstack/yield/observation`](https://pkg.go.dev/github.com/operatorstack/yield/observation).
+
+```go
+receipt, err := observation.Project(journalPrefix)
+if err != nil {
+	return err
+}
+canonical, err := observation.CanonicalBytes(receipt)
+if err != nil {
+	return err
+}
+
+store := observation.NewStore(yieldDir)
+if err := store.Put(receipt, canonical); err != nil {
+	return err
+}
+```
+
+`Project` accepts one exact, complete `.yield/runs/<run-id>.jsonl` prefix and
+performs no I/O. It rejects partial lines, malformed ordering, unknown event
+types, and unknown journal-envelope fields. `Parse` accepts only canonical
+receipt bytes whose digest verifies. These checks make the journal prefix the
+explicit input and keep receipt files derived, rather than authoritative.
+
 ## Privacy boundary
 
 Receipts do not contain prompts, instructions, model responses, user answers,

@@ -23,8 +23,8 @@ import (
 	"github.com/operatorstack/yield/internal/engine"
 	"github.com/operatorstack/yield/internal/outbox"
 	"github.com/operatorstack/yield/internal/protocol"
-	"github.com/operatorstack/yield/internal/receipt"
 	"github.com/operatorstack/yield/internal/runlog"
+	receipt "github.com/operatorstack/yield/observation"
 )
 
 const usage = `yskill — run and resume skill workflows
@@ -559,12 +559,12 @@ func cmdReport(args []string) error {
 	if err != nil {
 		return err
 	}
-	store := receipt.StoreForRunsDir(e.RunsDir)
+	store := receipt.NewStore(filepath.Dir(e.RunsDir))
 	ids, err := store.ListRuns()
 	if err != nil {
 		return err
 	}
-	receipts := make([]*receipt.RunReceipt, 0, len(ids))
+	receipts := make([]receipt.RunReceipt, 0, len(ids))
 	for _, id := range ids {
 		r, _, loadErr := store.LoadRun(id)
 		if loadErr != nil {

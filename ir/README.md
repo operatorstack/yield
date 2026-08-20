@@ -6,8 +6,11 @@ This directory contains Yield's language-neutral schemas.
 - `yield.observation.v1` is the portable observation boundary projected by
   the Go supervisor from an append-only run journal. SDKs do not implement it.
 
-The Go reference types and schema tests keep both boundaries aligned with the
-runtime.
+The public Go package
+[`observation`](https://pkg.go.dev/github.com/operatorstack/yield/observation)
+provides the reference receipt types, pure journal projection, strict parsing,
+durable local store, and report aggregation. Schema tests keep that package
+aligned with the language-neutral boundary.
 
 ## Files
 

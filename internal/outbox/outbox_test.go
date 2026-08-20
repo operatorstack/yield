@@ -11,29 +11,36 @@ import (
 	"testing"
 	"time"
 
-	"github.com/operatorstack/yield/internal/receipt"
+	"github.com/operatorstack/yield/internal/protocol"
+	"github.com/operatorstack/yield/internal/runlog"
+	receipt "github.com/operatorstack/yield/observation"
 )
 
 func testReceipt(t *testing.T) (*receipt.RunReceipt, []byte) {
 	t.Helper()
-	r := &receipt.RunReceipt{
-		Schema: receipt.Schema, Kind: receipt.Kind,
-		Journal:    receipt.JournalBinding{RunID: "run_1", HeadSequence: 1, HeadDigest: digestBytes([]byte("journal"))},
-		Run:        receipt.RunIdentity{ID: "run_1"},
-		Skill:      receipt.SkillIdentity{Name: "test", BindingDigest: digestBytes([]byte("skill"))},
-		Timing:     receipt.TimingSummary{StartedAt: "2026-08-20T10:00:00Z", LastObservedAt: "2026-08-20T10:00:00Z"},
-		Operations: []receipt.OperationObservation{}, OperationSummaries: []receipt.OperationSummary{},
-		Outcome: receipt.OutcomeSummary{Phase: "advancing"}, Requirements: []receipt.RequirementOutcome{},
-		ResponseRejections: []receipt.ResponseRejectionSummary{}, Divergences: []receipt.DivergenceOutcome{},
+	event := runlog.Event{
+		Seq:  1,
+		Type: runlog.RunStarted,
+		At:   time.Date(2026, 8, 20, 10, 0, 0, 0, time.UTC),
 	}
-	if err := receipt.Seal(r); err != nil {
+	event.Data, _ = json.Marshal(map[string]any{
+		"run_id": "run_1",
+		"skill":  protocol.SkillRef{Name: "test", Digest: digestBytes([]byte("skill"))},
+	})
+	journal, err := json.Marshal(event)
+	if err != nil {
+		t.Fatal(err)
+	}
+	journal = append(journal, '\n')
+	r, err := receipt.Project(journal)
+	if err != nil {
 		t.Fatal(err)
 	}
 	raw, err := receipt.CanonicalBytes(r)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return r, raw
+	return &r, raw
 }
 
 func TestEnqueueIsByteIdempotent(t *testing.T) {

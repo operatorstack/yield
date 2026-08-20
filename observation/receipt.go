@@ -1,6 +1,6 @@
-// Package receipt projects privacy-safe, portable observations from Yield's
+// Package observation projects privacy-safe, portable observations from Yield's
 // authoritative append-only run journal.
-package receipt
+package observation
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ const (
 	Kind   = "run_receipt"
 )
 
+// RunReceipt is the canonical privacy-safe projection of one journal prefix.
 type RunReceipt struct {
 	Schema             string                     `json:"schema"`
 	Kind               string                     `json:"kind"`
@@ -42,17 +44,29 @@ type RunReceipt struct {
 	Experiment         *ExperimentContext         `json:"experiment,omitempty"`
 }
 
+// OperationKind is one supervisor-observed Yield operation kind.
+type OperationKind string
+
+const (
+	OperationAskUser    OperationKind = "ask_user"
+	OperationAgentTask  OperationKind = "agent_task"
+	OperationRunCommand OperationKind = "run_command"
+)
+
+// JournalBinding identifies the exact authoritative journal prefix projected.
 type JournalBinding struct {
 	RunID        string `json:"run_id"`
 	HeadSequence int    `json:"head_sequence"`
 	HeadDigest   string `json:"head_digest"`
 }
 
+// RunIdentity identifies the observed run and its privacy-safe input digest.
 type RunIdentity struct {
 	ID          string `json:"id"`
 	InputDigest string `json:"input_digest,omitempty"`
 }
 
+// SkillIdentity records the skill facts available in the journal.
 type SkillIdentity struct {
 	Name          string         `json:"name"`
 	Version       string         `json:"version,omitempty"`
@@ -60,17 +74,20 @@ type SkillIdentity struct {
 	SourceDigest  *ProfileDigest `json:"source_digest,omitempty"`
 }
 
+// ProfileDigest names a versioned digest profile and its value.
 type ProfileDigest struct {
 	Profile string `json:"profile"`
 	Value   string `json:"value"`
 }
 
+// RuntimeIdentity records authoritative supervisor compatibility facts.
 type RuntimeIdentity struct {
 	SupervisorVersion string `json:"supervisor_version,omitempty"`
 	RequiredVersion   string `json:"required_version,omitempty"`
 	Compatible        *bool  `json:"compatible,omitempty"`
 }
 
+// TimingSummary contains journal timestamps and safe derived timing.
 type TimingSummary struct {
 	StartedAt      string `json:"started_at"`
 	LastObservedAt string `json:"last_observed_at"`
@@ -79,24 +96,27 @@ type TimingSummary struct {
 	ClockAnomaly   bool   `json:"clock_anomaly,omitempty"`
 }
 
+// OperationObservation describes one supervisor-observed operation.
 type OperationObservation struct {
-	Sequence           int             `json:"sequence"`
-	Kind               protocol.OpKind `json:"kind"`
-	OperationKeyDigest string          `json:"operation_key_digest"`
-	RequestedAt        string          `json:"requested_at"`
-	CompletedAt        string          `json:"completed_at,omitempty"`
-	ElapsedMS          *int64          `json:"elapsed_ms,omitempty"`
-	ResultDigest       string          `json:"result_digest,omitempty"`
-	ClockAnomaly       bool            `json:"clock_anomaly,omitempty"`
+	Sequence           int           `json:"sequence"`
+	Kind               OperationKind `json:"kind"`
+	OperationKeyDigest string        `json:"operation_key_digest"`
+	RequestedAt        string        `json:"requested_at"`
+	CompletedAt        string        `json:"completed_at,omitempty"`
+	ElapsedMS          *int64        `json:"elapsed_ms,omitempty"`
+	ResultDigest       string        `json:"result_digest,omitempty"`
+	ClockAnomaly       bool          `json:"clock_anomaly,omitempty"`
 }
 
+// OperationSummary aggregates observations of one operation kind.
 type OperationSummary struct {
-	Kind           protocol.OpKind `json:"kind"`
-	Requested      int             `json:"requested"`
-	Completed      int             `json:"completed"`
-	TotalElapsedMS int64           `json:"total_elapsed_ms"`
+	Kind           OperationKind `json:"kind"`
+	Requested      int           `json:"requested"`
+	Completed      int           `json:"completed"`
+	TotalElapsedMS int64         `json:"total_elapsed_ms"`
 }
 
+// OutcomeSummary classifies the latest lifecycle and terminal outcome.
 type OutcomeSummary struct {
 	Phase               string `json:"phase"`
 	TerminalDisposition string `json:"terminal_disposition,omitempty"`
@@ -105,23 +125,27 @@ type OutcomeSummary struct {
 	FailureCode         string `json:"failure_code,omitempty"`
 }
 
+// RequirementOutcome records a requirement result without its raw claim.
 type RequirementOutcome struct {
 	Outcome        string `json:"outcome"`
 	ClaimDigest    string `json:"claim_digest"`
 	EvidenceDigest string `json:"evidence_digest,omitempty"`
 }
 
+// ResponseRejectionSummary counts one closed response-rejection reason.
 type ResponseRejectionSummary struct {
 	Reason string `json:"reason"`
 	Count  int    `json:"count"`
 }
 
+// DivergenceOutcome records expected and actual digests at a replay sequence.
 type DivergenceOutcome struct {
 	Sequence int    `json:"sequence"`
 	Expected string `json:"expected_digest"`
 	Got      string `json:"got_digest"`
 }
 
+// ExperimentContext groups a run for external evaluation without selecting a winner.
 type ExperimentContext struct {
 	ExperimentID       string `json:"experiment_id"`
 	CohortID           string `json:"cohort_id,omitempty"`
@@ -131,8 +155,7 @@ type ExperimentContext struct {
 	ParentSkillVersion string `json:"parent_skill_version,omitempty"`
 }
 
-// Snapshot is the complete, immutable input to one projection.
-type Snapshot struct {
+type snapshot struct {
 	Bytes  []byte
 	Events []runlog.Event
 }
@@ -163,8 +186,22 @@ type operationCompletedData struct {
 	ResultDigest string          `json:"result_digest"`
 }
 
-// Project deterministically derives one receipt from one exact journal prefix.
-func Project(snapshot Snapshot) (*RunReceipt, error) {
+// Project deterministically derives and seals one receipt from an exact
+// append-only run-journal prefix. The prefix must end at a complete JSONL
+// record and is never rewritten.
+func Project(journalPrefix []byte) (RunReceipt, error) {
+	events, err := runlog.ParseSnapshot(journalPrefix)
+	if err != nil {
+		return RunReceipt{}, err
+	}
+	projected, err := project(snapshot{Bytes: journalPrefix, Events: events})
+	if err != nil {
+		return RunReceipt{}, err
+	}
+	return *projected, nil
+}
+
+func project(snapshot snapshot) (*RunReceipt, error) {
 	if len(snapshot.Events) == 0 {
 		return nil, fmt.Errorf("receipt: journal is empty")
 	}
@@ -297,7 +334,7 @@ func Project(snapshot Snapshot) (*RunReceipt, error) {
 			}
 			operation := &OperationObservation{
 				Sequence:           envelope.Sequence,
-				Kind:               envelope.Request.Kind,
+				Kind:               OperationKind(envelope.Request.Kind),
 				OperationKeyDigest: digest("yield.operation.v1", []byte(string(envelope.Request.Kind)+"\x00"+envelope.Request.ID)),
 				RequestedAt:        formatTime(event.At),
 			}
@@ -479,7 +516,7 @@ func Project(snapshot Snapshot) (*RunReceipt, error) {
 		sequences = append(sequences, sequence)
 	}
 	sort.Ints(sequences)
-	summaries := map[protocol.OpKind]*OperationSummary{}
+	summaries := map[OperationKind]*OperationSummary{}
 	for _, sequence := range sequences {
 		operation := operations[sequence]
 		r.Operations = append(r.Operations, *operation)
@@ -496,7 +533,7 @@ func Project(snapshot Snapshot) (*RunReceipt, error) {
 			summary.TotalElapsedMS += *operation.ElapsedMS
 		}
 	}
-	for _, kind := range []protocol.OpKind{protocol.OpAskUser, protocol.OpAgentTask, protocol.OpRunCommand} {
+	for _, kind := range []OperationKind{OperationAskUser, OperationAgentTask, OperationRunCommand} {
 		if summary := summaries[kind]; summary != nil {
 			r.OperationSummaries = append(r.OperationSummaries, *summary)
 		}
@@ -534,7 +571,7 @@ func Project(snapshot Snapshot) (*RunReceipt, error) {
 		}
 	}
 
-	if err := Seal(r); err != nil {
+	if err := seal(r); err != nil {
 		return nil, err
 	}
 	return r, nil
@@ -588,13 +625,12 @@ func digest(domain string, value []byte) string {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil))
 }
 
-// Seal sets the deterministic receipt digest.
-func Seal(receipt *RunReceipt) error {
+func seal(receipt *RunReceipt) error {
 	receipt.ReceiptDigest = ""
 	if err := receipt.Validate(); err != nil {
 		return err
 	}
-	body, err := CanonicalBytes(receipt)
+	body, err := CanonicalBytes(*receipt)
 	if err != nil {
 		return err
 	}
@@ -604,19 +640,19 @@ func Seal(receipt *RunReceipt) error {
 
 // VerifyCanonical proves that bytes are the canonical encoding named by the
 // receipt digest.
-func VerifyCanonical(receipt *RunReceipt, raw []byte) error {
-	if receipt == nil || receipt.ReceiptDigest == "" {
+func VerifyCanonical(receipt RunReceipt, raw []byte) error {
+	if receipt.ReceiptDigest == "" {
 		return fmt.Errorf("receipt: missing receipt digest")
 	}
 	want := receipt.ReceiptDigest
-	copy := *receipt
-	if err := Seal(&copy); err != nil {
+	copy := receipt
+	if err := seal(&copy); err != nil {
 		return err
 	}
 	if copy.ReceiptDigest != want {
 		return fmt.Errorf("receipt: digest verification failed")
 	}
-	canonical, err := CanonicalBytes(&copy)
+	canonical, err := CanonicalBytes(copy)
 	if err != nil {
 		return err
 	}
@@ -624,6 +660,26 @@ func VerifyCanonical(receipt *RunReceipt, raw []byte) error {
 		return fmt.Errorf("receipt: bytes are not canonical JSON")
 	}
 	return nil
+}
+
+// Parse strictly decodes and verifies one canonical RunReceipt.
+func Parse(raw []byte) (RunReceipt, error) {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	var receipt RunReceipt
+	if err := decoder.Decode(&receipt); err != nil {
+		return RunReceipt{}, fmt.Errorf("receipt: decode: %w", err)
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		if err == nil {
+			err = fmt.Errorf("multiple JSON values")
+		}
+		return RunReceipt{}, fmt.Errorf("receipt: trailing content: %w", err)
+	}
+	if err := VerifyCanonical(receipt, raw); err != nil {
+		return RunReceipt{}, err
+	}
+	return receipt, nil
 }
 
 // Validate checks the closed Go representation against the public contract.
@@ -741,8 +797,8 @@ func (receipt *RunReceipt) Validate() error {
 	return nil
 }
 
-func validOperationKind(kind protocol.OpKind) bool {
-	return kind == protocol.OpAskUser || kind == protocol.OpAgentTask || kind == protocol.OpRunCommand
+func validOperationKind(kind OperationKind) bool {
+	return kind == OperationAskUser || kind == OperationAgentTask || kind == OperationRunCommand
 }
 
 func validDigest(value string) bool {
@@ -755,7 +811,11 @@ func validDigest(value string) bool {
 
 // CanonicalBytes returns RFC 8785-compatible JSON for the receipt's closed,
 // integer-only data model.
-func CanonicalBytes(value any) ([]byte, error) {
+func CanonicalBytes(receipt RunReceipt) ([]byte, error) {
+	return canonicalBytes(receipt)
+}
+
+func canonicalBytes(value any) ([]byte, error) {
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return nil, err
