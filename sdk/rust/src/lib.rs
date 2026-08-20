@@ -18,6 +18,9 @@ use sha2::{Digest, Sha256};
 use std::io::Write;
 use std::process::exit;
 
+pub mod observation;
+pub use observation::{ReceiptError, RunReceipt};
+
 pub const PROTOCOL: &str = "yield.v1";
 
 fn verify_supervisor_identity() {

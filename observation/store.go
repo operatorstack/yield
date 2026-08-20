@@ -1,4 +1,4 @@
-package receipt
+package observation
 
 import (
 	"bytes"
@@ -16,36 +16,33 @@ import (
 
 // Store materializes immutable receipt objects and mutable per-run references.
 type Store struct {
-	Root string
+	root string
 }
 
+// NewStore returns the receipt store rooted under the supplied .yield directory.
 func NewStore(yieldDir string) *Store {
-	return &Store{Root: filepath.Join(yieldDir, "receipts")}
-}
-
-func StoreForRunsDir(runsDir string) *Store {
-	return NewStore(filepath.Dir(runsDir))
+	return &Store{root: filepath.Join(yieldDir, "receipts")}
 }
 
 // Materialize projects and durably stores the receipt for one exact prefix.
-func (s *Store) Materialize(snapshot Snapshot) (*RunReceipt, []byte, error) {
-	r, err := Project(snapshot)
+func (s *Store) Materialize(journalPrefix []byte) (RunReceipt, []byte, error) {
+	r, err := Project(journalPrefix)
 	if err != nil {
-		return nil, nil, err
+		return RunReceipt{}, nil, err
 	}
 	raw, err := CanonicalBytes(r)
 	if err != nil {
-		return nil, nil, err
+		return RunReceipt{}, nil, err
 	}
 	if err := s.Put(r, raw); err != nil {
-		return nil, nil, err
+		return RunReceipt{}, nil, err
 	}
 	return r, raw, nil
 }
 
 // Put durably stores an already-sealed receipt.
-func (s *Store) Put(r *RunReceipt, raw []byte) error {
-	if r == nil || r.ReceiptDigest == "" || r.Run.ID == "" {
+func (s *Store) Put(r RunReceipt, raw []byte) error {
+	if r.ReceiptDigest == "" || r.Run.ID == "" {
 		return fmt.Errorf("receipt store: incomplete receipt")
 	}
 	if err := r.Validate(); err != nil {
@@ -58,8 +55,8 @@ func (s *Store) Put(r *RunReceipt, raw []byte) error {
 	if len(digest) != 64 {
 		return fmt.Errorf("receipt store: invalid receipt digest")
 	}
-	objects := filepath.Join(s.Root, "objects", "sha256", digest[:2])
-	references := filepath.Join(s.Root, "runs")
+	objects := filepath.Join(s.root, "objects", "sha256", digest[:2])
+	references := filepath.Join(s.root, "runs")
 	if err := secureMkdirAll(objects); err != nil {
 		return err
 	}
@@ -74,46 +71,38 @@ func (s *Store) Put(r *RunReceipt, raw []byte) error {
 }
 
 // LoadRun reads the latest materialized receipt for a run.
-func (s *Store) LoadRun(runID string) (*RunReceipt, []byte, error) {
-	ref, err := os.ReadFile(filepath.Join(s.Root, "runs", runID+".ref"))
+func (s *Store) LoadRun(runID string) (RunReceipt, []byte, error) {
+	ref, err := os.ReadFile(filepath.Join(s.root, "runs", runID+".ref"))
 	if err != nil {
-		return nil, nil, err
+		return RunReceipt{}, nil, err
 	}
 	digest := strings.TrimSpace(string(ref))
 	return s.LoadDigest(digest)
 }
 
 // LoadDigest reads and verifies an immutable receipt object.
-func (s *Store) LoadDigest(receiptDigest string) (*RunReceipt, []byte, error) {
+func (s *Store) LoadDigest(receiptDigest string) (RunReceipt, []byte, error) {
 	if !validDigest(receiptDigest) {
-		return nil, nil, fmt.Errorf("receipt store: invalid receipt digest")
+		return RunReceipt{}, nil, fmt.Errorf("receipt store: invalid receipt digest")
 	}
 	hexDigest := strings.TrimPrefix(receiptDigest, "sha256:")
-	raw, err := os.ReadFile(filepath.Join(s.Root, "objects", "sha256", hexDigest[:2], hexDigest+".json"))
+	raw, err := os.ReadFile(filepath.Join(s.root, "objects", "sha256", hexDigest[:2], hexDigest+".json"))
 	if err != nil {
-		return nil, nil, err
+		return RunReceipt{}, nil, err
 	}
-	var r RunReceipt
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&r); err != nil {
-		return nil, nil, fmt.Errorf("receipt store: decode object: %w", err)
-	}
-	if err := expectEOF(decoder); err != nil {
-		return nil, nil, err
+	r, err := Parse(raw)
+	if err != nil {
+		return RunReceipt{}, nil, fmt.Errorf("receipt store: decode object: %w", err)
 	}
 	if r.ReceiptDigest != receiptDigest {
-		return nil, nil, fmt.Errorf("receipt store: reference and object digest differ")
+		return RunReceipt{}, nil, fmt.Errorf("receipt store: reference and object digest differ")
 	}
-	if err := VerifyCanonical(&r, raw); err != nil {
-		return nil, nil, err
-	}
-	return &r, raw, nil
+	return r, raw, nil
 }
 
 // ListRuns returns run IDs with materialized latest-receipt references.
 func (s *Store) ListRuns() ([]string, error) {
-	entries, err := os.ReadDir(filepath.Join(s.Root, "runs"))
+	entries, err := os.ReadDir(filepath.Join(s.root, "runs"))
 	if errors.Is(err, os.ErrNotExist) {
 		return []string{}, nil
 	}

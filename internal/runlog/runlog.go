@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -111,6 +112,46 @@ func OpenSnapshot(runsDir, runID string) (*Log, []byte, error) {
 		return nil, nil, err
 	}
 	return l, raw, nil
+}
+
+// ParseSnapshot verifies and decodes one exact, complete JSONL journal prefix.
+func ParseSnapshot(raw []byte) ([]Event, error) {
+	if len(raw) == 0 {
+		return nil, fmt.Errorf("run log is empty")
+	}
+	if raw[len(raw)-1] != '\n' {
+		return nil, fmt.Errorf("run log ends with a partial event")
+	}
+	var events []Event
+	sc := bufio.NewScanner(bytes.NewReader(raw))
+	sc.Buffer(make([]byte, 0, 1024*1024), 16*1024*1024)
+	line := 0
+	for sc.Scan() {
+		line++
+		if len(sc.Bytes()) == 0 {
+			return nil, fmt.Errorf("corrupt run log at line %d: blank event", line)
+		}
+		decoder := json.NewDecoder(bytes.NewReader(sc.Bytes()))
+		decoder.DisallowUnknownFields()
+		var event Event
+		if err := decoder.Decode(&event); err != nil {
+			return nil, fmt.Errorf("corrupt run log at line %d: %w", line, err)
+		}
+		if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+			if err == nil {
+				err = fmt.Errorf("multiple JSON values")
+			}
+			return nil, fmt.Errorf("corrupt run log at line %d: trailing content: %w", line, err)
+		}
+		if event.Seq != len(events)+1 {
+			return nil, fmt.Errorf("run log sequence broken at line %d: got seq %d, want %d", line, event.Seq, len(events)+1)
+		}
+		events = append(events, event)
+	}
+	if err := sc.Err(); err != nil {
+		return nil, err
+	}
+	return events, nil
 }
 
 func parse(path string, raw []byte) (*Log, error) {

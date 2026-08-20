@@ -17,8 +17,8 @@ import (
 	"github.com/operatorstack/yield/internal/guard"
 	"github.com/operatorstack/yield/internal/outbox"
 	"github.com/operatorstack/yield/internal/protocol"
-	"github.com/operatorstack/yield/internal/receipt"
 	"github.com/operatorstack/yield/internal/runlog"
+	receipt "github.com/operatorstack/yield/observation"
 )
 
 // testEngine points at a testdata skill but keeps run logs in a temp dir,
@@ -38,7 +38,7 @@ func TestStartRunMaterializesReceiptBeforeReturn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r, _, err := receipt.StoreForRunsDir(e.RunsDir).LoadRun(p.RunID)
+	r, _, err := receipt.NewStore(filepath.Dir(e.RunsDir)).LoadRun(p.RunID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestInitializationFailureHasRunIDJournalAndReceipt(t *testing.T) {
 	if got := l.Events(); len(got) != 2 || got[0].Type != runlog.RunOpened || got[1].Type != runlog.RunInitializationFailed {
 		t.Fatalf("unexpected initialization journal: %+v", got)
 	}
-	r, _, loadErr := receipt.StoreForRunsDir(e.RunsDir).LoadRun(runErr.RunID)
+	r, _, loadErr := receipt.NewStore(filepath.Dir(e.RunsDir)).LoadRun(runErr.RunID)
 	if loadErr != nil {
 		t.Fatal(loadErr)
 	}
@@ -131,7 +131,7 @@ func main() { fmt.Println("{\"type\":\"terminal\",\"terminal\":{\"status\":\"com
 	if progress.Terminal == nil || progress.Terminal.Status != protocol.StatusCompleted {
 		t.Fatalf("workspace Rust skill did not reach completion: %+v", progress)
 	}
-	r, _, loadErr := receipt.StoreForRunsDir(runsDir).LoadRun(progress.RunID)
+	r, _, loadErr := receipt.NewStore(filepath.Dir(runsDir)).LoadRun(progress.RunID)
 	if loadErr != nil {
 		t.Fatal(loadErr)
 	}

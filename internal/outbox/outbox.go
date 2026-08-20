@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/gofrs/flock"
-	"github.com/operatorstack/yield/internal/receipt"
+	receipt "github.com/operatorstack/yield/observation"
 )
 
 type Manager struct {
@@ -71,7 +71,7 @@ func (m *Manager) Enqueue(sinkID string, r *receipt.RunReceipt, raw []byte) erro
 	if err := r.Validate(); err != nil {
 		return err
 	}
-	if err := receipt.VerifyCanonical(r, raw); err != nil {
+	if err := receipt.VerifyCanonical(*r, raw); err != nil {
 		return err
 	}
 	path, err := m.pendingPath(sinkID, r.ReceiptDigest)
@@ -551,7 +551,7 @@ func verifyReceipt(raw []byte, digest string) error {
 	if r.ReceiptDigest != digest {
 		return fmt.Errorf("outbox: pending receipt digest does not match its name")
 	}
-	return receipt.VerifyCanonical(&r, raw)
+	return receipt.VerifyCanonical(r, raw)
 }
 
 type digestWriter struct {

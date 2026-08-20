@@ -1,4 +1,4 @@
-package receipt
+package observation
 
 import (
 	"bytes"
@@ -27,7 +27,7 @@ func TestProjectCompletedReceiptIsDeterministicAndPrivate(t *testing.T) {
 		event(t, 4, runlog.RequirementPassed, t0.Add(5*time.Second), protocol.Requirement{Claim: secret, Passed: true, EvidenceDigest: protocol.DigestBytes(result)}),
 		event(t, 5, runlog.RunCompleted, t0.Add(6*time.Second), map[string]any{"result": result, "requirements": 1}),
 	}
-	snapshot := Snapshot{Events: events, Bytes: journalBytes(t, events)}
+	snapshot := journalBytes(t, events)
 	first, err := Project(snapshot)
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +58,7 @@ func TestProjectLegacyJournalDoesNotInventSourceOrRuntime(t *testing.T) {
 	events := []runlog.Event{
 		event(t, 1, runlog.RunStarted, t0, map[string]any{"run_id": "run_legacy", "skill": skill, "input_digest": protocol.DigestBytes(nil)}),
 	}
-	receipt, err := Project(Snapshot{Events: events, Bytes: journalBytes(t, events)})
+	receipt, err := Project(journalBytes(t, events))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestProjectClockAnomalyOmitsDuration(t *testing.T) {
 		event(t, 2, runlog.OperationRequested, t0.Add(time.Second), envelope),
 		event(t, 3, runlog.OperationCompleted, t0, map[string]any{"sequence": 1, "request_id": "ask", "result": json.RawMessage(`{"value":"yes"}`)}),
 	}
-	receipt, err := Project(Snapshot{Events: events, Bytes: journalBytes(t, events)})
+	receipt, err := Project(journalBytes(t, events))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestProjectClockAnomalyOmitsDuration(t *testing.T) {
 }
 
 func TestCanonicalBytesUsesJCSStringAndKeyRules(t *testing.T) {
-	raw, err := CanonicalBytes(map[string]any{"😀": "\u2028", "€": "<", "\r": "\n"})
+	raw, err := canonicalBytes(map[string]any{"😀": "\u2028", "€": "<", "\r": "\n"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestProjectLifecycleClassifications(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			r, err := Project(Snapshot{Events: test.events, Bytes: journalBytes(t, test.events)})
+			r, err := Project(journalBytes(t, test.events))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -173,7 +173,7 @@ func TestProjectRejectsBrokenOperationPairing(t *testing.T) {
 		event(t, 1, runlog.RunStarted, t0, map[string]any{"run_id": "run_broken", "skill": skill}),
 		event(t, 2, runlog.OperationCompleted, t0.Add(time.Second), map[string]any{"sequence": 1, "request_id": "missing", "result_digest": digest}),
 	}
-	if _, err := Project(Snapshot{Events: events, Bytes: journalBytes(t, events)}); err == nil {
+	if _, err := Project(journalBytes(t, events)); err == nil {
 		t.Fatal("broken operation pairing was accepted")
 	}
 }
@@ -184,7 +184,7 @@ func TestProjectFailsClosedOnUnknownAndPostTerminalEvents(t *testing.T) {
 	skill := protocol.SkillRef{Name: "closed", Digest: digest}
 	started := event(t, 1, runlog.RunStarted, t0, map[string]any{"run_id": "run_closed", "skill": skill})
 	unknown := []runlog.Event{started, event(t, 2, runlog.EventType("future.event"), t0.Add(time.Second), map[string]any{})}
-	if _, err := Project(Snapshot{Events: unknown, Bytes: journalBytes(t, unknown)}); err == nil {
+	if _, err := Project(journalBytes(t, unknown)); err == nil {
 		t.Fatal("unknown event was silently omitted")
 	}
 	postTerminal := []runlog.Event{
@@ -192,8 +192,60 @@ func TestProjectFailsClosedOnUnknownAndPostTerminalEvents(t *testing.T) {
 		event(t, 2, runlog.RunRefused, t0.Add(time.Second), map[string]any{}),
 		event(t, 3, runlog.RunCompleted, t0.Add(2*time.Second), map[string]any{}),
 	}
-	if _, err := Project(Snapshot{Events: postTerminal, Bytes: journalBytes(t, postTerminal)}); err == nil {
+	if _, err := Project(journalBytes(t, postTerminal)); err == nil {
 		t.Fatal("event after terminal was accepted")
+	}
+}
+
+func TestProjectRejectsPartialBlankAndUnknownEnvelopeFields(t *testing.T) {
+	t0 := time.Date(2026, 8, 20, 10, 0, 0, 0, time.UTC)
+	skill := protocol.SkillRef{Name: "strict", Digest: protocol.DigestBytes([]byte("strict"))}
+	events := []runlog.Event{event(t, 1, runlog.RunStarted, t0, map[string]any{"run_id": "run_strict", "skill": skill})}
+	complete := journalBytes(t, events)
+
+	for name, journal := range map[string][]byte{
+		"partial line":           complete[:len(complete)-1],
+		"blank line":             append(append([]byte{}, complete...), '\n'),
+		"unknown envelope field": []byte(strings.Replace(string(complete), `"data":`, `"unknown":true,"data":`, 1)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := Project(journal); err == nil {
+				t.Fatal("malformed journal prefix was accepted")
+			}
+		})
+	}
+}
+
+func TestParseRequiresExactCanonicalVerifiedBytes(t *testing.T) {
+	t0 := time.Date(2026, 8, 20, 10, 0, 0, 0, time.UTC)
+	skill := protocol.SkillRef{Name: "parse", Digest: protocol.DigestBytes([]byte("parse"))}
+	events := []runlog.Event{event(t, 1, runlog.RunStarted, t0, map[string]any{"run_id": "run_parse", "skill": skill})}
+	receipt, err := Project(journalBytes(t, events))
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonical, err := CanonicalBytes(receipt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := Parse(canonical)
+	if err != nil || parsed.ReceiptDigest != receipt.ReceiptDigest {
+		t.Fatalf("canonical receipt did not round trip: %+v, %v", parsed, err)
+	}
+
+	mutatedDigest := bytes.Replace(canonical, []byte(receipt.ReceiptDigest), []byte(protocol.DigestBytes([]byte("wrong"))), 1)
+	unknownField := append(append([]byte{}, canonical[:len(canonical)-1]...), []byte(`,"prompt":"secret"}`)...)
+	for name, raw := range map[string][]byte{
+		"noncanonical whitespace": append([]byte(" "), canonical...),
+		"digest mismatch":         mutatedDigest,
+		"unknown field":           unknownField,
+		"trailing content":        append(append([]byte{}, canonical...), []byte("\n{}")...),
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := Parse(raw); err == nil {
+				t.Fatal("invalid receipt bytes were accepted")
+			}
+		})
 	}
 }
 

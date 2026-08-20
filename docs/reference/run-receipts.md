@@ -12,6 +12,63 @@ operation kinds and timing, typed rejection and requirement outcomes,
 divergence digests, terminal disposition, and optional experiment identifiers.
 All four SDKs use the same supervisor projection.
 
+## Go API
+
+Go hosts can project, verify, store, and aggregate receipts without invoking
+the CLI. The public package is
+[`github.com/operatorstack/yield/observation`](https://pkg.go.dev/github.com/operatorstack/yield/observation).
+
+```go
+receipt, err := observation.Project(journalPrefix)
+if err != nil {
+	return err
+}
+canonical, err := observation.CanonicalBytes(receipt)
+if err != nil {
+	return err
+}
+
+store := observation.NewStore(yieldDir)
+if err := store.Put(receipt, canonical); err != nil {
+	return err
+}
+```
+
+`Project` accepts one exact, complete `.yield/runs/<run-id>.jsonl` prefix and
+performs no I/O. It rejects partial lines, malformed ordering, unknown event
+types, and unknown journal-envelope fields. `Parse` accepts only canonical
+receipt bytes whose digest verifies. These checks make the journal prefix the
+explicit input and keep receipt files derived, rather than authoritative.
+
+## SDK readers
+
+The Go supervisor remains the only receipt projector. TypeScript, Python, and
+Rust expose strict readers for the same canonical receipt bytes:
+
+```typescript
+import { parseRunReceipt } from "@operatorstack/yield"
+
+const receipt = parseRunReceipt(bytes)
+```
+
+```python
+from yieldskill import parse_run_receipt
+
+receipt = parse_run_receipt(data)
+```
+
+```rust
+use yieldskill::RunReceipt;
+
+let receipt = RunReceipt::parse_and_verify(bytes)?;
+```
+
+Each reader exports schema-bound v1 types, rejects unknown fields and invalid
+enum values, reproduces Yield's integer-only RFC 8785 canonicalization
+profile, and verifies the embedded SHA-256 receipt digest. The SDKs share one
+Go-generated golden fixture. They do not read journals, project receipts,
+write receipt storage, or participate in replay.
+
 ## Privacy boundary
 
 Receipts do not contain prompts, instructions, model responses, user answers,

@@ -1,29 +1,27 @@
-package receipt
+package observation
 
 import (
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/operatorstack/yield/internal/protocol"
 )
 
 func TestBuildReportIsDeterministicAndMakesNoCausalClaim(t *testing.T) {
-	r := &RunReceipt{
+	r := RunReceipt{
 		Run: RunIdentity{ID: "run_1"}, Timing: TimingSummary{StartedAt: "2026-08-20T10:00:00Z"},
 		Outcome:            OutcomeSummary{Phase: "awaiting_response"},
-		OperationSummaries: []OperationSummary{{Kind: protocol.OpAskUser, Requested: 1}},
+		OperationSummaries: []OperationSummary{{Kind: OperationAskUser, Requested: 1}},
 		Experiment:         &ExperimentContext{ExperimentID: "exp-1", VariantID: "candidate", Role: "candidate"},
 	}
 	options := ReportOptions{
 		From: time.Date(2026, 8, 20, 0, 0, 0, 0, time.UTC), To: time.Date(2026, 8, 21, 0, 0, 0, 0, time.UTC),
 		OpenAgeThreshold: time.Hour, ReferenceTime: time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC),
 	}
-	first, err := BuildReport([]*RunReceipt{r}, options)
+	first, err := BuildReport([]RunReceipt{r}, options)
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := BuildReport([]*RunReceipt{r}, options)
+	second, err := BuildReport([]RunReceipt{r}, options)
 	if err != nil {
 		t.Fatal(err)
 	}

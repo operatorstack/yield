@@ -1,4 +1,4 @@
-package receipt
+package observation
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ func TestStoreMaterializationConverges(t *testing.T) {
 	t0 := time.Date(2026, 8, 20, 10, 0, 0, 0, time.UTC)
 	skill := protocol.SkillRef{Name: "store", Digest: protocol.DigestBytes([]byte("store"))}
 	events := []runlog.Event{event(t, 1, runlog.RunStarted, t0, map[string]any{"run_id": "run_store", "skill": skill})}
-	snapshot := Snapshot{Events: events, Bytes: journalBytes(t, events)}
+	snapshot := journalBytes(t, events)
 	store := NewStore(t.TempDir())
 	first, firstBytes, err := store.Materialize(snapshot)
 	if err != nil {
@@ -39,8 +39,8 @@ func TestStoreMaterializationConverges(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		digest := first.ReceiptDigest[len("sha256:"):]
 		for _, path := range []string{
-			filepath.Join(store.Root, "objects", "sha256", digest[:2], digest+".json"),
-			filepath.Join(store.Root, "runs", "run_store.ref"),
+			filepath.Join(store.root, "objects", "sha256", digest[:2], digest+".json"),
+			filepath.Join(store.root, "runs", "run_store.ref"),
 		} {
 			info, err := os.Stat(path)
 			if err != nil {
@@ -57,13 +57,13 @@ func TestStoreRepairsObjectWithoutRunReference(t *testing.T) {
 	t0 := time.Date(2026, 8, 20, 10, 0, 0, 0, time.UTC)
 	skill := protocol.SkillRef{Name: "store", Digest: protocol.DigestBytes([]byte("store"))}
 	events := []runlog.Event{event(t, 1, runlog.RunStarted, t0, map[string]any{"run_id": "run_store", "skill": skill})}
-	snapshot := Snapshot{Events: events, Bytes: journalBytes(t, events)}
+	snapshot := journalBytes(t, events)
 	store := NewStore(t.TempDir())
 	r, _, err := store.Materialize(snapshot)
 	if err != nil {
 		t.Fatal(err)
 	}
-	ref := filepath.Join(store.Root, "runs", "run_store.ref")
+	ref := filepath.Join(store.root, "runs", "run_store.ref")
 	if err := os.Remove(ref); err != nil {
 		t.Fatal(err)
 	}
@@ -81,12 +81,12 @@ func TestStoreRejectsContentMismatchAtDigestPath(t *testing.T) {
 	skill := protocol.SkillRef{Name: "store", Digest: protocol.DigestBytes([]byte("store"))}
 	events := []runlog.Event{event(t, 1, runlog.RunStarted, t0, map[string]any{"run_id": "run_store", "skill": skill})}
 	store := NewStore(t.TempDir())
-	r, raw, err := store.Materialize(Snapshot{Events: events, Bytes: journalBytes(t, events)})
+	r, raw, err := store.Materialize(journalBytes(t, events))
 	if err != nil {
 		t.Fatal(err)
 	}
 	digest := r.ReceiptDigest[len("sha256:"):]
-	path := filepath.Join(store.Root, "objects", "sha256", digest[:2], digest+".json")
+	path := filepath.Join(store.root, "objects", "sha256", digest[:2], digest+".json")
 	if err := os.WriteFile(path, []byte("different"), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestStoreRejectsUnsealedReceiptDigest(t *testing.T) {
 	t0 := time.Date(2026, 8, 20, 10, 0, 0, 0, time.UTC)
 	skill := protocol.SkillRef{Name: "store", Digest: protocol.DigestBytes([]byte("store"))}
 	events := []runlog.Event{event(t, 1, runlog.RunStarted, t0, map[string]any{"run_id": "run_store", "skill": skill})}
-	r, err := Project(Snapshot{Events: events, Bytes: journalBytes(t, events)})
+	r, err := Project(journalBytes(t, events))
 	if err != nil {
 		t.Fatal(err)
 	}

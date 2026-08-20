@@ -1,4 +1,4 @@
-package receipt
+package observation
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 
 func observationSchema(t *testing.T) *jsonschema.Schema {
 	t.Helper()
-	path := filepath.Join("..", "..", "ir", "yield.observation.v1", "run-receipt.schema.json")
+	path := filepath.Join("..", "ir", "yield.observation.v1", "run-receipt.schema.json")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -44,7 +44,7 @@ func TestGoReceiptValidatesAgainstObservationIR(t *testing.T) {
 		event(t, 2, runlog.RunStarted, t0, map[string]any{"run_id": "run_schema", "skill": skill, "input_digest": digest, "supervisor_version": "1.0.0", "required_yield_version": "1.0.0", "source_digest_profile": protocol.SkillSourceProfileV1, "source_digest": digest}),
 		event(t, 3, runlog.RunCompleted, t0.Add(time.Second), map[string]any{"result": json.RawMessage(`{"ok":true}`)}),
 	}
-	r, err := Project(Snapshot{Events: events, Bytes: journalBytes(t, events)})
+	r, err := Project(journalBytes(t, events))
 	if err != nil {
 		t.Fatal(err)
 	}

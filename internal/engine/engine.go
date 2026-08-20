@@ -22,8 +22,8 @@ import (
 	"github.com/gofrs/flock"
 	"github.com/operatorstack/yield/internal/guard"
 	"github.com/operatorstack/yield/internal/protocol"
-	"github.com/operatorstack/yield/internal/receipt"
 	"github.com/operatorstack/yield/internal/runlog"
+	receipt "github.com/operatorstack/yield/observation"
 )
 
 // Engine binds a skill directory to a runs directory.
@@ -393,23 +393,23 @@ func (e *Engine) MaterializeReceipt(runID string) (*receipt.RunReceipt, []byte, 
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := receipt.StoreForRunsDir(e.RunsDir).Put(r, raw); err != nil {
+	if err := receipt.NewStore(filepath.Dir(e.RunsDir)).Put(*r, raw); err != nil {
 		return nil, nil, err
 	}
 	return r, raw, nil
 }
 
 func (e *Engine) project(runID string) (*receipt.RunReceipt, []byte, error) {
-	l, rawJournal, err := runlog.OpenSnapshot(e.RunsDir, runID)
+	_, rawJournal, err := runlog.OpenSnapshot(e.RunsDir, runID)
 	if err != nil {
 		return nil, nil, err
 	}
-	r, err := receipt.Project(receipt.Snapshot{Bytes: rawJournal, Events: l.Events()})
+	r, err := receipt.Project(rawJournal)
 	if err != nil {
 		return nil, nil, err
 	}
 	raw, err := receipt.CanonicalBytes(r)
-	return r, raw, err
+	return &r, raw, err
 }
 
 func (e *Engine) materialize(runID string) error {
@@ -417,7 +417,7 @@ func (e *Engine) materialize(runID string) error {
 	if err != nil {
 		return err
 	}
-	return receipt.StoreForRunsDir(e.RunsDir).Put(r, raw)
+	return receipt.NewStore(filepath.Dir(e.RunsDir)).Put(*r, raw)
 }
 
 // ListRuns returns known run IDs, newest last.

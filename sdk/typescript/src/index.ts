@@ -16,6 +16,8 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { exit, env, stdout, stderr } from "node:process";
 
+export * from "./observation.js";
+
 export type OpKind = "ask_user" | "agent_task" | "run_command";
 
 export interface SkillRef {
