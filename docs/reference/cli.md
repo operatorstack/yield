@@ -107,11 +107,14 @@ Prints the runtime version and platform.
 ## `run`
 
 ```bash
-yskill run <skill-directory> [--input input.json]
+yskill run <skill-directory> [--input input.json] [--experiment experiment.json]
 ```
 
 Starts a run and prints the first unanswered operation. The run is stored under
-the skill's `.yield/runs/` directory.
+the skill's `.yield/runs/` directory. Optional experiment metadata uses the
+closed `experiment_id`, `cohort_id`, `variant_id`, `role`,
+`baseline_variant_id`, and `parent_skill_version` fields. It is observation
+metadata and cannot change replay or the workflow result.
 
 ## `resume`
 
@@ -169,6 +172,45 @@ yskill replay <run-id> [--skill directory]
 Re-executes the program from the log and verifies that recorded operations lead
 to the same frontier. Operation drift fails loudly.
 
+## `receipt`
+
+```bash
+yskill receipt <run-id> [--skill directory]
+yskill receipt materialize <run-id> [--skill directory]
+yskill receipt materialize --all [--skill directory]
+```
+
+Derives a portable receipt from one exact journal prefix. The first form prints
+without changing local state. `materialize` writes the immutable object and
+updates the run reference. New foreground runs materialize automatically.
+
+## `outbox`
+
+```bash
+yskill outbox enqueue <run-id> --sink <id> [--skill directory]
+yskill outbox enqueue --all-terminal --sink <id> [--skill directory]
+yskill outbox deliver --sink <id> [--skill directory] -- <argv...>
+yskill outbox status [--sink <id>] [--skill directory]
+yskill outbox retry <receipt-digest> --sink <id> [--skill directory]
+yskill outbox retry --failed|--unknown --sink <id> [--skill directory]
+```
+
+Queues and delivers materialized receipts outside foreground execution. Yield
+runs the sink argv directly and sends one receipt on standard input. Delivery
+is idempotent by receipt digest, retryable, order-independent, and protected by
+a per-digest lock. See [portable run receipts](run-receipts.md).
+
+## `report`
+
+```bash
+yskill report <skill-directory> [--from RFC3339] [--to RFC3339]
+  [--experiment id] [--open-age-threshold duration] [--format table|json]
+```
+
+Aggregates latest local receipts by lifecycle, terminal disposition, operation
+timing, rejection and requirement outcome, runtime and source identity, and
+experiment variant. It makes no causal, winner, or activation claim.
+
 ## `test`
 
 ```bash
@@ -207,4 +249,6 @@ yskill prune <skill-directory> --older-than 720h
   [--keep-last 10] [--dry-run]
 ```
 
-Removes old terminal runs. Active runs are never selected.
+Removes old terminal runs. Active runs are never selected. Before deletion,
+Yield proves that the terminal receipt exists or can be materialized. Receipt
+objects and outbox entries are not pruned.

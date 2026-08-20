@@ -5,27 +5,33 @@ package runlog
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 )
 
 type EventType string
 
 const (
-	RunStarted         EventType = "run.started"
-	OperationRequested EventType = "operation.requested"
-	OperationCompleted EventType = "operation.completed"
-	ResponseRejected   EventType = "response.rejected"
-	RequirementPassed  EventType = "requirement.passed"
-	RequirementFailed  EventType = "requirement.failed"
-	DigestMigrated     EventType = "digest.migrated"
-	ReplayDiverged     EventType = "replay.diverged"
-	RunCompleted       EventType = "run.completed"
-	RunBlocked         EventType = "run.blocked"
-	RunRefused         EventType = "run.refused"
+	RunOpened               EventType = "run.opened"
+	RunStarted              EventType = "run.started"
+	OperationRequested      EventType = "operation.requested"
+	OperationCompleted      EventType = "operation.completed"
+	ResponseRejected        EventType = "response.rejected"
+	RequirementPassed       EventType = "requirement.passed"
+	RequirementFailed       EventType = "requirement.failed"
+	DigestMigrated          EventType = "digest.migrated"
+	ReplayDiverged          EventType = "replay.diverged"
+	ExecutionFailed         EventType = "execution.failed"
+	RunInitializationFailed EventType = "run.initialization_failed"
+	RunCompleted            EventType = "run.completed"
+	RunBlocked              EventType = "run.blocked"
+	RunRefused              EventType = "run.refused"
 )
 
 // Event is one appended fact. Seq is monotone from 1 within a run.
@@ -46,20 +52,38 @@ type Log struct {
 // or the cwd), creating it if needed.
 func RunsDir(root string) (string, error) {
 	dir := filepath.Join(root, ".yield", "runs")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
+	_ = os.Chmod(dir, 0o700)
 	return dir, nil
 }
 
 // Create starts a new log file for a run. It refuses to overwrite.
 func Create(runsDir, runID string) (*Log, error) {
 	path := filepath.Join(runsDir, runID+".jsonl")
-	if _, err := os.Stat(path); err == nil {
-		return nil, fmt.Errorf("run log already exists: %s", path)
-	}
-	if err := os.WriteFile(path, nil, 0o644); err != nil {
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return nil, fmt.Errorf("run log already exists: %s", path)
+		}
 		return nil, err
+	}
+	if err := f.Close(); err != nil {
+		return nil, err
+	}
+	if runtime.GOOS != "windows" {
+		dir, err := os.Open(runsDir)
+		if err != nil {
+			return nil, err
+		}
+		if err := dir.Sync(); err != nil {
+			dir.Close()
+			return nil, err
+		}
+		if err := dir.Close(); err != nil {
+			return nil, err
+		}
 	}
 	return &Log{Path: path}, nil
 }
@@ -67,13 +91,31 @@ func Create(runsDir, runID string) (*Log, error) {
 // Open loads an existing run log and verifies sequence monotonicity.
 func Open(runsDir, runID string) (*Log, error) {
 	path := filepath.Join(runsDir, runID+".jsonl")
-	f, err := os.Open(path)
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("no such run: %s: %w", runID, err)
 	}
-	defer f.Close()
+	return parse(path, raw)
+}
+
+// OpenSnapshot reads and parses one exact journal prefix. The returned bytes
+// and events always describe the same prefix.
+func OpenSnapshot(runsDir, runID string) (*Log, []byte, error) {
+	path := filepath.Join(runsDir, runID+".jsonl")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("no such run: %s: %w", runID, err)
+	}
+	l, err := parse(path, raw)
+	if err != nil {
+		return nil, nil, err
+	}
+	return l, raw, nil
+}
+
+func parse(path string, raw []byte) (*Log, error) {
 	l := &Log{Path: path}
-	sc := bufio.NewScanner(f)
+	sc := bufio.NewScanner(bytes.NewReader(raw))
 	sc.Buffer(make([]byte, 0, 1024*1024), 16*1024*1024)
 	line := 0
 	for sc.Scan() {
@@ -107,7 +149,7 @@ func (l *Log) Append(t EventType, data any) (Event, error) {
 	if err != nil {
 		return Event{}, err
 	}
-	f, err := os.OpenFile(l.Path, os.O_WRONLY|os.O_APPEND, 0o644)
+	f, err := os.OpenFile(l.Path, os.O_WRONLY|os.O_APPEND, 0o600)
 	if err != nil {
 		return Event{}, err
 	}

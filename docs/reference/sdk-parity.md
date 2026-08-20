@@ -13,8 +13,17 @@ contract.
 Skills declare their language and runner in `skill.json`, for example:
 
 ```json
-{ "version": 1, "language": "typescript", "run": ["node", "main.ts"] }
+{
+  "version": 1,
+  "yield_version": "0.1.38",
+  "skill_version": "1.0.0",
+  "language": "typescript",
+  "run": ["node", "main.ts"]
+}
 ```
+
+`skill_version` is optional. It identifies the workflow release and is not the
+manifest schema `version`.
 
 The conformance suite runs the same workflow in all four languages and compares
 the observable protocol traces. Language-specific types and syntax differ; run

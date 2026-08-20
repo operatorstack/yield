@@ -66,5 +66,6 @@ response and resumes from the next unanswered operation.
 - [CLI commands](reference/cli.md)
 - [Coding-agent registration](agent-setup.md)
 - [Run, pause, resume, and replay](reference/execution-model.md)
+- [Portable run receipts and deferred export](reference/run-receipts.md)
 - [The four SDKs](reference/sdk-parity.md)
 - [Guarantees and limits](reference/guarantees.md)

@@ -2,16 +2,22 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/operatorstack/yield/internal/guard"
+	"github.com/operatorstack/yield/internal/outbox"
 	"github.com/operatorstack/yield/internal/protocol"
+	"github.com/operatorstack/yield/internal/receipt"
 	"github.com/operatorstack/yield/internal/runlog"
 )
 
@@ -24,6 +30,150 @@ func testEngine(t *testing.T, skill string) *Engine {
 		t.Fatal(err)
 	}
 	return &Engine{SkillDir: abs, RunsDir: t.TempDir(), Stderr: os.Stderr}
+}
+
+func TestStartRunMaterializesReceiptBeforeReturn(t *testing.T) {
+	e := testEngine(t, "skill-basic")
+	p, err := e.StartRun(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, _, err := receipt.StoreForRunsDir(e.RunsDir).LoadRun(p.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Outcome.Phase != "awaiting_response" || r.Skill.SourceDigest == nil || r.Skill.SourceDigest.Profile != protocol.SkillSourceProfileV1 {
+		t.Fatalf("unexpected materialized receipt: %+v", r)
+	}
+}
+
+func TestExperimentMetadataIsObservedButNotInReplayJournal(t *testing.T) {
+	e := testEngine(t, "skill-basic")
+	experiment := &receipt.ExperimentContext{ExperimentID: "exp-1", VariantID: "candidate-a", Role: "candidate", BaselineVariantID: "baseline-a"}
+	p, err := e.StartRunWithOptions(nil, StartOptions{Experiment: experiment})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, _, err := e.Receipt(p.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Experiment == nil || *r.Experiment != *experiment {
+		t.Fatalf("experiment context was not projected: %+v", r.Experiment)
+	}
+	if _, err := e.Replay(p.RunID); err != nil {
+		t.Fatalf("experiment metadata changed replay: %v", err)
+	}
+}
+
+func TestInitializationFailureHasRunIDJournalAndReceipt(t *testing.T) {
+	skillDir := t.TempDir()
+	runsDir := filepath.Join(t.TempDir(), "runs")
+	if err := os.MkdirAll(runsDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	e := &Engine{SkillDir: skillDir, RunsDir: runsDir, SupervisorVersion: "1.0.0", Stderr: os.Stderr}
+	_, err := e.StartRun(nil)
+	var runErr *RunError
+	if !errors.As(err, &runErr) || runErr.RunID == "" {
+		t.Fatalf("initialization error did not preserve run id: %v", err)
+	}
+	l, openErr := e.Log(runErr.RunID)
+	if openErr != nil {
+		t.Fatal(openErr)
+	}
+	if got := l.Events(); len(got) != 2 || got[0].Type != runlog.RunOpened || got[1].Type != runlog.RunInitializationFailed {
+		t.Fatalf("unexpected initialization journal: %+v", got)
+	}
+	r, _, loadErr := receipt.StoreForRunsDir(e.RunsDir).LoadRun(runErr.RunID)
+	if loadErr != nil {
+		t.Fatal(loadErr)
+	}
+	if r.Outcome.Phase != "initialization_failed" || r.Outcome.FailureCode != "runner_missing" {
+		t.Fatalf("unexpected initialization receipt: %+v", r.Outcome)
+	}
+}
+
+func TestRustRunWithoutLockfileFailsDuringInitialization(t *testing.T) {
+	skillDir := t.TempDir()
+	manifest := `{"version":1,"yield_version":"1.0.0","language":"rust","run":["cargo","run"]}`
+	if err := os.WriteFile(filepath.Join(skillDir, "skill.json"), []byte(manifest), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runsDir := filepath.Join(t.TempDir(), "runs")
+	if err := os.MkdirAll(runsDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	e := &Engine{SkillDir: skillDir, RunsDir: runsDir, SupervisorVersion: "1.0.0", Stderr: os.Stderr}
+	_, err := e.StartRun(nil)
+	var runErr *RunError
+	if !errors.As(err, &runErr) {
+		t.Fatalf("expected run-bound initialization error, got %v", err)
+	}
+	r, _, loadErr := receipt.StoreForRunsDir(runsDir).LoadRun(runErr.RunID)
+	if loadErr != nil {
+		t.Fatal(loadErr)
+	}
+	if r.Outcome.FailureCode != "source_lockfile_missing" {
+		t.Fatalf("failure code = %q", r.Outcome.FailureCode)
+	}
+}
+
+func TestMaterializationFailureDoesNotRewriteJournal(t *testing.T) {
+	e := testEngine(t, "skill-basic")
+	yieldDir := filepath.Dir(e.RunsDir)
+	if err := os.WriteFile(filepath.Join(yieldDir, "receipts"), []byte("block directory creation"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := e.StartRun(nil)
+	var runErr *RunError
+	if !errors.As(err, &runErr) {
+		t.Fatalf("expected run-bound materialization error, got %v", err)
+	}
+	l, openErr := e.Log(runErr.RunID)
+	if openErr != nil {
+		t.Fatal(openErr)
+	}
+	if len(l.Events()) < 3 || l.Events()[0].Type != runlog.RunOpened || l.Events()[1].Type != runlog.RunStarted {
+		t.Fatalf("formal journal was not preserved: %+v", l.Events())
+	}
+}
+
+func TestOutboxStateDoesNotModifyJournalOrReplay(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("true fixture is Unix-only")
+	}
+	e := testEngine(t, "skill-basic")
+	p, err := e.StartRun(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	journalPath := filepath.Join(e.RunsDir, p.RunID+".jsonl")
+	before, err := os.ReadFile(journalPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, raw, err := e.Receipt(p.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := outbox.New(filepath.Dir(e.RunsDir))
+	if err := manager.Enqueue("test-sink", r, raw); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := manager.Deliver(context.Background(), "test-sink", []string{"true"}, time.Second); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(journalPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Fatal("outbox operation modified the authoritative journal")
+	}
+	if _, err := e.Replay(p.RunID); err != nil {
+		t.Fatalf("outbox operation changed replay: %v", err)
+	}
 }
 
 func TestConcurrentIdenticalResumeCommitsOnce(t *testing.T) {
@@ -70,6 +220,29 @@ func TestConcurrentIdenticalResumeCommitsOnce(t *testing.T) {
 	}
 	if completed != 1 {
 		t.Fatalf("confirm-scope completion events = %d, want 1", completed)
+	}
+}
+
+func TestConcurrentResumeAndReceiptInspectionSeeWholePrefixes(t *testing.T) {
+	e := testEngine(t, "skill-basic")
+	p, err := e.StartRun(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := json.Marshal(protocol.ResponseEnvelope{
+		RunID: p.RunID, Sequence: p.Envelope.Sequence, RequestID: p.Envelope.Request.ID,
+		Status: "completed", Result: json.RawMessage(`{"value":"preserve"}`),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	errs := make(chan error, 2)
+	go func() { _, callErr := e.Resume(p.RunID, response, false); errs <- callErr }()
+	go func() { _, _, callErr := e.Receipt(p.RunID); errs <- callErr }()
+	for range 2 {
+		if err := <-errs; err != nil {
+			t.Fatalf("concurrent transition observed a partial prefix: %v", err)
+		}
 	}
 }
 
@@ -317,6 +490,19 @@ func TestEndToEndRunResumeComplete(t *testing.T) {
 	// The closed run refuses further responses.
 	if _, err := respond(t, e, &Progress{RunID: p.RunID, Envelope: &protocol.RequestEnvelope{Sequence: 2, Request: protocol.Request{ID: "summarize"}}}, `{"summary":"again"}`, false); err == nil {
 		t.Fatal("responses on a closed run must be refused")
+	}
+	receipt, _, err := e.Receipt(p.RunID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rejections := map[string]int{}
+	for _, rejection := range receipt.ResponseRejections {
+		rejections[rejection.Reason] = rejection.Count
+	}
+	for _, reason := range []string{"stale-response", "schema-invalid", "run-closed"} {
+		if rejections[reason] != 1 {
+			t.Fatalf("receipt rejection %s count = %d", reason, rejections[reason])
+		}
 	}
 }
 

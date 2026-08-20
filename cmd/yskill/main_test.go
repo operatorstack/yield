@@ -132,7 +132,10 @@ func TestPruneRemovesOnlyOldTerminalRuns(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := log.Append(runlog.RunStarted, map[string]any{"run_id": id}); err != nil {
+		if _, err := log.Append(runlog.RunStarted, map[string]any{
+			"run_id": id,
+			"skill":  protocol.SkillRef{Name: filepath.Base(skill), Digest: protocol.DigestBytes([]byte("skill"))},
+		}); err != nil {
 			t.Fatal(err)
 		}
 		if closed {
@@ -153,6 +156,9 @@ func TestPruneRemovesOnlyOldTerminalRuns(t *testing.T) {
 	}
 	if _, err := os.Stat(closed); !os.IsNotExist(err) {
 		t.Fatalf("terminal run was not pruned: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(skill, ".yield", "receipts", "runs", "run_closed.ref")); err != nil {
+		t.Fatalf("terminal receipt was not preserved: %v", err)
 	}
 	if _, err := os.Stat(active); err != nil {
 		t.Fatalf("active run was pruned: %v", err)

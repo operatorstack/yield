@@ -5,6 +5,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -20,7 +21,9 @@ import (
 	"time"
 
 	"github.com/operatorstack/yield/internal/engine"
+	"github.com/operatorstack/yield/internal/outbox"
 	"github.com/operatorstack/yield/internal/protocol"
+	"github.com/operatorstack/yield/internal/receipt"
 	"github.com/operatorstack/yield/internal/runlog"
 )
 
@@ -41,11 +44,21 @@ Usage:
   yskill doctor <skill-dir>                  check package, skill workflow, and adapters
          [--agent cursor,codex,...|auto] [--root repo] [--test]
   yskill run <skill-dir> [--input file]      start a run; prints the first operation envelope
+         [--experiment file]
   yskill resume <run-id> --response file     feed a response; prints the next operation
          [--skill dir] [--accept-new-digest]
   yskill respond <run-id> --value text       answer the pending question directly
          [--result-json json|-] [--skill dir]
   yskill inspect <run-id> [--skill dir]      print the run's event log
+  yskill receipt <run-id> [--skill dir]      derive and print a portable receipt
+  yskill receipt materialize <run-id>|--all  durably store local receipt objects
+         [--skill dir]
+  yskill outbox enqueue <run-id>|--all-terminal --sink id [--skill dir]
+  yskill outbox deliver --sink id [--skill dir] -- <argv...>
+  yskill outbox status [--sink id] [--skill dir]
+  yskill outbox retry <digest>|--failed|--unknown --sink id [--skill dir]
+  yskill report <skill-dir> [--from time] [--to time] [--experiment id]
+         [--open-age-threshold duration] [--format table|json]
   yskill prune <skill-dir> --older-than 720h remove old terminal runs
          [--keep-last n] [--dry-run]
   yskill replay <run-id> [--skill dir]       re-derive the run from its log; verify determinism
@@ -114,6 +127,12 @@ func main() {
 		err = cmdRespond(os.Args[2:])
 	case "inspect":
 		err = cmdInspect(os.Args[2:])
+	case "receipt":
+		err = cmdReceipt(os.Args[2:])
+	case "outbox":
+		err = cmdOutbox(os.Args[2:])
+	case "report":
+		err = cmdReport(os.Args[2:])
 	case "prune":
 		err = cmdPrune(os.Args[2:])
 	case "replay":
@@ -149,6 +168,7 @@ func cmdHelper(args []string) error {
 func cmdRun(args []string) error {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
 	input := fs.String("input", "", "path to a JSON input file")
+	experimentPath := fs.String("experiment", "", "path to experiment metadata JSON")
 	if err := parseOnePositional(fs, args); err != nil {
 		return err
 	}
@@ -167,7 +187,18 @@ func cmdRun(args []string) error {
 		}
 		in = b
 	}
-	p, err := e.StartRun(in)
+	var experiment *receipt.ExperimentContext
+	if *experimentPath != "" {
+		raw, readErr := os.ReadFile(*experimentPath)
+		if readErr != nil {
+			return readErr
+		}
+		experiment, err = receipt.DecodeExperiment(raw)
+		if err != nil {
+			return err
+		}
+	}
+	p, err := e.StartRunWithOptions(in, engine.StartOptions{Experiment: experiment})
 	if err != nil {
 		return err
 	}
@@ -275,6 +306,318 @@ func cmdInspect(args []string) error {
 	return nil
 }
 
+func cmdReceipt(args []string) error {
+	if len(args) > 0 && args[0] == "materialize" {
+		return cmdReceiptMaterialize(args[1:])
+	}
+	fs := flag.NewFlagSet("receipt", flag.ExitOnError)
+	skillDir := fs.String("skill", ".", "skill directory the run belongs to")
+	if err := parseOnePositional(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 {
+		return fmt.Errorf("receipt takes exactly one run id")
+	}
+	e, err := newEngine(*skillDir)
+	if err != nil {
+		return err
+	}
+	_, raw, err := e.Receipt(fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	_, err = os.Stdout.Write(append(raw, '\n'))
+	return err
+}
+
+func cmdReceiptMaterialize(args []string) error {
+	fs := flag.NewFlagSet("receipt materialize", flag.ExitOnError)
+	skillDir := fs.String("skill", ".", "skill directory the run belongs to")
+	all := fs.Bool("all", false, "materialize every run")
+	if err := parseOnePositional(fs, args); err != nil {
+		return err
+	}
+	if *all == (fs.NArg() == 1) {
+		return fmt.Errorf("receipt materialize takes one run id or --all")
+	}
+	e, err := newEngine(*skillDir)
+	if err != nil {
+		return err
+	}
+	ids := []string{fs.Arg(0)}
+	if *all {
+		ids, err = e.ListRuns()
+		if err != nil {
+			return err
+		}
+	}
+	for _, id := range ids {
+		r, _, materializeErr := e.MaterializeReceipt(id)
+		if materializeErr != nil {
+			return materializeErr
+		}
+		fmt.Printf("receipt: %s %s\n", id, r.ReceiptDigest)
+	}
+	return nil
+}
+
+func cmdOutbox(args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("outbox requires enqueue, deliver, status, or retry")
+	}
+	switch args[0] {
+	case "enqueue":
+		return cmdOutboxEnqueue(args[1:])
+	case "deliver":
+		return cmdOutboxDeliver(args[1:])
+	case "status":
+		return cmdOutboxStatus(args[1:])
+	case "retry":
+		return cmdOutboxRetry(args[1:])
+	default:
+		return fmt.Errorf("unknown outbox subcommand %q", args[0])
+	}
+}
+
+func cmdOutboxEnqueue(args []string) error {
+	fs := flag.NewFlagSet("outbox enqueue", flag.ExitOnError)
+	skillDir := fs.String("skill", ".", "skill directory the run belongs to")
+	sinkID := fs.String("sink", "", "sink identifier")
+	allTerminal := fs.Bool("all-terminal", false, "enqueue all terminal receipts")
+	if err := parseOnePositional(fs, args); err != nil {
+		return err
+	}
+	if *sinkID == "" || *allTerminal == (fs.NArg() == 1) {
+		return fmt.Errorf("outbox enqueue takes one run id or --all-terminal and requires --sink")
+	}
+	e, err := newEngine(*skillDir)
+	if err != nil {
+		return err
+	}
+	ids := []string{fs.Arg(0)}
+	if *allTerminal {
+		ids, err = e.ListRuns()
+		if err != nil {
+			return err
+		}
+	}
+	manager := outbox.New(filepath.Dir(e.RunsDir))
+	for _, id := range ids {
+		r, raw, materializeErr := e.MaterializeReceipt(id)
+		if materializeErr != nil {
+			return materializeErr
+		}
+		if *allTerminal && r.Outcome.Phase != "terminal" && r.Outcome.Phase != "initialization_failed" {
+			continue
+		}
+		if err := manager.Enqueue(*sinkID, r, raw); err != nil {
+			return err
+		}
+		fmt.Printf("outbox: enqueued %s for %s\n", r.ReceiptDigest, *sinkID)
+	}
+	return nil
+}
+
+func cmdOutboxDeliver(args []string) error {
+	separator := -1
+	for index, arg := range args {
+		if arg == "--" {
+			separator = index
+			break
+		}
+	}
+	if separator < 0 || separator == len(args)-1 {
+		return fmt.Errorf("outbox deliver requires -- followed by a sink command")
+	}
+	fs := flag.NewFlagSet("outbox deliver", flag.ExitOnError)
+	skillDir := fs.String("skill", ".", "skill directory the receipts belong to")
+	sinkID := fs.String("sink", "", "sink identifier")
+	timeout := fs.Duration("timeout", 5*time.Minute, "timeout for each receipt delivery")
+	if err := fs.Parse(args[:separator]); err != nil {
+		return err
+	}
+	if *sinkID == "" || fs.NArg() != 0 {
+		return fmt.Errorf("outbox deliver requires --sink and no positional arguments before --")
+	}
+	e, err := newEngine(*skillDir)
+	if err != nil {
+		return err
+	}
+	statuses, deliverErr := outbox.New(filepath.Dir(e.RunsDir)).Deliver(context.Background(), *sinkID, args[separator+1:], *timeout)
+	for _, status := range statuses {
+		fmt.Printf("outbox: %s %s\n", status.ReceiptDigest, status.State)
+	}
+	return deliverErr
+}
+
+func cmdOutboxStatus(args []string) error {
+	fs := flag.NewFlagSet("outbox status", flag.ExitOnError)
+	skillDir := fs.String("skill", ".", "skill directory the receipts belong to")
+	sinkID := fs.String("sink", "", "optional sink identifier")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() != 0 {
+		return fmt.Errorf("outbox status takes no positional arguments")
+	}
+	e, err := newEngine(*skillDir)
+	if err != nil {
+		return err
+	}
+	statuses, err := outbox.New(filepath.Dir(e.RunsDir)).Status(*sinkID)
+	if err != nil {
+		return err
+	}
+	for _, status := range statuses {
+		fmt.Printf("%-20s %-18s %s attempts=%d", status.SinkID, status.State, status.ReceiptDigest, status.Attempts)
+		if status.LastCode != "" {
+			fmt.Printf(" code=%s", status.LastCode)
+		}
+		fmt.Println()
+	}
+	return nil
+}
+
+func cmdOutboxRetry(args []string) error {
+	fs := flag.NewFlagSet("outbox retry", flag.ExitOnError)
+	skillDir := fs.String("skill", ".", "skill directory the receipts belong to")
+	sinkID := fs.String("sink", "", "sink identifier")
+	failed := fs.Bool("failed", false, "retry every failed receipt")
+	unknown := fs.Bool("unknown", false, "retry every delivery-unknown receipt")
+	if err := parseOnePositional(fs, args); err != nil {
+		return err
+	}
+	selectors := 0
+	if fs.NArg() == 1 {
+		selectors++
+	}
+	if *failed {
+		selectors++
+	}
+	if *unknown {
+		selectors++
+	}
+	if *sinkID == "" || selectors != 1 {
+		return fmt.Errorf("outbox retry requires --sink and one digest, --failed, or --unknown")
+	}
+	e, err := newEngine(*skillDir)
+	if err != nil {
+		return err
+	}
+	manager := outbox.New(filepath.Dir(e.RunsDir))
+	digests := []string{fs.Arg(0)}
+	if *failed || *unknown {
+		digests = nil
+		statuses, statusErr := manager.Status(*sinkID)
+		if statusErr != nil {
+			return statusErr
+		}
+		wanted := "failed"
+		if *unknown {
+			wanted = "delivery_unknown"
+		}
+		for _, status := range statuses {
+			if status.State == wanted {
+				digests = append(digests, status.ReceiptDigest)
+			}
+		}
+	}
+	for _, digest := range digests {
+		if err := manager.Retry(*sinkID, digest); err != nil {
+			return err
+		}
+		fmt.Printf("outbox: retry requested for %s\n", digest)
+	}
+	return nil
+}
+
+func cmdReport(args []string) error {
+	fs := flag.NewFlagSet("report", flag.ExitOnError)
+	fromText := fs.String("from", "", "inclusive RFC3339 start time")
+	toText := fs.String("to", "", "inclusive RFC3339 end time")
+	experimentID := fs.String("experiment", "", "experiment identifier")
+	openAge := fs.Duration("open-age-threshold", 0, "classify open runs older than this query threshold")
+	format := fs.String("format", "table", "table or json")
+	if err := parseOnePositional(fs, args); err != nil {
+		return err
+	}
+	if fs.NArg() != 1 || (*format != "table" && *format != "json") || *openAge < 0 {
+		return fmt.Errorf("report takes one skill directory, a nonnegative threshold, and format table or json")
+	}
+	from, err := parseReportTime(*fromText)
+	if err != nil {
+		return fmt.Errorf("--from: %w", err)
+	}
+	to, err := parseReportTime(*toText)
+	if err != nil {
+		return fmt.Errorf("--to: %w", err)
+	}
+	if !from.IsZero() && !to.IsZero() && to.Before(from) {
+		return fmt.Errorf("report --to must not precede --from")
+	}
+	e, err := newEngine(fs.Arg(0))
+	if err != nil {
+		return err
+	}
+	store := receipt.StoreForRunsDir(e.RunsDir)
+	ids, err := store.ListRuns()
+	if err != nil {
+		return err
+	}
+	receipts := make([]*receipt.RunReceipt, 0, len(ids))
+	for _, id := range ids {
+		r, _, loadErr := store.LoadRun(id)
+		if loadErr != nil {
+			return loadErr
+		}
+		receipts = append(receipts, r)
+	}
+	reference := to
+	if reference.IsZero() {
+		reference = time.Now().UTC()
+	}
+	report, err := receipt.BuildReport(receipts, receipt.ReportOptions{
+		From: from, To: to, ExperimentID: *experimentID, OpenAgeThreshold: *openAge, ReferenceTime: reference,
+	})
+	if err != nil {
+		return err
+	}
+	if *format == "json" {
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(report)
+	}
+	fmt.Printf("receipts: %d\n", report.ReceiptCount)
+	printNamedCounts("lifecycle", report.Lifecycle)
+	printNamedCounts("terminal", report.Terminal)
+	for _, operation := range report.Operations {
+		fmt.Printf("operation %-12s requested=%d completed=%d total_elapsed_ms=%d\n", operation.Kind, operation.Requested, operation.Completed, operation.TotalElapsedMS)
+	}
+	printNamedCounts("response rejection", report.ResponseRejections)
+	printNamedCounts("requirement", report.Requirements)
+	fmt.Printf("divergences: %d\n", report.DivergenceCount)
+	printNamedCounts("runtime group", report.RuntimeGroups)
+	printNamedCounts("source group", report.SourceGroups)
+	printNamedCounts("experiment group", report.ExperimentGroups)
+	if *openAge > 0 {
+		fmt.Printf("open older than supplied threshold: %d\n", report.OpenOlderThanThreshold)
+	}
+	return nil
+}
+
+func parseReportTime(value string) (time.Time, error) {
+	if value == "" {
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339, value)
+}
+
+func printNamedCounts(label string, counts []receipt.NamedCount) {
+	for _, count := range counts {
+		fmt.Printf("%s %s: %d\n", label, count.Name, count.Count)
+	}
+}
+
 func cmdPrune(args []string) error {
 	fs := flag.NewFlagSet("prune", flag.ExitOnError)
 	olderThan := fs.Duration("older-than", 0, "minimum terminal-run age, for example 24h or 720h")
@@ -306,7 +649,7 @@ func cmdPrune(args []string) error {
 		}
 		closed := false
 		for _, event := range log.Events() {
-			if event.Type == runlog.RunCompleted || event.Type == runlog.RunBlocked || event.Type == runlog.RunRefused {
+			if event.Type == runlog.RunCompleted || event.Type == runlog.RunBlocked || event.Type == runlog.RunRefused || event.Type == runlog.RunInitializationFailed {
 				closed = true
 			}
 		}
@@ -328,6 +671,9 @@ func cmdPrune(args []string) error {
 		}
 		fmt.Printf("prune: %s\n", run.id)
 		if !*dryRun {
+			if _, _, err := e.MaterializeReceipt(run.id); err != nil {
+				return fmt.Errorf("prune: preserve receipt for %s: %w", run.id, err)
+			}
 			if err := os.Remove(filepath.Join(e.RunsDir, run.id+".jsonl")); err != nil {
 				return err
 			}

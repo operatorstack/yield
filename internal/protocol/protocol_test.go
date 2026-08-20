@@ -80,6 +80,50 @@ func TestDigestSkillDirIsContentBound(t *testing.T) {
 	}
 }
 
+func TestSkillSourceProfileV1CoversRustAndLockfiles(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("main.rs", "fn main() {}")
+	write("Cargo.lock", "version = 3")
+	write("skill.json", `{"version":1,"yield_version":"1.0.0","language":"rust","run":["cargo","run"]}`)
+	profiled, err := DigestSkillDirProfile(dir, SkillSourceProfileV1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy, err := DigestSkillDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profiled == legacy {
+		t.Fatal("profiled digest must include sources omitted by the legacy profile")
+	}
+	write("Cargo.lock", "version = 4")
+	changed, err := DigestSkillDirProfile(dir, SkillSourceProfileV1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed == profiled {
+		t.Fatal("lockfile change must change the profiled digest")
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "target", "generated"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "target", "generated", "build.rs"), []byte("generated"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stable, err := DigestSkillDirProfile(dir, SkillSourceProfileV1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stable != changed {
+		t.Fatal("generated build tree changed the source digest")
+	}
+}
+
 func TestRequestDigestIsCompactionInvariant(t *testing.T) {
 	pretty := Request{ID: "a", Kind: OpAgentTask,
 		Payload:      json.RawMessage("{\n  \"q\": 1\n}"),

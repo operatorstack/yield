@@ -23,6 +23,10 @@ import (
 // Version is the protocol identifier carried by every request envelope.
 const Version = "yield.v1"
 
+// SkillSourceProfileV1 identifies the complete, language-neutral source
+// selection used by new runs. DigestSkillDir remains the legacy replay profile.
+const SkillSourceProfileV1 = "yield.skill-source.v1"
+
 // OpKind is the closed set of operations a skill program may yield.
 type OpKind string
 
@@ -330,6 +334,31 @@ func compactJSON(raw json.RawMessage) []byte {
 // DigestSkillDir computes the skill source digest: sha256 over the sorted
 // relative paths and contents of *.go, SKILL.md, and go.mod files.
 func DigestSkillDir(dir string) (string, error) {
+	return digestSkillDir(dir, legacySkillSource, false)
+}
+
+// DigestSkillDirProfile computes a source digest under a named, versioned
+// selection profile.
+func DigestSkillDirProfile(dir, profile string) (string, error) {
+	if profile != SkillSourceProfileV1 {
+		return "", fmt.Errorf("unknown skill source digest profile %q", profile)
+	}
+	language := "go"
+	if raw, err := os.ReadFile(filepath.Join(dir, "skill.json")); err == nil {
+		var manifest struct {
+			Language string `json:"language"`
+		}
+		if err := json.Unmarshal(raw, &manifest); err != nil {
+			return "", fmt.Errorf("read source profile language: %w", err)
+		}
+		if manifest.Language != "" {
+			language = manifest.Language
+		}
+	}
+	return digestSkillDir(dir, completeSkillSourceV1(language), true)
+}
+
+func digestSkillDir(dir string, include func(string) bool, skipGenerated bool) (string, error) {
 	var files []string
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -337,19 +366,12 @@ func DigestSkillDir(dir string) (string, error) {
 		}
 		if d.IsDir() {
 			name := d.Name()
-			if name == ".yield" || name == "fixtures" || strings.HasPrefix(name, ".") && path != dir {
+			if name == ".yield" || name == "fixtures" || skipGenerated && generatedSourceDir(name) || strings.HasPrefix(name, ".") && path != dir {
 				return filepath.SkipDir
 			}
 			return nil
 		}
-		base := d.Name()
-		switch {
-		case strings.HasSuffix(base, ".go"), strings.HasSuffix(base, ".ts"),
-			strings.HasSuffix(base, ".js"), strings.HasSuffix(base, ".mjs"),
-			strings.HasSuffix(base, ".py"):
-			files = append(files, path)
-		case base == "SKILL.md", base == "go.mod", base == "skill.json",
-			base == "package.json", base == "pyproject.toml", base == "requirements.txt":
+		if include(d.Name()) {
 			files = append(files, path)
 		}
 		return nil
@@ -372,6 +394,60 @@ func DigestSkillDir(dir string) (string, error) {
 		h.Write(b)
 	}
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func generatedSourceDir(name string) bool {
+	switch name {
+	case "target", "node_modules", "dist", "build", "__pycache__", ".venv", "venv":
+		return true
+	}
+	return false
+}
+
+func legacySkillSource(base string) bool {
+	for _, extension := range []string{".go", ".ts", ".js", ".mjs", ".py"} {
+		if strings.HasSuffix(base, extension) {
+			return true
+		}
+	}
+	switch base {
+	case "SKILL.md", "go.mod", "skill.json", "package.json", "pyproject.toml", "requirements.txt":
+		return true
+	}
+	return false
+}
+
+func completeSkillSourceV1(language string) func(string) bool {
+	return func(base string) bool {
+		if base == "SKILL.md" || base == "skill.json" {
+			return true
+		}
+		switch language {
+		case "typescript":
+			for _, extension := range []string{".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"} {
+				if strings.HasSuffix(base, extension) {
+					return true
+				}
+			}
+			switch base {
+			case "package.json", "package-lock.json", "npm-shrinkwrap.json", "pnpm-lock.yaml", "yarn.lock", "deno.json", "deno.lock":
+				return true
+			}
+		case "python":
+			if strings.HasSuffix(base, ".py") || strings.HasPrefix(base, "requirements") && strings.HasSuffix(base, ".txt") {
+				return true
+			}
+			switch base {
+			case "pyproject.toml", "uv.lock", "poetry.lock", "Pipfile", "Pipfile.lock":
+				return true
+			}
+		case "rust":
+			return strings.HasSuffix(base, ".rs") || base == "Cargo.toml" || base == "Cargo.lock"
+		default:
+			return strings.HasSuffix(base, ".go") || base == "go.mod" || base == "go.sum" || base == "go.work" || base == "go.work.sum"
+		}
+		return false
+	}
 }
 
 // ValidateResult checks a completed result against the request's embedded

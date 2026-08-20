@@ -9,10 +9,12 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -20,6 +22,7 @@ import (
 	"github.com/gofrs/flock"
 	"github.com/operatorstack/yield/internal/guard"
 	"github.com/operatorstack/yield/internal/protocol"
+	"github.com/operatorstack/yield/internal/receipt"
 	"github.com/operatorstack/yield/internal/runlog"
 )
 
@@ -57,7 +60,7 @@ func NewWithRunsDir(skillDir, runsDir string) (*Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := os.MkdirAll(runs, 0o755); err != nil {
+	if err := os.MkdirAll(runs, 0o700); err != nil {
 		return nil, err
 	}
 	return &Engine{SkillDir: abs, RunsDir: runs, Stderr: os.Stderr}, nil
@@ -71,26 +74,81 @@ type Progress struct {
 	Terminal *protocol.TerminalOutcome
 }
 
+// StartOptions are observation metadata. They never alter replay or the
+// formal skill result.
+type StartOptions struct {
+	Experiment *receipt.ExperimentContext
+}
+
+// RunError preserves the allocated run identity when foreground work fails.
+type RunError struct {
+	RunID string
+	Err   error
+}
+
+func (e *RunError) Error() string { return fmt.Sprintf("run %s: %v", e.RunID, e.Err) }
+func (e *RunError) Unwrap() error { return e.Err }
+
 // StartRun creates a run bound to the current skill digest and advances
 // to the first agent-facing operation or terminal.
 func (e *Engine) StartRun(input json.RawMessage) (*Progress, error) {
-	digest, err := protocol.DigestSkillDir(e.SkillDir)
-	if err != nil {
-		return nil, err
-	}
-	skill := protocol.SkillRef{Name: filepath.Base(e.SkillDir), Digest: digest}
+	return e.StartRunWithOptions(input, StartOptions{})
+}
+
+// StartRunWithOptions creates a journal before fallible initialization so
+// initialization failures remain observable.
+func (e *Engine) StartRunWithOptions(input json.RawMessage, options StartOptions) (*Progress, error) {
 	runID := newRunID()
+	lockPath := filepath.Join(e.RunsDir, runID+".lock")
+	lock := flock.New(lockPath)
+	if err := lock.Lock(); err != nil {
+		return nil, &RunError{RunID: runID, Err: fmt.Errorf("lock run: %w", err)}
+	}
+	defer func() { _ = lock.Unlock(); _ = lock.Close() }()
+	_ = os.Chmod(lockPath, 0o600)
 	l, err := runlog.Create(e.RunsDir, runID)
 	if err != nil {
-		return nil, err
+		return nil, &RunError{RunID: runID, Err: err}
+	}
+	opened := map[string]any{
+		"run_id": runID, "skill_name": filepath.Base(e.SkillDir),
+		"input_digest":       protocol.DigestBytes(input),
+		"supervisor_version": e.SupervisorVersion,
+		"experiment":         options.Experiment,
+	}
+	if _, err := l.Append(runlog.RunOpened, opened); err != nil {
+		return nil, &RunError{RunID: runID, Err: err}
+	}
+	skill, requiredVersion, err := e.prepareRun()
+	if err != nil {
+		code := initializationCode(err)
+		if _, appendErr := l.Append(runlog.RunInitializationFailed, map[string]string{"phase": "initialize", "code": code}); appendErr != nil {
+			err = errors.Join(err, appendErr)
+		}
+		if materializeErr := e.materialize(runID); materializeErr != nil {
+			err = errors.Join(err, fmt.Errorf("materialize receipt: %w", materializeErr))
+		}
+		return nil, &RunError{RunID: runID, Err: err}
 	}
 	if _, err := l.Append(runlog.RunStarted, map[string]any{
 		"run_id": runID, "skill": skill,
-		"input_digest": protocol.DigestBytes(input),
+		"input_digest":           protocol.DigestBytes(input),
+		"supervisor_version":     e.SupervisorVersion,
+		"required_yield_version": requiredVersion,
+		"source_digest_profile":  protocol.SkillSourceProfileV1,
+		"source_digest":          skill.Digest,
+		"experiment":             options.Experiment,
 	}); err != nil {
-		return nil, err
+		return nil, &RunError{RunID: runID, Err: err}
 	}
-	return e.advance(l, runID)
+	progress, advanceErr := e.advance(l, runID)
+	if materializeErr := e.materialize(runID); materializeErr != nil {
+		advanceErr = errors.Join(advanceErr, fmt.Errorf("materialize receipt: %w", materializeErr))
+	}
+	if advanceErr != nil {
+		return progress, &RunError{RunID: runID, Err: advanceErr}
+	}
+	return progress, nil
 }
 
 // Resume validates and accepts a response for the pending operation, then
@@ -200,11 +258,14 @@ func (e *Engine) resumeLocked(runID string, respBytes []byte, migrate bool, expe
 	if err != nil {
 		return nil, err
 	}
+	if s.InitializationFailed {
+		return nil, fmt.Errorf("run %s failed during initialization and cannot accept responses", runID)
+	}
 	var resp protocol.ResponseEnvelope
 	if err := json.Unmarshal(respBytes, &resp); err != nil {
 		return nil, fmt.Errorf("response does not decode: %w", err)
 	}
-	current, err := protocol.DigestSkillDir(e.SkillDir)
+	current, err := e.currentDigest(s.SourceDigestProfile)
 	if err != nil {
 		return nil, err
 	}
@@ -252,8 +313,15 @@ func (e *Engine) withRunLock(runID string, fn func() (*Progress, error)) (*Progr
 	if err := lock.Lock(); err != nil {
 		return nil, fmt.Errorf("lock run %s: %w", runID, err)
 	}
+	_ = os.Chmod(path, 0o600)
 	defer func() { _ = lock.Unlock(); _ = lock.Close() }()
-	return fn()
+	progress, runErr := fn()
+	if _, statErr := os.Stat(filepath.Join(e.RunsDir, runID+".jsonl")); statErr == nil {
+		if materializeErr := e.materialize(runID); materializeErr != nil {
+			runErr = errors.Join(runErr, fmt.Errorf("run %s: materialize receipt: %w", runID, materializeErr))
+		}
+	}
+	return progress, runErr
 }
 
 // Replay re-executes the program against the full journal and verifies it
@@ -270,6 +338,9 @@ func (e *Engine) replayFromLog(l *runlog.Log, runID string) (*Progress, error) {
 	s, err := guard.Reconstruct(l)
 	if err != nil {
 		return nil, err
+	}
+	if s.InitializationFailed {
+		return nil, fmt.Errorf("run %s failed before program execution and has no replay frontier", runID)
 	}
 	out, err := e.execute(l, runID)
 	if err != nil {
@@ -297,6 +368,58 @@ func (e *Engine) Log(runID string) (*runlog.Log, error) {
 	return runlog.Open(e.RunsDir, runID)
 }
 
+// Receipt derives a receipt from an exact journal prefix without materializing it.
+func (e *Engine) Receipt(runID string) (*receipt.RunReceipt, []byte, error) {
+	path := filepath.Join(e.RunsDir, runID+".lock")
+	lock := flock.New(path)
+	if err := lock.Lock(); err != nil {
+		return nil, nil, fmt.Errorf("lock run %s: %w", runID, err)
+	}
+	_ = os.Chmod(path, 0o600)
+	defer func() { _ = lock.Unlock(); _ = lock.Close() }()
+	return e.project(runID)
+}
+
+// MaterializeReceipt derives and durably stores the latest receipt.
+func (e *Engine) MaterializeReceipt(runID string) (*receipt.RunReceipt, []byte, error) {
+	path := filepath.Join(e.RunsDir, runID+".lock")
+	lock := flock.New(path)
+	if err := lock.Lock(); err != nil {
+		return nil, nil, fmt.Errorf("lock run %s: %w", runID, err)
+	}
+	_ = os.Chmod(path, 0o600)
+	defer func() { _ = lock.Unlock(); _ = lock.Close() }()
+	r, raw, err := e.project(runID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := receipt.StoreForRunsDir(e.RunsDir).Put(r, raw); err != nil {
+		return nil, nil, err
+	}
+	return r, raw, nil
+}
+
+func (e *Engine) project(runID string) (*receipt.RunReceipt, []byte, error) {
+	l, rawJournal, err := runlog.OpenSnapshot(e.RunsDir, runID)
+	if err != nil {
+		return nil, nil, err
+	}
+	r, err := receipt.Project(receipt.Snapshot{Bytes: rawJournal, Events: l.Events()})
+	if err != nil {
+		return nil, nil, err
+	}
+	raw, err := receipt.CanonicalBytes(r)
+	return r, raw, err
+}
+
+func (e *Engine) materialize(runID string) error {
+	r, raw, err := e.project(runID)
+	if err != nil {
+		return err
+	}
+	return receipt.StoreForRunsDir(e.RunsDir).Put(r, raw)
+}
+
 // ListRuns returns known run IDs, newest last.
 func (e *Engine) ListRuns() ([]string, error) {
 	entries, err := os.ReadDir(e.RunsDir)
@@ -320,6 +443,9 @@ func (e *Engine) advance(l *runlog.Log, runID string) (*Progress, error) {
 	for {
 		out, err := e.execute(l, runID)
 		if err != nil {
+			if _, appendErr := l.Append(runlog.ExecutionFailed, map[string]string{"code": executionFailureCode(err)}); appendErr != nil {
+				return nil, errors.Join(err, appendErr)
+			}
 			return nil, err
 		}
 		switch out.Type {
@@ -344,6 +470,9 @@ func (e *Engine) advance(l *runlog.Log, runID string) (*Progress, error) {
 			if env.Request.Kind == protocol.OpRunCommand {
 				resp, err := e.runCommand(env)
 				if err != nil {
+					if _, appendErr := l.Append(runlog.ExecutionFailed, map[string]string{"code": "command_execution_failed"}); appendErr != nil {
+						return nil, errors.Join(err, appendErr)
+					}
 					return nil, err
 				}
 				if err := e.acceptResponse(l, env, resp); err != nil {
@@ -452,6 +581,9 @@ func (e *Engine) execute(l *runlog.Log, runID string) (*protocol.ProgramOutput, 
 	cmd.Stderr = e.Stderr
 	outBytes, err := cmd.Output()
 	if err != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return nil, fmt.Errorf("skill program timeout: %w", context.DeadlineExceeded)
+		}
 		return nil, fmt.Errorf("skill program failed: %w", err)
 	}
 	out, err := protocol.DecodeProgramOutput(outBytes)
@@ -561,7 +693,7 @@ func (e *Engine) terminate(l *runlog.Log, runID string, out *protocol.ProgramOut
 	case protocol.StatusCompleted:
 		if err := guard.CheckCompletion(s, out.Requirements); err != nil {
 			// complete_unproven is forbidden: the run closes blocked, loudly.
-			if _, aerr := l.Append(runlog.RunBlocked, map[string]string{"reason": err.Error()}); aerr != nil {
+			if _, aerr := l.Append(runlog.RunBlocked, map[string]string{"cause": "completion_unproven", "reason": err.Error()}); aerr != nil {
 				return nil, aerr
 			}
 			return nil, err
@@ -572,7 +704,11 @@ func (e *Engine) terminate(l *runlog.Log, runID string, out *protocol.ProgramOut
 			return nil, err
 		}
 	case protocol.StatusRequirementFailed, protocol.StatusBlocked:
-		if _, err := l.Append(runlog.RunBlocked, map[string]string{"reason": term.Reason}); err != nil {
+		cause := "blocked"
+		if term.Status == protocol.StatusRequirementFailed {
+			cause = "requirement_failed"
+		}
+		if _, err := l.Append(runlog.RunBlocked, map[string]string{"cause": cause, "reason": term.Reason}); err != nil {
 			return nil, err
 		}
 	case protocol.StatusRefused:
@@ -588,9 +724,11 @@ func (e *Engine) terminate(l *runlog.Log, runID string, out *protocol.ProgramOut
 // rejected records a guard refusal in the log and returns it.
 func (e *Engine) rejected(l *runlog.Log, err error) error {
 	if rej, ok := err.(*guard.Rejection); ok {
-		_, _ = l.Append(runlog.ResponseRejected, map[string]string{
+		if _, appendErr := l.Append(runlog.ResponseRejected, map[string]string{
 			"reason": string(rej.Reason), "detail": rej.Detail,
-		})
+		}); appendErr != nil {
+			return errors.Join(err, fmt.Errorf("record response rejection: %w", appendErr))
+		}
 	}
 	return err
 }
@@ -601,4 +739,86 @@ func newRunID() string {
 		panic(err)
 	}
 	return fmt.Sprintf("run_%d_%s", time.Now().UTC().Unix(), hex.EncodeToString(b[:]))
+}
+
+type runManifest struct {
+	Version      int      `json:"version"`
+	YieldVersion string   `json:"yield_version"`
+	SkillVersion string   `json:"skill_version,omitempty"`
+	Language     string   `json:"language"`
+	Run          []string `json:"run"`
+}
+
+var semanticVersion = regexp.MustCompile(`^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$`)
+
+func (e *Engine) prepareRun() (protocol.SkillRef, string, error) {
+	manifestPath := filepath.Join(e.SkillDir, "skill.json")
+	var manifest runManifest
+	if raw, err := os.ReadFile(manifestPath); err == nil {
+		if err := json.Unmarshal(raw, &manifest); err != nil {
+			return protocol.SkillRef{}, "", fmt.Errorf("manifest_invalid: %w", err)
+		}
+		if manifest.Version != 1 || !semanticVersion.MatchString(manifest.YieldVersion) || len(manifest.Run) == 0 {
+			return protocol.SkillRef{}, "", fmt.Errorf("manifest_invalid: skill.json requires version 1, yield_version, and run")
+		}
+		if manifest.SkillVersion != "" && !semanticVersion.MatchString(manifest.SkillVersion) {
+			return protocol.SkillRef{}, "", fmt.Errorf("manifest_invalid: skill_version must be an exact semantic version")
+		}
+		switch manifest.Language {
+		case "typescript", "python", "go", "rust":
+		default:
+			return protocol.SkillRef{}, "", fmt.Errorf("manifest_invalid: language is unsupported")
+		}
+		if manifest.Language == "rust" {
+			if _, err := os.Stat(filepath.Join(e.SkillDir, "Cargo.lock")); err != nil {
+				return protocol.SkillRef{}, "", fmt.Errorf("source_lockfile_missing")
+			}
+		}
+		if e.SupervisorVersion == "" {
+			return protocol.SkillRef{}, "", fmt.Errorf("runtime_version_missing")
+		}
+		if e.SupervisorVersion != "dev" && manifest.YieldVersion != e.SupervisorVersion {
+			return protocol.SkillRef{}, "", fmt.Errorf("runtime_incompatible")
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return protocol.SkillRef{}, "", fmt.Errorf("manifest_read_failed: %w", err)
+	} else if _, statErr := os.Stat(filepath.Join(e.SkillDir, "main.go")); statErr != nil {
+		return protocol.SkillRef{}, "", fmt.Errorf("runner_missing")
+	}
+	digest, err := protocol.DigestSkillDirProfile(e.SkillDir, protocol.SkillSourceProfileV1)
+	if err != nil {
+		return protocol.SkillRef{}, "", fmt.Errorf("source_digest_failed: %w", err)
+	}
+	return protocol.SkillRef{Name: filepath.Base(e.SkillDir), Version: manifest.SkillVersion, Digest: digest}, manifest.YieldVersion, nil
+}
+
+func (e *Engine) currentDigest(profile string) (string, error) {
+	if profile == "" {
+		return protocol.DigestSkillDir(e.SkillDir)
+	}
+	return protocol.DigestSkillDirProfile(e.SkillDir, profile)
+}
+
+func initializationCode(err error) string {
+	text := err.Error()
+	for _, code := range []string{"manifest_invalid", "manifest_read_failed", "runtime_version_missing", "runtime_incompatible", "runner_missing", "source_lockfile_missing", "source_digest_failed"} {
+		if strings.HasPrefix(text, code) {
+			return code
+		}
+	}
+	return "initialization_failed"
+}
+
+func executionFailureCode(err error) string {
+	var invalid *protocol.InvalidProgramOutputError
+	switch {
+	case errors.As(err, &invalid):
+		return "invalid_program_output"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "execution_timeout"
+	case strings.Contains(err.Error(), "skill program failed"):
+		return "subprocess_failed"
+	default:
+		return "execution_failed"
+	}
 }

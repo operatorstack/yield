@@ -264,6 +264,11 @@ compatibility aliases for `yskill helper install`.
 3. The coding agent, user, or CLI supplies the result.
 4. Yield resumes from the journal and replays the program to the next operation.
 
+At each stopping point, Yield also stores a privacy-safe portable receipt from
+the exact journal prefix. Receipt export is deferred and never adds network
+work to foreground execution. See
+[portable run receipts](https://github.com/operatorstack/yield/blob/main/docs/reference/run-receipts.md).
+
 If replay produces a different operation, the run fails instead of silently
 forking. Every side effect crosses one of these primitives:
 
@@ -300,7 +305,8 @@ Run `yskill agents` to inspect the pinned registry and available project paths.
 
 Yield provides deterministic control flow, typed requests and responses,
 persistent run state, replay with divergence detection, stale and duplicate
-response rejection, and evidence-bound completion.
+response rejection, evidence-bound completion, and deterministic local run
+receipts with independent retryable export.
 
 Schema validity is not truth. Yield cannot prove that an agent performed only
 the requested work. `runCommand` is different: the Yield CLI executes the
