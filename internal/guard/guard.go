@@ -39,15 +39,17 @@ func reject(reason RejectReason, format string, args ...any) *Rejection {
 
 // RunState is the guard-relevant projection of a run log.
 type RunState struct {
-	RunID            string
-	BoundDigest      string
-	Skill            protocol.SkillRef
-	Pending          *protocol.RequestEnvelope // unanswered operation, if any
-	Completed        map[int]string            // sequence -> result digest
-	CompletedRequest map[int]string            // sequence -> request id
-	Closed           bool                      // a terminal run.* event exists
-	ReqFailed        bool                      // a requirement.failed event exists
-	Diverged         bool
+	RunID                string
+	BoundDigest          string
+	Skill                protocol.SkillRef
+	Pending              *protocol.RequestEnvelope // unanswered operation, if any
+	Completed            map[int]string            // sequence -> result digest
+	CompletedRequest     map[int]string            // sequence -> request id
+	Closed               bool                      // a terminal run.* event exists
+	ReqFailed            bool                      // a requirement.failed event exists
+	Diverged             bool
+	SourceDigestProfile  string
+	InitializationFailed bool
 }
 
 // Reconstruct folds a run log into its guard state. The log is the only
@@ -56,10 +58,19 @@ func Reconstruct(l *runlog.Log) (*RunState, error) {
 	s := &RunState{Completed: map[int]string{}, CompletedRequest: map[int]string{}}
 	for _, e := range l.Events() {
 		switch e.Type {
+		case runlog.RunOpened:
+			var d struct {
+				RunID string `json:"run_id"`
+			}
+			if err := e.Decode(&d); err != nil {
+				return nil, err
+			}
+			s.RunID = d.RunID
 		case runlog.RunStarted:
 			var d struct {
-				RunID string            `json:"run_id"`
-				Skill protocol.SkillRef `json:"skill"`
+				RunID               string            `json:"run_id"`
+				Skill               protocol.SkillRef `json:"skill"`
+				SourceDigestProfile string            `json:"source_digest_profile"`
 			}
 			if err := e.Decode(&d); err != nil {
 				return nil, err
@@ -67,6 +78,7 @@ func Reconstruct(l *runlog.Log) (*RunState, error) {
 			s.RunID = d.RunID
 			s.Skill = d.Skill
 			s.BoundDigest = d.Skill.Digest
+			s.SourceDigestProfile = d.SourceDigestProfile
 		case runlog.OperationRequested:
 			var env protocol.RequestEnvelope
 			if err := e.Decode(&env); err != nil {
@@ -95,10 +107,14 @@ func Reconstruct(l *runlog.Log) (*RunState, error) {
 				return nil, err
 			}
 			s.BoundDigest = d.To
+			s.Skill.Digest = d.To
 		case runlog.RequirementFailed:
 			s.ReqFailed = true
 		case runlog.ReplayDiverged:
 			s.Diverged = true
+		case runlog.RunInitializationFailed:
+			s.InitializationFailed = true
+			s.Closed = true
 		case runlog.RunCompleted, runlog.RunBlocked, runlog.RunRefused:
 			s.Closed = true
 		}

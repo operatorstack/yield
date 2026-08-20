@@ -117,6 +117,7 @@ type trace struct {
 	Steps    []step
 	Terminal string
 	ReqsPass int
+	Receipt  []string
 }
 
 // runComplete drives the happy path to completion and returns the
@@ -190,6 +191,17 @@ func runComplete(t *testing.T, lang language) trace {
 	}
 	if !cmdSeen {
 		t.Fatalf("[%s] the run_command operation must appear in the log", lang.name)
+	}
+	receipt, _, err := e.Receipt(p.RunID)
+	if err != nil {
+		t.Fatalf("[%s] receipt projection: %v", lang.name, err)
+	}
+	tr.Receipt = append(tr.Receipt, "phase="+receipt.Outcome.Phase, "terminal="+receipt.Outcome.TerminalDisposition)
+	for _, operation := range receipt.Operations {
+		tr.Receipt = append(tr.Receipt, fmt.Sprintf("operation=%d:%s:%t", operation.Sequence, operation.Kind, operation.CompletedAt != ""))
+	}
+	for _, requirement := range receipt.Requirements {
+		tr.Receipt = append(tr.Receipt, "requirement="+requirement.Outcome)
 	}
 
 	// Replay determinism on the completed run.

@@ -17,6 +17,7 @@ var portableSkillName = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
 type skillManifest struct {
 	Version      int      `json:"version"`
 	YieldVersion string   `json:"yield_version"`
+	SkillVersion string   `json:"skill_version,omitempty"`
 	Language     string   `json:"language"`
 	Run          []string `json:"run"`
 }
@@ -40,6 +41,9 @@ func readSkillManifest(dir string) (skillManifest, error) {
 	}
 	if !releaseVersionPattern.MatchString(manifest.YieldVersion) {
 		return skillManifest{}, fmt.Errorf("skill.json version 1 requires an exact yield_version")
+	}
+	if manifest.SkillVersion != "" && !releaseVersionPattern.MatchString(manifest.SkillVersion) {
+		return skillManifest{}, fmt.Errorf("skill.json skill_version must be an exact semantic version")
 	}
 	switch manifest.Language {
 	case "typescript", "python", "go", "rust":

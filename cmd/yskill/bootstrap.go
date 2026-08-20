@@ -273,6 +273,8 @@ func bootstrapOperations(plan bootstrapPlan) []bootstrapOperation {
 		operations = append(operations, bootstrapOperation{kind: bootstrapOperationCommand, dir: plan.SkillDir, name: "npm", args: []string{"install", "--ignore-scripts", "--no-audit", "--no-fund"}})
 	case "go":
 		operations = append(operations, bootstrapOperation{kind: bootstrapOperationCommand, dir: plan.SkillDir, name: "go", args: []string{"mod", "tidy"}})
+	case "rust":
+		operations = append(operations, bootstrapOperation{kind: bootstrapOperationCommand, dir: plan.SkillDir, name: "cargo", args: []string{"generate-lockfile"}})
 	}
 	operations = append(operations,
 		bootstrapOperation{kind: bootstrapOperationDoctor},

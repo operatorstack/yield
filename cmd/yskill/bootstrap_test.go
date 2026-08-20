@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -64,6 +65,13 @@ func TestBootstrapDryRunDoesNotWrite(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "skills")); !os.IsNotExist(err) {
 		t.Fatalf("dry run wrote skills directory: %v", err)
+	}
+}
+
+func TestRustBootstrapGeneratesLockBeforeDoctor(t *testing.T) {
+	operations := bootstrapOperations(bootstrapPlan{Language: "rust", SkillDir: "skills/helper"})
+	if len(operations) < 2 || operations[0].kind != bootstrapOperationCommand || operations[0].name != "cargo" || !reflect.DeepEqual(operations[0].args, []string{"generate-lockfile"}) || operations[1].kind != bootstrapOperationDoctor {
+		t.Fatalf("rust bootstrap operations = %+v", operations)
 	}
 }
 
@@ -448,6 +456,8 @@ func TestBuilderModeFixturesAcrossLanguages(t *testing.T) {
 				t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 			case "go":
 				runTestCommand(t, dir, "go", "mod", "tidy")
+			case "rust":
+				runTestCommand(t, dir, "cargo", "generate-lockfile")
 			}
 			if language == "go" || language == "rust" {
 				runtimePath := localRuntimePath(root)

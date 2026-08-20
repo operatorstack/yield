@@ -11,7 +11,10 @@
 - rejection of undeclared `AskUser` option values;
 - real command execution by the Yield CLI;
 - requirements that prevent later completion after failure;
-- recorded completed, blocked, and refused outcomes.
+- recorded completed, blocked, and refused outcomes;
+- deterministic receipt projection from an exact journal prefix;
+- durable local receipt materialization before a successful foreground return;
+- export state that cannot change the run journal or replay result.
 
 ## What remains outside the guarantee
 
@@ -24,6 +27,8 @@
   behavioral-equivalence proof for converted prose.
 - Yield is not a hosted runtime, workflow marketplace, or multi-agent
   orchestrator.
+- Receipt digests support integrity and correlation, not anonymization or proof
+  of off-protocol agent behavior.
 
 Use `RunCommand` for facts the machine can observe, `AskUser` for human
 authority, and explicit tests for the paths that matter. Runtime and

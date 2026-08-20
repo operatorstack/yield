@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://operatorstack.dev/yield/ir/yield.observation.v1/run-receipt.schema.json",
+  "title": "Yield RunReceipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "receipt_digest",
+    "journal",
+    "run",
+    "skill",
+    "timing",
+    "operations",
+    "operation_summaries",
+    "outcome",
+    "requirements",
+    "response_rejections",
+    "divergences"
+  ],
+  "properties": {
+    "schema": { "const": "yield.observation.v1" },
+    "kind": { "const": "run_receipt" },
+    "receipt_digest": { "$ref": "#/$defs/digest" },
+    "journal": { "$ref": "#/$defs/journal" },
+    "run": { "$ref": "#/$defs/run" },
+    "skill": { "$ref": "#/$defs/skill" },
+    "runtime": { "$ref": "#/$defs/runtime" },
+    "timing": { "$ref": "#/$defs/timing" },
+    "operations": { "type": "array", "items": { "$ref": "#/$defs/operation" } },
+    "operation_summaries": { "type": "array", "items": { "$ref": "#/$defs/operationSummary" } },
+    "outcome": { "$ref": "#/$defs/outcome" },
+    "requirements": { "type": "array", "items": { "$ref": "#/$defs/requirement" } },
+    "response_rejections": { "type": "array", "items": { "$ref": "#/$defs/rejection" } },
+    "divergences": { "type": "array", "items": { "$ref": "#/$defs/divergence" } },
+    "experiment": { "$ref": "#/$defs/experiment" }
+  },
+  "$defs": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "semanticVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$"
+    },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "journal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "head_sequence", "head_digest"],
+      "properties": {
+        "run_id": { "type": "string", "minLength": 1 },
+        "head_sequence": { "type": "integer", "minimum": 1 },
+        "head_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "input_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "profileDigest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "value"],
+      "properties": {
+        "profile": { "type": "string", "pattern": "^yield\\.skill-source\\.v[0-9]+$" },
+        "value": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "skill": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "$ref": "#/$defs/semanticVersion" },
+        "binding_digest": { "$ref": "#/$defs/digest" },
+        "source_digest": { "$ref": "#/$defs/profileDigest" }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "supervisor_version": { "$ref": "#/$defs/semanticVersion" },
+        "required_version": { "$ref": "#/$defs/semanticVersion" },
+        "compatible": { "type": "boolean" }
+      }
+    },
+    "timing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["started_at", "last_observed_at"],
+      "properties": {
+        "started_at": { "$ref": "#/$defs/timestamp" },
+        "last_observed_at": { "$ref": "#/$defs/timestamp" },
+        "ended_at": { "$ref": "#/$defs/timestamp" },
+        "elapsed_ms": { "type": "integer", "minimum": 0 },
+        "clock_anomaly": { "type": "boolean" }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "kind", "operation_key_digest", "requested_at"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1 },
+        "kind": { "enum": ["ask_user", "agent_task", "run_command"] },
+        "operation_key_digest": { "$ref": "#/$defs/digest" },
+        "requested_at": { "$ref": "#/$defs/timestamp" },
+        "completed_at": { "$ref": "#/$defs/timestamp" },
+        "elapsed_ms": { "type": "integer", "minimum": 0 },
+        "result_digest": { "$ref": "#/$defs/digest" },
+        "clock_anomaly": { "type": "boolean" }
+      }
+    },
+    "operationSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "requested", "completed", "total_elapsed_ms"],
+      "properties": {
+        "kind": { "enum": ["ask_user", "agent_task", "run_command"] },
+        "requested": { "type": "integer", "minimum": 0 },
+        "completed": { "type": "integer", "minimum": 0 },
+        "total_elapsed_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase"],
+      "properties": {
+        "phase": {
+          "enum": [
+            "initializing",
+            "initialization_failed",
+            "awaiting_response",
+            "advancing",
+            "recoverable_error",
+            "diverged",
+            "terminal"
+          ]
+        },
+        "terminal_disposition": { "enum": ["completed", "blocked", "refused"] },
+        "terminal_cause": {
+          "enum": ["completed", "blocked", "refused", "requirement_failed", "completion_unproven"]
+        },
+        "result_digest": { "$ref": "#/$defs/digest" },
+        "failure_code": {
+          "enum": [
+            "manifest_invalid",
+            "manifest_read_failed",
+            "runtime_version_missing",
+            "runtime_incompatible",
+            "runner_missing",
+            "source_digest_failed",
+            "initialization_failed",
+            "invalid_program_output",
+            "execution_timeout",
+            "subprocess_failed",
+            "execution_failed",
+            "command_execution_failed"
+          ]
+        }
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "claim_digest"],
+      "properties": {
+        "outcome": { "enum": ["passed", "failed"] },
+        "claim_digest": { "$ref": "#/$defs/digest" },
+        "evidence_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "rejection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "count"],
+      "properties": {
+        "reason": {
+          "enum": [
+            "wrong-run",
+            "stale-response",
+            "duplicate-response",
+            "wrong-request",
+            "schema-invalid",
+            "digest-mismatch",
+            "completion-unproven",
+            "run-closed",
+            "no-pending-operation"
+          ]
+        },
+        "count": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "divergence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "expected_digest", "got_digest"],
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1 },
+        "expected_digest": { "$ref": "#/$defs/digest" },
+        "got_digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "experiment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["experiment_id", "variant_id", "role"],
+      "properties": {
+        "experiment_id": { "$ref": "#/$defs/identifier" },
+        "cohort_id": { "$ref": "#/$defs/identifier" },
+        "variant_id": { "$ref": "#/$defs/identifier" },
+        "role": { "enum": ["baseline", "candidate"] },
+        "baseline_variant_id": { "$ref": "#/$defs/identifier" },
+        "parent_skill_version": { "$ref": "#/$defs/semanticVersion" }
+      }
+    }
+  }
+}

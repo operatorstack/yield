@@ -1,11 +1,13 @@
-# yield.v1 IR — the canonical protocol surface
+# Public intermediate representations
 
-This directory is the language-neutral definition of everything that
-crosses a Yield process boundary. The Go types in `internal/protocol` are
-the reference implementation; `internal/protocol/ir_test.go` binds them to
-these schemas so the IR cannot drift from the runtime. Every language SDK
-(`sdk/typescript`, `sdk/python`, `sdk/yield` for Go) implements this
-surface and nothing else.
+This directory contains Yield's language-neutral schemas.
+
+- `yield.v1` is the execution protocol between an SDK and the supervisor.
+- `yield.observation.v1` is the portable observation boundary projected by
+  the Go supervisor from an append-only run journal. SDKs do not implement it.
+
+The Go reference types and schema tests keep both boundaries aligned with the
+runtime.
 
 ## Files
 
@@ -50,3 +52,10 @@ in every language. Wall clocks, RNGs, environment reads, and filesystem
 state are side effects: cross them through a yielded operation or leave
 them out. The contract detects divergence; it cannot prevent
 nondeterminism.
+
+## Observation contract
+
+`yield.observation.v1/run-receipt.schema.json` defines one privacy-safe
+`RunReceipt`. A receipt is a deterministic projection of an exact journal
+prefix. The journal remains authoritative, and replay never reads receipts or
+export state. See [portable run receipts](../docs/reference/run-receipts.md).
