@@ -52,9 +52,10 @@ an atomic installation, and a synced reference update. A crash between object
 creation and reference update is repaired by materializing the same journal
 again. Garbage collection is not part of this release.
 
-Rust workflows require `Cargo.lock` before a run starts so `cargo run` cannot
-create a new source fact after the run is bound. Yield's Rust scaffolds and
-developer-helper installer generate this lockfile.
+Rust source profiles include `Cargo.toml` and `Cargo.lock` when those files are
+inside the skill directory. Workspace-managed Rust skills without a local
+lockfile remain valid; parent workspace files are outside the skill's recorded
+source-digest boundary.
 
 Run age is query-relative. `yskill report` can say that an open run is older
 than a supplied threshold, but it does not declare the run abandoned.
