@@ -97,7 +97,7 @@ jobs:
           cd "$smoke_dir"
           npm init -y >/dev/null
           npm install "$tarball" >/dev/null
-          node --input-type=module -e 'import { defineSkill } from "@operatorstack/yield"; if (typeof defineSkill !== "function") process.exit(1)'
+          node --input-type=module -e 'import { defineSkill, parseRunReceipt } from "@operatorstack/yield"; if (typeof defineSkill !== "function" || typeof parseRunReceipt !== "function") process.exit(1)'
 
   python:
     name: Python SDK

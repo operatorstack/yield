@@ -20,12 +20,18 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
+from .observation import ReceiptError, RunReceipt, parse_run_receipt, verify_run_receipt
+
 __all__ = [
     "Blocked",
     "Refused",
     "CommandResult",
     "Context",
+    "ReceiptError",
+    "RunReceipt",
     "define_skill",
+    "parse_run_receipt",
+    "verify_run_receipt",
 ]
 
 _PROTOCOL = "yield.v1"

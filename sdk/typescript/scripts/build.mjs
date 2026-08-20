@@ -5,15 +5,17 @@ import { fileURLToPath } from "node:url"
 
 const here = dirname(fileURLToPath(import.meta.url))
 const root = resolve(here, "..")
-const sourcePath = resolve(root, "src/index.ts")
 const distPath = resolve(root, "dist")
-const outputPath = resolve(distPath, "index.js")
-const source = readFileSync(sourcePath, "utf8")
-const runtime = stripTypeScriptTypes(source, { mode: "transform" })
 
 rmSync(distPath, { recursive: true, force: true })
-mkdirSync(dirname(outputPath), { recursive: true })
-writeFileSync(
-  outputPath,
-  "// Generated from src/index.ts by scripts/build.mjs. Do not edit.\n" + runtime,
-)
+for (const name of ["index", "observation"]) {
+  const sourcePath = resolve(root, `src/${name}.ts`)
+  const outputPath = resolve(distPath, `${name}.js`)
+  const source = readFileSync(sourcePath, "utf8")
+  const runtime = stripTypeScriptTypes(source, { mode: "transform" })
+  mkdirSync(dirname(outputPath), { recursive: true })
+  writeFileSync(
+    outputPath,
+    `// Generated from src/${name}.ts by scripts/build.mjs. Do not edit.\n` + runtime,
+  )
+}

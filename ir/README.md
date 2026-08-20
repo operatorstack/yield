@@ -10,7 +10,9 @@ The public Go package
 [`observation`](https://pkg.go.dev/github.com/operatorstack/yield/observation)
 provides the reference receipt types, pure journal projection, strict parsing,
 durable local store, and report aggregation. Schema tests keep that package
-aligned with the language-neutral boundary.
+aligned with the language-neutral boundary. The TypeScript, Python, and Rust
+SDKs provide strict typed readers and digest verification over the same
+Go-generated canonical fixture; they do not duplicate projection or storage.
 
 ## Files
 
