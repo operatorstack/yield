@@ -33,6 +33,21 @@ Run all forty fixtures:
 The included commands produce harmless evidence so the examples run in this
 repository. Replace them with project commands before adopting a skill workflow.
 
+## Observation readers
+
+The [RunReceipt reader examples](../examples/observation/) show how Go,
+TypeScript, Python, and Rust consume the same already-materialized canonical
+receipt. Each reader verifies the closed schema, canonical bytes, and receipt
+digest before emitting an identical privacy-safe summary.
+
+These are standalone post-run consumers, not skill workflows. They do not read
+journals, project receipts, participate in replay, or appear in the generated
+forty-example skill library.
+
+```bash
+bash ./examples/observation/test-all.sh
+```
+
 ## Complete walkthroughs
 
 These examples show longer programs with a thin `SKILL.md` and scripted
