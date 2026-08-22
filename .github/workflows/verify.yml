@@ -165,6 +165,7 @@ jobs:
             sdk/rust
             examples/data-migration
             examples/library/rust
+            examples/observation/rust
       - run: npm ci --ignore-scripts
       - name: Run every example fixture
         run: |
@@ -185,6 +186,7 @@ jobs:
           "$RUNNER_TEMP/yskill" test examples/data-migration
           YSKILL="$RUNNER_TEMP/yskill" "$RUNNER_TEMP/yskill" test examples/convert-skill
           YSKILL="$RUNNER_TEMP/yskill" bash ./examples/library/test-all.sh
+          bash ./examples/observation/test-all.sh
 
   validate:
     name: Release authority and full validation

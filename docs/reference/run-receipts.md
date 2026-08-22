@@ -69,6 +69,10 @@ profile, and verifies the embedded SHA-256 receipt digest. The SDKs share one
 Go-generated golden fixture. They do not read journals, project receipts,
 write receipt storage, or participate in replay.
 
+The [four-language reader examples](../../examples/observation/) accept one
+canonical receipt-object file and emit the same privacy-safe summary in Go,
+TypeScript, Python, and Rust.
+
 ## Privacy boundary
 
 Receipts do not contain prompts, instructions, model responses, user answers,
