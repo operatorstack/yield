@@ -319,6 +319,8 @@ func reloadHint(agentIDs string) string {
 		return "reload the Cursor window or start a new chat"
 	case "codex", "claude-code":
 		return "start a new agent session"
+	case "zcode":
+		return "start a new ZCode session"
 	default:
 		return "reload the agent or start a new session"
 	}
@@ -483,6 +485,8 @@ func agentDetected(agent agentConfig, repoRoot string) bool {
 			root = filepath.Join(home, ".claude")
 		}
 		return exists(root) || commandExists("claude")
+	case "zcode":
+		return exists(filepath.Join(home, ".zcode")) || commandExists("zcode")
 	default:
 		return false
 	}

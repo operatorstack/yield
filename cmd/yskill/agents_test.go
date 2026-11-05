@@ -174,6 +174,64 @@ func TestAutoDetectionUsesProjectAgentDirectory(t *testing.T) {
 	}
 }
 
+func TestZcodeAgentDetectionUsesHomeDirectoryOrCommand(t *testing.T) {
+	agent := agentConfig{ID: "zcode", ProjectDir: ".zcode/skills"}
+	empty := t.TempDir()
+	t.Setenv("HOME", empty)
+	t.Setenv("USERPROFILE", empty)
+	t.Setenv("PATH", t.TempDir())
+	if agentDetected(agent, "") {
+		t.Fatal("zcode was detected without a home directory or command")
+	}
+	home := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(home, ".zcode"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	if !agentDetected(agent, "") {
+		t.Fatal("home .zcode directory was not detected")
+	}
+	bin := t.TempDir()
+	name := "zcode"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	command := filepath.Join(bin, name)
+	writeTestFile(t, command, "stub\n")
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(command, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("HOME", empty)
+	t.Setenv("USERPROFILE", empty)
+	t.Setenv("PATH", bin)
+	if !agentDetected(agent, "") {
+		t.Fatal("zcode command on PATH was not detected")
+	}
+}
+
+func TestZcodeReloadHintStartsANewSession(t *testing.T) {
+	if got := reloadHint("zcode"); got != "start a new ZCode session" {
+		t.Fatalf("zcode reload hint = %q", got)
+	}
+}
+
+func TestExplicitSelectionResolvesZcodeRegistryEntry(t *testing.T) {
+	registry, err := loadAgentRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	selected, err := selectAgents(registry, []string{"zcode"}, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(selected) != 1 || selected[0].ID != "zcode" || selected[0].ProjectDir != ".zcode/skills" || selected[0].Tier != "registry" {
+		t.Fatalf("explicit zcode selection = %+v", selected)
+	}
+}
+
 func TestSkillMetadataValidation(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "bad-name")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
